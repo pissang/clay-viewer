@@ -270,34 +270,31 @@ var OrbitControl = Base.extend(function () {
     setOption: function (opts) {
         opts = opts || {};
 
-        this.autoRotate = opts.autoRotate;
-        this.autoRotateAfterStill = opts.autoRotateAfterStill;
+        ['autoRotate', 'autoRotateAfterStill',
+            'damping',
+            'minDistance', 'maxDistance',
+            'minAlpha', 'maxAlpha', 'minBeta', 'maxBeta',
+            'rotateSensitivity', 'zoomSensitivity', 'panSensitivity'
+        ].forEach(function (key) {
+            if (opts[key] != null) {
+                this[key] = opts[key];
+            }
+        }, this);
 
-        this.damping = firstNotNull(opts.damping, 0.9);
+        if (opts.distance != null) {
+            this.setDistance(opts.distance);
+        }
 
-        var targetDistance = opts.distance || 10;
+        if (opts.alpha != null) {
+            this.setAlpha(opts.alpha);
+        }
+        if (opts.beta != null) {
+            this.setBeta(opts.beta);
+        }
 
-        this.minDistance = firstNotNull(opts.minDistance, targetDistance * 0.1);
-        this.maxDistance = firstNotNull(opts.maxDistance, targetDistance * 3);
-
-
-        this.minAlpha = firstNotNull(opts.minAlpha, -90);
-        this.maxAlpha = firstNotNull(opts.maxAlpha, 90);
-        this.minBeta = firstNotNull(opts.minBeta, -Infinity);
-        this.maxBeta = firstNotNull(opts.maxBeta, Infinity);
-        this.rotateSensitivity = firstNotNull(opts.rotateSensitivity, 1);
-        this.zoomSensitivity = firstNotNull(opts.zoomSensitivity, 1);
-        this.panSensitivity = firstNotNull(opts.panSensitivity, 1);
-
-        var alpha = opts.alpha || 0;
-        var beta = opts.beta || 0;
-        var center = opts.center || [0, 0, 0];
-
-        this.setDistance(targetDistance);
-        this.setAlpha(alpha);
-        this.setBeta(beta);
-        this.setCenter(center);
-
+        if (opts.center) {
+            this.setCenter(opts.center);
+        }
     },
 
     /**

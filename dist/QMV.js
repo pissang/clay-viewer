@@ -4450,8 +4450,8 @@ if(typeof(exports) !== 'undefined') {
 
 
 
-    var extendMixin = __webpack_require__(52);
-    var notifierMixin = __webpack_require__(53);
+    var extendMixin = __webpack_require__(53);
+    var notifierMixin = __webpack_require__(54);
     var util = __webpack_require__(10);
 
     /**
@@ -6858,7 +6858,7 @@ module.exports = {
     var Base = __webpack_require__(1);
     var util = __webpack_require__(10);
     var Cache = __webpack_require__(15);
-    var vendor = __webpack_require__(12);
+    var vendor = __webpack_require__(11);
     var glMatrix = __webpack_require__(0);
     var glInfo = __webpack_require__(7);
     var mat2 = glMatrix.mat2;
@@ -8807,6 +8807,53 @@ module.exports = {
 
 
 
+    var supportWebGL = true;
+    try {
+        var canvas = document.createElement('canvas');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+            throw new Error();
+        }
+    } catch (e) {
+        supportWebGL = false;
+    }
+
+    var vendor = {};
+
+    /**
+     * If support WebGL
+     * @return {boolean}
+     */
+    vendor.supportWebGL = function () {
+        return supportWebGL;
+    };
+
+
+    vendor.Int8Array = typeof Int8Array == 'undefined' ? Array : Int8Array;
+
+    vendor.Uint8Array = typeof Uint8Array == 'undefined' ? Array : Uint8Array;
+
+    vendor.Uint16Array = typeof Uint16Array == 'undefined' ? Array : Uint16Array;
+
+    vendor.Uint32Array = typeof Uint32Array == 'undefined' ? Array : Uint32Array;
+
+    vendor.Int16Array = typeof Int16Array == 'undefined' ? Array : Int16Array;
+
+    vendor.Float32Array = typeof Float32Array == 'undefined' ? Array : Float32Array;
+
+    vendor.Float64Array = typeof Float64Array == 'undefined' ? Array : Float64Array;
+
+    module.exports = vendor;
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
     var Base = __webpack_require__(1);
     var Texture = __webpack_require__(9);
 
@@ -9159,53 +9206,6 @@ module.exports = {
 
 
 /***/ }),
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var supportWebGL = true;
-    try {
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!gl) {
-            throw new Error();
-        }
-    } catch (e) {
-        supportWebGL = false;
-    }
-
-    var vendor = {};
-
-    /**
-     * If support WebGL
-     * @return {boolean}
-     */
-    vendor.supportWebGL = function () {
-        return supportWebGL;
-    };
-
-
-    vendor.Int8Array = typeof Int8Array == 'undefined' ? Array : Int8Array;
-
-    vendor.Uint8Array = typeof Uint8Array == 'undefined' ? Array : Uint8Array;
-
-    vendor.Uint16Array = typeof Uint16Array == 'undefined' ? Array : Uint16Array;
-
-    vendor.Uint32Array = typeof Uint32Array == 'undefined' ? Array : Uint32Array;
-
-    vendor.Int16Array = typeof Int16Array == 'undefined' ? Array : Int16Array;
-
-    vendor.Float32Array = typeof Float32Array == 'undefined' ? Array : Float32Array;
-
-    vendor.Float64Array = typeof Float64Array == 'undefined' ? Array : Float64Array;
-
-    module.exports = vendor;
-
-
-/***/ }),
 /* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -9213,7 +9213,7 @@ module.exports = {
 
 
 
-    var Renderable = __webpack_require__(43);
+    var Renderable = __webpack_require__(44);
     var glenum = __webpack_require__(2);
 
     /**
@@ -9277,7 +9277,7 @@ module.exports = {
 
 
 
-    var Easing = __webpack_require__(49);
+    var Easing = __webpack_require__(50);
 
     function noop () {}
     /**
@@ -10515,10 +10515,10 @@ module.exports = {
  */
 
 
-    var Geometry = __webpack_require__(42);
+    var Geometry = __webpack_require__(43);
     var BoundingBox = __webpack_require__(4);
     var glMatrix = __webpack_require__(0);
-    var vendor = __webpack_require__(12);
+    var vendor = __webpack_require__(11);
     var glenum = __webpack_require__(2);
     var mat4 = glMatrix.mat4;
     var vec3 = glMatrix.vec3;
@@ -12631,7 +12631,7 @@ module.exports = {
     var Node = __webpack_require__(5);
     var Matrix4 = __webpack_require__(16);
     var Frustum = __webpack_require__(33);
-    var Ray = __webpack_require__(59);
+    var Ray = __webpack_require__(60);
 
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
@@ -12817,16 +12817,16 @@ module.exports = {
     var Base = __webpack_require__(1);
     var glinfo = __webpack_require__(7);
     var glenum = __webpack_require__(2);
-    var vendor = __webpack_require__(12);
+    var vendor = __webpack_require__(11);
     var BoundingBox = __webpack_require__(4);
     var Matrix4 = __webpack_require__(16);
     var shaderLibrary = __webpack_require__(17);
-    var Material = __webpack_require__(11);
+    var Material = __webpack_require__(12);
     var Vector2 = __webpack_require__(34);
 
     // Light header
     var Shader = __webpack_require__(6);
-    Shader['import'](__webpack_require__(80));
+    Shader['import'](__webpack_require__(81));
     Shader['import'](__webpack_require__(36));
 
     var glMatrix = __webpack_require__(0);
@@ -13254,6 +13254,11 @@ module.exports = {
         resetRenderStatus: function () {
             this._currentShader = null;
         },
+
+        ifRenderObject: function (obj) {
+            return true;
+        },
+
         /**
          * Render a single renderable list in camera in sequence
          * @param  {qtek.Renderable[]} queue       List of all renderables.
@@ -13324,6 +13329,10 @@ module.exports = {
                 _gl.enable(_gl.DEPTH_TEST);
                 for (var i = 0; i < queue.length; i++) {
                     var renderable = queue[i];
+                    if (!this.ifRenderObject(renderable)) {
+                        continue;
+                    }
+
                     var worldM = renderable.worldTransform._array;
                     var geometry = renderable.geometry;
 
@@ -13379,6 +13388,10 @@ module.exports = {
 
             for (var i = 0; i < culledRenderQueue.length; i++) {
                 var renderable = culledRenderQueue[i];
+                if (!this.ifRenderObject(renderable)) {
+                    continue;
+                }
+
                 var geometry = renderable.geometry;
 
                 var worldM = renderable.worldTransform._array;
@@ -14160,7 +14173,7 @@ module.exports = {
 
 
 
-    var Material = __webpack_require__(11);
+    var Material = __webpack_require__(12);
 
     var Shader = __webpack_require__(6);
     // Import standard shader
@@ -15052,7 +15065,7 @@ module.exports = {
 
     var Vector3 = __webpack_require__(3);
     var BoundingBox = __webpack_require__(4);
-    var Plane = __webpack_require__(58);
+    var Plane = __webpack_require__(59);
 
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
@@ -16029,17 +16042,17 @@ module.exports = "\n\n@export qtek.standard.vertex\n\nuniform mat4 worldViewProj
 
 var Renderer = __webpack_require__(27);
 var PerspectiveCamera = __webpack_require__(22);
-var ShadowMapPass = __webpack_require__(60);
-var GLTFLoader = __webpack_require__(57);
+var ShadowMapPass = __webpack_require__(61);
+var GLTFLoader = __webpack_require__(58);
 var DirectionalLight = __webpack_require__(23);
-var AmbientSHLight = __webpack_require__(88);
+var AmbientSHLight = __webpack_require__(57);
 var Scene = __webpack_require__(28);
 var Node = __webpack_require__(5);
 var Vector3 = __webpack_require__(3);
-var Animation = __webpack_require__(45);
-var meshUtil = __webpack_require__(86);
+var Animation = __webpack_require__(46);
+var meshUtil = __webpack_require__(87);
 
-var OrbitControl = __webpack_require__(40);
+var OrbitControl = __webpack_require__(41);
 
 /**
  * @constructor
@@ -16156,8 +16169,13 @@ Viewer.prototype.focusToModel = function (ratio) {
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
+        var distance = size.len() * ratio;
+        var minDistance = distance * 0.2;
+        var maxDistance = distance * 5;
         this.setCameraControl({
             distance: size.len() * ratio,
+            minDistance: minDistance,
+            maxDistance: maxDistance,
             center: center.toArray()
         });
 
@@ -16261,6 +16279,122 @@ module.exports = {
 
 /***/ }),
 /* 40 */
+/***/ (function(module, exports) {
+
+/**
+ * Only implements needed gestures for mobile.
+ */
+var GestureMgr = function () {
+
+    /**
+     * @private
+     * @type {Array.<Object>}
+     */
+    this._track = [];
+};
+
+GestureMgr.prototype = {
+
+    constructor: GestureMgr,
+
+    recognize: function (event, target, root) {
+        this._doTrack(event, target, root);
+        return this._recognize(event);
+    },
+
+    clear: function () {
+        this._track.length = 0;
+        return this;
+    },
+
+    _doTrack: function (event, target, root) {
+        var touches = event.targetTouches;
+
+        if (!touches) {
+            return;
+        }
+
+        var trackItem = {
+            points: [],
+            touches: [],
+            target: target,
+            event: event
+        };
+
+        for (var i = 0, len = touches.length; i < len; i++) {
+            var touch = touches[i];
+            trackItem.points.push([touch.clientX, touch.clientY]);
+            trackItem.touches.push(touch);
+        }
+
+        this._track.push(trackItem);
+    },
+
+    _recognize: function (event) {
+        for (var eventName in recognizers) {
+            if (recognizers.hasOwnProperty(eventName)) {
+                var gestureInfo = recognizers[eventName](this._track, event);
+                if (gestureInfo) {
+                    return gestureInfo;
+                }
+            }
+        }
+    }
+};
+
+function dist(pointPair) {
+    var dx = pointPair[1][0] - pointPair[0][0];
+    var dy = pointPair[1][1] - pointPair[0][1];
+
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function center(pointPair) {
+    return [
+        (pointPair[0][0] + pointPair[1][0]) / 2,
+        (pointPair[0][1] + pointPair[1][1]) / 2
+    ];
+}
+
+var recognizers = {
+
+    pinch: function (track, event) {
+        var trackLen = track.length;
+
+        if (!trackLen) {
+            return;
+        }
+
+        var pinchEnd = (track[trackLen - 1] || {}).points;
+        var pinchPre = (track[trackLen - 2] || {}).points || pinchEnd;
+
+        if (pinchPre
+            && pinchPre.length > 1
+            && pinchEnd
+            && pinchEnd.length > 1
+        ) {
+            var pinchScale = dist(pinchEnd) / dist(pinchPre);
+            !isFinite(pinchScale) && (pinchScale = 1);
+
+            event.pinchScale = pinchScale;
+
+            var pinchCenter = center(pinchEnd);
+            event.pinchX = pinchCenter[0];
+            event.pinchY = pinchCenter[1];
+
+            return {
+                type: 'pinch',
+                target: track[0].target,
+                event: event
+            };
+        }
+    }
+};
+
+module.exports = GestureMgr;
+
+/***/ }),
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16275,7 +16409,7 @@ var Base = __webpack_require__(1);
 var Vector2 = __webpack_require__(34);
 var Vector3 = __webpack_require__(3);
 var Quaternion = __webpack_require__(24);
-var GestureMgr = __webpack_require__(87);
+var GestureMgr = __webpack_require__(40);
 
 function firstNotNull() {
     for (var i = 0, len = arguments.length; i < len; i++) {
@@ -16535,34 +16669,31 @@ var OrbitControl = Base.extend(function () {
     setOption: function (opts) {
         opts = opts || {};
 
-        this.autoRotate = opts.autoRotate;
-        this.autoRotateAfterStill = opts.autoRotateAfterStill;
+        ['autoRotate', 'autoRotateAfterStill',
+            'damping',
+            'minDistance', 'maxDistance',
+            'minAlpha', 'maxAlpha', 'minBeta', 'maxBeta',
+            'rotateSensitivity', 'zoomSensitivity', 'panSensitivity'
+        ].forEach(function (key) {
+            if (opts[key] != null) {
+                this[key] = opts[key];
+            }
+        }, this);
 
-        this.damping = firstNotNull(opts.damping, 0.9);
+        if (opts.distance != null) {
+            this.setDistance(opts.distance);
+        }
 
-        var targetDistance = opts.distance || 10;
+        if (opts.alpha != null) {
+            this.setAlpha(opts.alpha);
+        }
+        if (opts.beta != null) {
+            this.setBeta(opts.beta);
+        }
 
-        this.minDistance = firstNotNull(opts.minDistance, targetDistance * 0.1);
-        this.maxDistance = firstNotNull(opts.maxDistance, targetDistance * 3);
-
-
-        this.minAlpha = firstNotNull(opts.minAlpha, -90);
-        this.maxAlpha = firstNotNull(opts.maxAlpha, 90);
-        this.minBeta = firstNotNull(opts.minBeta, -Infinity);
-        this.maxBeta = firstNotNull(opts.maxBeta, Infinity);
-        this.rotateSensitivity = firstNotNull(opts.rotateSensitivity, 1);
-        this.zoomSensitivity = firstNotNull(opts.zoomSensitivity, 1);
-        this.panSensitivity = firstNotNull(opts.panSensitivity, 1);
-
-        var alpha = opts.alpha || 0;
-        var beta = opts.beta || 0;
-        var center = opts.center || [0, 0, 0];
-
-        this.setDistance(targetDistance);
-        this.setAlpha(alpha);
-        this.setBeta(beta);
-        this.setCenter(center);
-
+        if (opts.center) {
+            this.setCenter(opts.center);
+        }
     },
 
     /**
@@ -16945,7 +17076,7 @@ Object.defineProperty(OrbitControl.prototype, 'autoRotate', {
 module.exports = OrbitControl;
 
 /***/ }),
-/* 41 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17348,7 +17479,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 42 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17358,7 +17489,7 @@ module.exports = OrbitControl;
     var Base = __webpack_require__(1);
     var glenum = __webpack_require__(2);
     var Cache = __webpack_require__(15);
-    var vendor = __webpack_require__(12);
+    var vendor = __webpack_require__(11);
 
     function getArrayCtorByType (type) {
         var ArrayConstructor;
@@ -17701,7 +17832,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 43 */
+/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17860,7 +17991,8 @@ module.exports = OrbitControl;
             var useUintExt = uintExt && nVertex > 0xffff;
             var indicesType = useUintExt ? _gl.UNSIGNED_INT : _gl.UNSIGNED_SHORT;
 
-            var vaoExt = glinfo.getExtension(_gl, 'OES_vertex_array_object');
+            // var vaoExt = glinfo.getExtension(_gl, 'OES_vertex_array_object');
+            var vaoExt = null;
 
             var isStatic = !geometry.dynamic;
 
@@ -18094,7 +18226,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 44 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18425,7 +18557,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 45 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18433,7 +18565,7 @@ module.exports = OrbitControl;
 
 
     var Base = __webpack_require__(1);
-    var Animator = __webpack_require__(46);
+    var Animator = __webpack_require__(47);
 
     var requestAnimationFrame = window.requestAnimationFrame
                                 || window.msRequestAnimationFrame
@@ -18657,7 +18789,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 46 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -19196,7 +19328,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 47 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19525,7 +19657,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 48 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19732,7 +19864,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 49 */
+/* 50 */
 /***/ (function(module, exports) {
 
 // 缓动函数来自 https://github.com/sole/tween.js/blob/master/src/Tween.js
@@ -20086,7 +20218,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 50 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20095,14 +20227,14 @@ module.exports = OrbitControl;
 
     var Base = __webpack_require__(1);
     var OrthoCamera = __webpack_require__(21);
-    var Plane = __webpack_require__(55);
+    var Plane = __webpack_require__(56);
     var Shader = __webpack_require__(6);
-    var Material = __webpack_require__(11);
+    var Material = __webpack_require__(12);
     var Mesh = __webpack_require__(13);
     var glinfo = __webpack_require__(7);
     var glenum = __webpack_require__(2);
 
-    Shader['import'](__webpack_require__(77));
+    Shader['import'](__webpack_require__(78));
 
     var planeGeo = new Plane();
     var mesh = new Mesh({
@@ -20308,7 +20440,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 51 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20426,7 +20558,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 52 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20542,7 +20674,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 53 */
+/* 54 */
 /***/ (function(module, exports) {
 
 
@@ -20753,7 +20885,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 54 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20797,7 +20929,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 55 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20878,8 +21010,72 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 56 */,
 /* 57 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Light = __webpack_require__(8);
+    var vendor = __webpack_require__(11);
+
+    /**
+     * Spherical Harmonic Ambient Light
+     * @constructor qtek.light.AmbientSH
+     * @extends qtek.Light
+     */
+    var AmbientSHLight = Light.extend({
+
+        castShadow: false,
+
+
+        /**
+         * Spherical Harmonic Coefficients
+         * @type {Array.<number>}
+         */
+        coefficients: [],
+
+    }, function () {
+        this._coefficientsTmpArr = new vendor.Float32Array(9 * 3);
+    }, {
+
+        type: 'AMBIENT_SH_LIGHT',
+
+        uniformTemplates: {
+            ambientSHLightColor: {
+                type: '3f',
+                value: function (instance) {
+                    var color = instance.color;
+                    var intensity = instance.intensity;
+                    return [color[0] * intensity, color[1] * intensity, color[2] * intensity];
+                }
+            },
+
+            ambientSHLightCoefficients: {
+                type: '3f',
+                value: function (instance) {
+                    var coefficientsTmpArr = instance._coefficientsTmpArr;
+                    for (var i = 0; i < instance.coefficients.length; i++) {
+                        coefficientsTmpArr[i] = instance.coefficients[i];
+                    }
+                    return coefficientsTmpArr;
+                }
+            }
+        }
+        /**
+         * @method
+         * @name clone
+         * @return {qtek.light.Ambient}
+         * @memberOf qtek.light.Ambient.prototype
+         */
+    });
+
+    module.exports = AmbientSHLight;
+
+
+/***/ }),
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20893,13 +21089,13 @@ module.exports = OrbitControl;
 
 
     var Base = __webpack_require__(1);
-    var request = __webpack_require__(54);
+    var request = __webpack_require__(55);
     var util = __webpack_require__(10);
-    var vendor = __webpack_require__(12);
+    var vendor = __webpack_require__(11);
 
     var Scene = __webpack_require__(28);
     var Shader = __webpack_require__(6);
-    var Material = __webpack_require__(11);
+    var Material = __webpack_require__(12);
     var StandardMaterial = __webpack_require__(29);
     var Mesh = __webpack_require__(13);
     var Node = __webpack_require__(5);
@@ -20907,7 +21103,7 @@ module.exports = OrbitControl;
     var Texture2D = __webpack_require__(19);
     var TextureCube = __webpack_require__(20);
     var shaderLibrary = __webpack_require__(17);
-    var Skeleton = __webpack_require__(44);
+    var Skeleton = __webpack_require__(45);
     var Joint = __webpack_require__(26);
     var PerspectiveCamera = __webpack_require__(22);
     var OrthographicCamera = __webpack_require__(21);
@@ -20920,8 +21116,8 @@ module.exports = OrbitControl;
     var Quaternion = __webpack_require__(24);
     var BoundingBox = __webpack_require__(4);
 
-    var SamplerClip = __webpack_require__(47);
-    var SkinningClip = __webpack_require__(48);
+    var SamplerClip = __webpack_require__(48);
+    var SkinningClip = __webpack_require__(49);
 
     var StaticGeometry = __webpack_require__(18);
 
@@ -20929,7 +21125,7 @@ module.exports = OrbitControl;
     var quat = glMatrix.quat;
 
     // Import builtin shader
-    __webpack_require__(61);
+    __webpack_require__(62);
 
     var semanticAttributeMap = {
         'NORMAL': 'normal',
@@ -21866,7 +22062,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 58 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22044,7 +22240,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 59 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22374,7 +22570,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 60 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -22393,16 +22589,16 @@ module.exports = OrbitControl;
     var DirectionalLight = __webpack_require__(23);
     var PointLight = __webpack_require__(31);
     var shaderLibrary = __webpack_require__(17);
-    var Material = __webpack_require__(11);
-    var FrameBuffer = __webpack_require__(41);
+    var Material = __webpack_require__(12);
+    var FrameBuffer = __webpack_require__(42);
     var Texture = __webpack_require__(9);
     var Texture2D = __webpack_require__(19);
     var TextureCube = __webpack_require__(20);
     var PerspectiveCamera = __webpack_require__(22);
     var OrthoCamera = __webpack_require__(21);
 
-    var Pass = __webpack_require__(50);
-    var TexturePool = __webpack_require__(51);
+    var Pass = __webpack_require__(51);
+    var TexturePool = __webpack_require__(52);
 
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
@@ -22410,7 +22606,7 @@ module.exports = OrbitControl;
 
     var targets = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
-    Shader['import'](__webpack_require__(82));
+    Shader['import'](__webpack_require__(83));
 
     /**
      * Pass rendering shadow map.
@@ -23248,7 +23444,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 61 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -23257,14 +23453,14 @@ module.exports = OrbitControl;
     var Shader = __webpack_require__(6);
 
 
-    Shader['import'](__webpack_require__(84));
+    Shader['import'](__webpack_require__(85));
 
     // Some build in shaders
-    Shader['import'](__webpack_require__(62));
-    Shader['import'](__webpack_require__(81));
+    Shader['import'](__webpack_require__(63));
+    Shader['import'](__webpack_require__(82));
     Shader['import'](__webpack_require__(37));
-    Shader['import'](__webpack_require__(85));
-    Shader['import'](__webpack_require__(83));
+    Shader['import'](__webpack_require__(86));
+    Shader['import'](__webpack_require__(84));
     Shader['import'](__webpack_require__(36));
 
     library.template('qtek.basic', Shader.source('qtek.basic.vertex'), Shader.source('qtek.basic.fragment'));
@@ -23275,31 +23471,23 @@ module.exports = OrbitControl;
     library.template('qtek.standard', Shader.source('qtek.standard.vertex'), Shader.source('qtek.standard.fragment'));
 
     // Some build in shaders
-    Shader['import'](__webpack_require__(66));
-    Shader['import'](__webpack_require__(64));
-    Shader['import'](__webpack_require__(73));
-    Shader['import'](__webpack_require__(74));
-    Shader['import'](__webpack_require__(78));
-    Shader['import'](__webpack_require__(75));
-    Shader['import'](__webpack_require__(65));
-    Shader['import'](__webpack_require__(68));
-    Shader['import'](__webpack_require__(76));
-    Shader['import'](__webpack_require__(71));
     Shader['import'](__webpack_require__(67));
-    Shader['import'](__webpack_require__(72));
-    Shader['import'](__webpack_require__(63));
-
+    Shader['import'](__webpack_require__(65));
+    Shader['import'](__webpack_require__(74));
+    Shader['import'](__webpack_require__(75));
+    Shader['import'](__webpack_require__(79));
+    Shader['import'](__webpack_require__(76));
+    Shader['import'](__webpack_require__(66));
     Shader['import'](__webpack_require__(69));
+    Shader['import'](__webpack_require__(77));
+    Shader['import'](__webpack_require__(72));
+    Shader['import'](__webpack_require__(68));
+    Shader['import'](__webpack_require__(73));
+    Shader['import'](__webpack_require__(64));
+
     Shader['import'](__webpack_require__(70));
+    Shader['import'](__webpack_require__(71));
 
-
-
-/***/ }),
-/* 62 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.basic.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\n\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\n\nattribute vec3 barycentric;\n\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\n#endif\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\n\nvoid main()\n{\n    vec3 skinnedPosition = position;\n\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Barycentric = barycentric;\n\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n\n@end\n\n\n\n\n@export qtek.basic.fragment\n\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n\n@import qtek.util.edge_factor\n\n@import qtek.util.rgbm\n\n@import qtek.util.srgb\n\nvoid main()\n{\n\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n\n    gl_FragColor = vec4(color, alpha);\n\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n\n#ifdef SRGB_DECODE\n    tex = sRGBToLinear(tex);\n#endif\n\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n    gl_FragColor.a = tex.a;\n#endif\n\n    gl_FragColor.rgb *= tex.rgb;\n#endif\n\n    gl_FragColor.rgb += emission;\n    if( lineWidth > 0.01)\n    {\n        gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n    }\n\n#ifdef GAMMA_ENCODE\n        gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n\n    gl_FragColor = encodeHDR(gl_FragColor);\n\n}\n\n@end";
 
 
 /***/ }),
@@ -23307,7 +23495,7 @@ module.exports = "@export qtek.basic.vertex\n\nuniform mat4 worldViewProjection 
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.blend\n#ifdef TEXTURE1_ENABLED\nuniform sampler2D texture1;\nuniform float weight1 : 1.0;\n#endif\n#ifdef TEXTURE2_ENABLED\nuniform sampler2D texture2;\nuniform float weight2 : 1.0;\n#endif\n#ifdef TEXTURE3_ENABLED\nuniform sampler2D texture3;\nuniform float weight3 : 1.0;\n#endif\n#ifdef TEXTURE4_ENABLED\nuniform sampler2D texture4;\nuniform float weight4 : 1.0;\n#endif\n#ifdef TEXTURE5_ENABLED\nuniform sampler2D texture5;\nuniform float weight5 : 1.0;\n#endif\n#ifdef TEXTURE6_ENABLED\nuniform sampler2D texture6;\nuniform float weight6 : 1.0;\n#endif\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = vec4(0.0);\n#ifdef TEXTURE1_ENABLED\n    tex += decodeHDR(texture2D(texture1, v_Texcoord)) * weight1;\n#endif\n#ifdef TEXTURE2_ENABLED\n    tex += decodeHDR(texture2D(texture2, v_Texcoord)) * weight2;\n#endif\n#ifdef TEXTURE3_ENABLED\n    tex += decodeHDR(texture2D(texture3, v_Texcoord)) * weight3;\n#endif\n#ifdef TEXTURE4_ENABLED\n    tex += decodeHDR(texture2D(texture4, v_Texcoord)) * weight4;\n#endif\n#ifdef TEXTURE5_ENABLED\n    tex += decodeHDR(texture2D(texture5, v_Texcoord)) * weight5;\n#endif\n#ifdef TEXTURE6_ENABLED\n    tex += decodeHDR(texture2D(texture6, v_Texcoord)) * weight6;\n#endif\n\n    gl_FragColor = encodeHDR(tex);\n}\n@end";
+module.exports = "@export qtek.basic.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\n\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\n\nattribute vec3 barycentric;\n\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\n#endif\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\n\nvoid main()\n{\n    vec3 skinnedPosition = position;\n\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Barycentric = barycentric;\n\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n\n@end\n\n\n\n\n@export qtek.basic.fragment\n\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n\n@import qtek.util.edge_factor\n\n@import qtek.util.rgbm\n\n@import qtek.util.srgb\n\nvoid main()\n{\n\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n\n    gl_FragColor = vec4(color, alpha);\n\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n\n#ifdef SRGB_DECODE\n    tex = sRGBToLinear(tex);\n#endif\n\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n    gl_FragColor.a = tex.a;\n#endif\n\n    gl_FragColor.rgb *= tex.rgb;\n#endif\n\n    gl_FragColor.rgb += emission;\n    if( lineWidth > 0.01)\n    {\n        gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n    }\n\n#ifdef GAMMA_ENCODE\n        gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n\n    gl_FragColor = encodeHDR(gl_FragColor);\n\n}\n\n@end";
 
 
 /***/ }),
@@ -23315,7 +23503,7 @@ module.exports = "@export qtek.compositor.blend\n#ifdef TEXTURE1_ENABLED\nunifor
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.kernel.gaussian_9\nfloat gaussianKernel[9];\ngaussianKernel[0] = 0.07;\ngaussianKernel[1] = 0.09;\ngaussianKernel[2] = 0.12;\ngaussianKernel[3] = 0.14;\ngaussianKernel[4] = 0.16;\ngaussianKernel[5] = 0.14;\ngaussianKernel[6] = 0.12;\ngaussianKernel[7] = 0.09;\ngaussianKernel[8] = 0.07;\n@end\n\n@export qtek.compositor.kernel.gaussian_13\n\nfloat gaussianKernel[13];\n\ngaussianKernel[0] = 0.02;\ngaussianKernel[1] = 0.03;\ngaussianKernel[2] = 0.06;\ngaussianKernel[3] = 0.08;\ngaussianKernel[4] = 0.11;\ngaussianKernel[5] = 0.13;\ngaussianKernel[6] = 0.14;\ngaussianKernel[7] = 0.13;\ngaussianKernel[8] = 0.11;\ngaussianKernel[9] = 0.08;\ngaussianKernel[10] = 0.06;\ngaussianKernel[11] = 0.03;\ngaussianKernel[12] = 0.02;\n\n@end\n\n\n@export qtek.compositor.gaussian_blur\n\nuniform sampler2D texture; varying vec2 v_Texcoord;\n\nuniform float blurSize : 2.0;\nuniform vec2 textureSize : [512.0, 512.0];\nuniform float blurDir : 0.0;\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main (void)\n{\n    @import qtek.compositor.kernel.gaussian_9\n\n    vec2 off = blurSize / textureSize;\n    off *= vec2(1.0 - blurDir, blurDir);\n\n    vec4 sum = vec4(0.0);\n    float weightAll = 0.0;\n\n        for (int i = 0; i < 9; i++) {\n        float w = gaussianKernel[i];\n                sum += decodeHDR(clampSample(texture, v_Texcoord + float(i - 4) * off)) * w;\n        weightAll += w;\n    }\n    gl_FragColor = encodeHDR(sum / weightAll);\n}\n\n@end\n\n@export qtek.compositor.box_blur\n\nuniform sampler2D texture;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 3.0;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main(void)\n{\n\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n    vec2 offset = blurSize / textureSize;\n\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, 0.0) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(0.0, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, 0.0) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, -offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, -offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(0.0, -offset.y) ));\n\n    tex /= 9.0;\n\n    \n    gl_FragColor = encodeHDR(tex);\n}\n\n@end";
+module.exports = "@export qtek.compositor.blend\n#ifdef TEXTURE1_ENABLED\nuniform sampler2D texture1;\nuniform float weight1 : 1.0;\n#endif\n#ifdef TEXTURE2_ENABLED\nuniform sampler2D texture2;\nuniform float weight2 : 1.0;\n#endif\n#ifdef TEXTURE3_ENABLED\nuniform sampler2D texture3;\nuniform float weight3 : 1.0;\n#endif\n#ifdef TEXTURE4_ENABLED\nuniform sampler2D texture4;\nuniform float weight4 : 1.0;\n#endif\n#ifdef TEXTURE5_ENABLED\nuniform sampler2D texture5;\nuniform float weight5 : 1.0;\n#endif\n#ifdef TEXTURE6_ENABLED\nuniform sampler2D texture6;\nuniform float weight6 : 1.0;\n#endif\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = vec4(0.0);\n#ifdef TEXTURE1_ENABLED\n    tex += decodeHDR(texture2D(texture1, v_Texcoord)) * weight1;\n#endif\n#ifdef TEXTURE2_ENABLED\n    tex += decodeHDR(texture2D(texture2, v_Texcoord)) * weight2;\n#endif\n#ifdef TEXTURE3_ENABLED\n    tex += decodeHDR(texture2D(texture3, v_Texcoord)) * weight3;\n#endif\n#ifdef TEXTURE4_ENABLED\n    tex += decodeHDR(texture2D(texture4, v_Texcoord)) * weight4;\n#endif\n#ifdef TEXTURE5_ENABLED\n    tex += decodeHDR(texture2D(texture5, v_Texcoord)) * weight5;\n#endif\n#ifdef TEXTURE6_ENABLED\n    tex += decodeHDR(texture2D(texture6, v_Texcoord)) * weight6;\n#endif\n\n    gl_FragColor = encodeHDR(tex);\n}\n@end";
 
 
 /***/ }),
@@ -23323,7 +23511,7 @@ module.exports = "@export qtek.compositor.kernel.gaussian_9\nfloat gaussianKerne
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.bright\n\nuniform sampler2D texture;\n\nuniform float threshold : 1;\nuniform float scale : 1.0;\n\nuniform vec2 textureSize: [512, 512];\n\nvarying vec2 v_Texcoord;\n\nconst vec3 lumWeight = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\n\nvec3 median(vec3 a, vec3 b, vec3 c)\n{\n    return a + b + c - min(min(a, b), c) - max(max(a, b), c);\n}\n\nvoid main()\n{\n    vec3 texel = decodeHDR(texture2D(texture, v_Texcoord)).rgb;\n\n#ifdef ANTI_FLICKER\n            vec3 d = 1.0 / textureSize.xyx * vec3(1.0, 1.0, 0.0);\n\n    vec3 s1 = decodeHDR(texture2D(texture, v_Texcoord - d.xz)).rgb;\n    vec3 s2 = decodeHDR(texture2D(texture, v_Texcoord + d.xz)).rgb;\n    vec3 s3 = decodeHDR(texture2D(texture, v_Texcoord - d.zy)).rgb;\n    vec3 s4 = decodeHDR(texture2D(texture, v_Texcoord + d.zy)).rgb;\n    texel = median(median(texel, s1, s2), s3, s4);\n\n#endif\n\n    float lum = dot(texel, lumWeight);\n    vec4 color;\n    if (lum > threshold)\n    {\n        color.rgb = texel * scale;\n    }\n    else\n    {\n        color.rgb = vec3(0.0);\n    }\n    color.a = 1.0;\n\n    gl_FragColor = encodeHDR(color);\n}\n@end\n";
+module.exports = "@export qtek.compositor.kernel.gaussian_9\nfloat gaussianKernel[9];\ngaussianKernel[0] = 0.07;\ngaussianKernel[1] = 0.09;\ngaussianKernel[2] = 0.12;\ngaussianKernel[3] = 0.14;\ngaussianKernel[4] = 0.16;\ngaussianKernel[5] = 0.14;\ngaussianKernel[6] = 0.12;\ngaussianKernel[7] = 0.09;\ngaussianKernel[8] = 0.07;\n@end\n\n@export qtek.compositor.kernel.gaussian_13\n\nfloat gaussianKernel[13];\n\ngaussianKernel[0] = 0.02;\ngaussianKernel[1] = 0.03;\ngaussianKernel[2] = 0.06;\ngaussianKernel[3] = 0.08;\ngaussianKernel[4] = 0.11;\ngaussianKernel[5] = 0.13;\ngaussianKernel[6] = 0.14;\ngaussianKernel[7] = 0.13;\ngaussianKernel[8] = 0.11;\ngaussianKernel[9] = 0.08;\ngaussianKernel[10] = 0.06;\ngaussianKernel[11] = 0.03;\ngaussianKernel[12] = 0.02;\n\n@end\n\n\n@export qtek.compositor.gaussian_blur\n\nuniform sampler2D texture; varying vec2 v_Texcoord;\n\nuniform float blurSize : 2.0;\nuniform vec2 textureSize : [512.0, 512.0];\nuniform float blurDir : 0.0;\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main (void)\n{\n    @import qtek.compositor.kernel.gaussian_9\n\n    vec2 off = blurSize / textureSize;\n    off *= vec2(1.0 - blurDir, blurDir);\n\n    vec4 sum = vec4(0.0);\n    float weightAll = 0.0;\n\n        for (int i = 0; i < 9; i++) {\n        float w = gaussianKernel[i];\n                sum += decodeHDR(clampSample(texture, v_Texcoord + float(i - 4) * off)) * w;\n        weightAll += w;\n    }\n    gl_FragColor = encodeHDR(sum / weightAll);\n}\n\n@end\n\n@export qtek.compositor.box_blur\n\nuniform sampler2D texture;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 3.0;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main(void)\n{\n\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n    vec2 offset = blurSize / textureSize;\n\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, 0.0) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(0.0, offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, 0.0) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(-offset.x, -offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(offset.x, -offset.y) ));\n    tex += decodeHDR(clampSample(texture, v_Texcoord + vec2(0.0, -offset.y) ));\n\n    tex /= 9.0;\n\n    \n    gl_FragColor = encodeHDR(tex);\n}\n\n@end";
 
 
 /***/ }),
@@ -23331,7 +23519,7 @@ module.exports = "@export qtek.compositor.bright\n\nuniform sampler2D texture;\n
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float exposure : 0.0;\nuniform float gamma : 1.0;\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n\n        vec3 color = clamp(tex.rgb + vec3(brightness), 0.0, 1.0);\n        color = clamp( (color-vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n        color = clamp( color * pow(2.0, exposure), 0.0, 1.0);\n        color = clamp( pow(color, vec3(gamma)), 0.0, 1.0);\n        float luminance = dot( color, w );\n    color = mix(vec3(luminance), color, saturation);\n\n    gl_FragColor = vec4(color, tex.a);\n}\n\n@end\n\n@export qtek.compositor.brightness\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n    vec3 color = tex.rgb + vec3(brightness);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.contrast\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float contrast : 1.0;\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n    vec3 color = (tex.rgb-vec3(0.5))*contrast+vec3(0.5);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.exposure\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float exposure : 0.0;\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = tex.rgb * pow(2.0, exposure);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.gamma\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float gamma : 1.0;\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = pow(tex.rgb, vec3(gamma));\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.saturation\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = tex.rgb;\n    float luminance = dot(color, w);\n    color = mix(vec3(luminance), color, saturation);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end";
+module.exports = "@export qtek.compositor.bright\n\nuniform sampler2D texture;\n\nuniform float threshold : 1;\nuniform float scale : 1.0;\n\nuniform vec2 textureSize: [512, 512];\n\nvarying vec2 v_Texcoord;\n\nconst vec3 lumWeight = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\n\nvec3 median(vec3 a, vec3 b, vec3 c)\n{\n    return a + b + c - min(min(a, b), c) - max(max(a, b), c);\n}\n\nvoid main()\n{\n    vec3 texel = decodeHDR(texture2D(texture, v_Texcoord)).rgb;\n\n#ifdef ANTI_FLICKER\n            vec3 d = 1.0 / textureSize.xyx * vec3(1.0, 1.0, 0.0);\n\n    vec3 s1 = decodeHDR(texture2D(texture, v_Texcoord - d.xz)).rgb;\n    vec3 s2 = decodeHDR(texture2D(texture, v_Texcoord + d.xz)).rgb;\n    vec3 s3 = decodeHDR(texture2D(texture, v_Texcoord - d.zy)).rgb;\n    vec3 s4 = decodeHDR(texture2D(texture, v_Texcoord + d.zy)).rgb;\n    texel = median(median(texel, s1, s2), s3, s4);\n\n#endif\n\n    float lum = dot(texel, lumWeight);\n    vec4 color;\n    if (lum > threshold)\n    {\n        color.rgb = texel * scale;\n    }\n    else\n    {\n        color.rgb = vec3(0.0);\n    }\n    color.a = 1.0;\n\n    gl_FragColor = encodeHDR(color);\n}\n@end\n";
 
 
 /***/ }),
@@ -23339,7 +23527,7 @@ module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDist: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n    float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n    float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n    float aperture = focalLength / fstop;\n\n    float coc;\n\n    float uppper = focalDist + focalRange;\n    float lower = focalDist - focalRange;\n    if (dist <= uppper && dist >= lower) {\n                coc = 0.5;\n    }\n    else {\n                float focalAdjusted = dist > uppper ? uppper : lower;\n\n                coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n                                coc = clamp(coc, 0.0, 0.4) / 0.4000001;\n\n                if (dist < lower) {\n            coc = -coc;\n        }\n        coc = coc * 0.5 + 0.5;\n    }\n\n        gl_FragColor = encodeFloat(coc);\n}\n\n@end\n\n@export qtek.compositor.dof.premultiply\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nvoid main() {\n    float fCoc = max(abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0), 0.1);\n    gl_FragColor = encodeHDR(\n        vec4(decodeHDR(texture2D(texture, v_Texcoord)).rgb * fCoc, 1.0)\n    );\n}\n@end\n\n\n@export qtek.compositor.dof.min_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n    gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n@export qtek.compositor.dof.max_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n    gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n\n\n@export qtek.compositor.dof.coc_upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.float\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    float s;\n    s  = decodeFloat(texture2D(coc, v_Texcoord - d.xy));\n    s += decodeFloat(texture2D(coc, v_Texcoord - d.wy)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord - d.zy));\n\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zw)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord       )) * 4.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xw)) * 2.0;\n\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.wy)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n\n    gl_FragColor = encodeFloat(s / 16.0);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    float s;\n    s  = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xw));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zw));\n\n    gl_FragColor = encodeFloat(s / 4.0);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color, float baseWeight) {\n    float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * baseWeight;\n    color += decodeHDR(texture2D(texture, uv)) * weight;\n    return weight;\n}\n\nvoid main()\n{\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    vec4 color = vec4(0.0);\n    float baseWeight = 1.0 / 16.0;\n    float w  = tap(v_Texcoord - d.xy, color, baseWeight);\n    w += tap(v_Texcoord - d.wy, color, baseWeight * 2.0);\n    w += tap(v_Texcoord - d.zy, color, baseWeight);\n\n    w += tap(v_Texcoord + d.zw, color, baseWeight * 2.0);\n    w += tap(v_Texcoord       , color, baseWeight * 4.0);\n    w += tap(v_Texcoord + d.xw, color, baseWeight * 2.0);\n\n    w += tap(v_Texcoord + d.zy, color, baseWeight);\n    w += tap(v_Texcoord + d.wy, color, baseWeight * 2.0);\n    w += tap(v_Texcoord + d.xy, color, baseWeight);\n\n    gl_FragColor = encodeHDR(color / w);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    vec4 color = vec4(0.0);\n    float baseWeight = 1.0 / 4.0;\n    float w  = tap(v_Texcoord + d.xy, color, baseWeight);\n    w += tap(v_Texcoord + d.zy, color, baseWeight);\n    w += tap(v_Texcoord + d.xw, color, baseWeight);\n    w += tap(v_Texcoord + d.zw, color, baseWeight);\n\n    gl_FragColor = encodeHDR(color / w);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.downsample\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color) {\n    float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * 0.25;\n    color += decodeHDR(texture2D(texture, uv)) * weight;\n    return weight;\n}\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    vec4 color = vec4(0.0);\n    float weight = tap(v_Texcoord + d.xy, color);\n    weight += tap(v_Texcoord + d.zy, color);\n    weight += tap(v_Texcoord + d.xw, color);\n    weight += tap(v_Texcoord + d.zw, color);\n    color /= weight;\n\n    gl_FragColor = encodeHDR(color);\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.hexagonal_blur_frag\n\n@import qtek.util.float\n\n\nvec4 doBlur(sampler2D targetTexture, vec2 offset) {\n#ifdef BLUR_COC\n    float cocSum = 0.0;\n#else\n    vec4 color = vec4(0.0);\n#endif\n\n    float weightSum = 0.0;\n    float kernelWeight = 1.0 / float(KERNEL_SIZE);\n\n    for (int i = 0; i < KERNEL_SIZE; i++) {\n        vec2 coord = v_Texcoord + offset * float(i);\n\n        float w = kernelWeight;\n#ifdef BLUR_COC\n        float fCoc = decodeFloat(texture2D(targetTexture, coord)) * 2.0 - 1.0;\n                cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n        float fCoc = decodeFloat(texture2D(coc, coord)) * 2.0 - 1.0;\n        vec4 texel = texture2D(targetTexture, coord);\n    #if !defined(BLUR_NEARFIELD)\n        w *= abs(fCoc);\n    #endif\n        color += decodeHDR(texel) * w;\n#endif\n\n        weightSum += w;\n    }\n#ifdef BLUR_COC\n    return encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n    return color / weightSum;\n#endif\n}\n\n@end\n\n\n@export qtek.compositor.dof.hexagonal_blur_1\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n        gl_FragColor = doBlur(texture, vec2(0.0, offset.y));\n#if !defined(BLUR_COC)\n    gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_2\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n    offset.y /= 2.0;\n\n        gl_FragColor = doBlur(texture, -offset);\n#if !defined(BLUR_COC)\n    gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_3\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture1;\nuniform sampler2D texture2;\nuniform sampler2D coc;\n\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n    offset.y /= 2.0;\n    vec2 vDownRight = vec2(offset.x, -offset.y);\n\n        vec4 texel1 = doBlur(texture1, -offset);\n        vec4 texel2 = doBlur(texture1, vDownRight);\n        vec4 texel3 = doBlur(texture2, vDownRight);\n\n#ifdef BLUR_COC\n    float coc1 = decodeFloat(texel1) * 2.0 - 1.0;\n    float coc2 = decodeFloat(texel2) * 2.0 - 1.0;\n    float coc3 = decodeFloat(texel3) * 2.0 - 1.0;\n    gl_FragColor = encodeFloat(\n        ((coc1 + coc2 + coc3) / 3.0) * 0.5 + 0.5\n    );\n\n#else\n    vec4 color = (texel1 + texel2 + texel3) / 3.0;\n    gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n    vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n    vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n            fCoc = abs(fCoc * 2.0 - 1.0);\n\n    float weight = smoothstep(0.0, 1.0, fCoc);\n    \n#ifdef NEARFIELD_ENABLED\n    vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n    float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n    fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n        gl_FragColor = encodeHDR(\n        mix(\n            nearfieldColor, mix(originalColor, blurredColor, weight),\n                        pow(1.0 - fNearCoc, 4.0)\n        )\n    );\n#else\n    gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n#if DEBUG == 1\n        gl_FragColor = vec4(vec3(fCoc), 1.0);\n#elif DEBUG == 2\n        gl_FragColor = vec4(vec3(fNearCoc), 1.0);\n#elif DEBUG == 3\n    gl_FragColor = encodeHDR(blurredColor);\n#elif DEBUG == 4\n        gl_FragColor = encodeHDR(nearfieldColor);\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float exposure : 0.0;\nuniform float gamma : 1.0;\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n\n        vec3 color = clamp(tex.rgb + vec3(brightness), 0.0, 1.0);\n        color = clamp( (color-vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n        color = clamp( color * pow(2.0, exposure), 0.0, 1.0);\n        color = clamp( pow(color, vec3(gamma)), 0.0, 1.0);\n        float luminance = dot( color, w );\n    color = mix(vec3(luminance), color, saturation);\n\n    gl_FragColor = vec4(color, tex.a);\n}\n\n@end\n\n@export qtek.compositor.brightness\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n    vec3 color = tex.rgb + vec3(brightness);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.contrast\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float contrast : 1.0;\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord);\n    vec3 color = (tex.rgb-vec3(0.5))*contrast+vec3(0.5);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.exposure\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float exposure : 0.0;\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = tex.rgb * pow(2.0, exposure);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.gamma\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float gamma : 1.0;\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = pow(tex.rgb, vec3(gamma));\n    gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.saturation\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D(texture, v_Texcoord);\n    vec3 color = tex.rgb;\n    float luminance = dot(color, w);\n    color = mix(vec3(luminance), color, saturation);\n    gl_FragColor = vec4(color, tex.a);\n}\n@end";
 
 
 /***/ }),
@@ -23347,7 +23535,7 @@ module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\nfloat brightness(vec3 c)\n{\n    return max(max(c.r, c.g), c.b);\n}\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n#ifdef ANTI_FLICKER\n            vec3 s1 = decodeHDR(clampSample(texture, v_Texcoord + d.xy)).rgb;\n    vec3 s2 = decodeHDR(clampSample(texture, v_Texcoord + d.zy)).rgb;\n    vec3 s3 = decodeHDR(clampSample(texture, v_Texcoord + d.xw)).rgb;\n    vec3 s4 = decodeHDR(clampSample(texture, v_Texcoord + d.zw)).rgb;\n\n        float s1w = 1.0 / (brightness(s1) + 1.0);\n    float s2w = 1.0 / (brightness(s2) + 1.0);\n    float s3w = 1.0 / (brightness(s3) + 1.0);\n    float s4w = 1.0 / (brightness(s4) + 1.0);\n    float oneDivideSum = 1.0 / (s1w + s2w + s3w + s4w);\n\n    vec4 color = vec4(\n        (s1 * s1w + s2 * s2w + s3 * s3w + s4 * s4w) * oneDivideSum,\n        1.0\n    );\n#else\n    vec4 color = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n    color *= 0.25;\n#endif\n\n    gl_FragColor = encodeHDR(color);\n}\n\n@end";
+module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDist: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n    float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n    float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n    float aperture = focalLength / fstop;\n\n    float coc;\n\n    float uppper = focalDist + focalRange;\n    float lower = focalDist - focalRange;\n    if (dist <= uppper && dist >= lower) {\n                coc = 0.5;\n    }\n    else {\n                float focalAdjusted = dist > uppper ? uppper : lower;\n\n                coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n                                coc = clamp(coc, 0.0, 0.4) / 0.4000001;\n\n                if (dist < lower) {\n            coc = -coc;\n        }\n        coc = coc * 0.5 + 0.5;\n    }\n\n        gl_FragColor = encodeFloat(coc);\n}\n\n@end\n\n@export qtek.compositor.dof.premultiply\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nvoid main() {\n    float fCoc = max(abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0), 0.1);\n    gl_FragColor = encodeHDR(\n        vec4(decodeHDR(texture2D(texture, v_Texcoord)).rgb * fCoc, 1.0)\n    );\n}\n@end\n\n\n@export qtek.compositor.dof.min_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n    fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n    gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n@export qtek.compositor.dof.max_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n    fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n    gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n\n\n@export qtek.compositor.dof.coc_upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.float\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    float s;\n    s  = decodeFloat(texture2D(coc, v_Texcoord - d.xy));\n    s += decodeFloat(texture2D(coc, v_Texcoord - d.wy)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord - d.zy));\n\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zw)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord       )) * 4.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xw)) * 2.0;\n\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.wy)) * 2.0;\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n\n    gl_FragColor = encodeFloat(s / 16.0);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    float s;\n    s  = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.xw));\n    s += decodeFloat(texture2D(coc, v_Texcoord + d.zw));\n\n    gl_FragColor = encodeFloat(s / 4.0);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color, float baseWeight) {\n    float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * baseWeight;\n    color += decodeHDR(texture2D(texture, uv)) * weight;\n    return weight;\n}\n\nvoid main()\n{\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    vec4 color = vec4(0.0);\n    float baseWeight = 1.0 / 16.0;\n    float w  = tap(v_Texcoord - d.xy, color, baseWeight);\n    w += tap(v_Texcoord - d.wy, color, baseWeight * 2.0);\n    w += tap(v_Texcoord - d.zy, color, baseWeight);\n\n    w += tap(v_Texcoord + d.zw, color, baseWeight * 2.0);\n    w += tap(v_Texcoord       , color, baseWeight * 4.0);\n    w += tap(v_Texcoord + d.xw, color, baseWeight * 2.0);\n\n    w += tap(v_Texcoord + d.zy, color, baseWeight);\n    w += tap(v_Texcoord + d.wy, color, baseWeight * 2.0);\n    w += tap(v_Texcoord + d.xy, color, baseWeight);\n\n    gl_FragColor = encodeHDR(color / w);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    vec4 color = vec4(0.0);\n    float baseWeight = 1.0 / 4.0;\n    float w  = tap(v_Texcoord + d.xy, color, baseWeight);\n    w += tap(v_Texcoord + d.zy, color, baseWeight);\n    w += tap(v_Texcoord + d.xw, color, baseWeight);\n    w += tap(v_Texcoord + d.zw, color, baseWeight);\n\n    gl_FragColor = encodeHDR(color / w);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.downsample\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color) {\n    float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * 0.25;\n    color += decodeHDR(texture2D(texture, uv)) * weight;\n    return weight;\n}\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n    vec4 color = vec4(0.0);\n    float weight = tap(v_Texcoord + d.xy, color);\n    weight += tap(v_Texcoord + d.zy, color);\n    weight += tap(v_Texcoord + d.xw, color);\n    weight += tap(v_Texcoord + d.zw, color);\n    color /= weight;\n\n    gl_FragColor = encodeHDR(color);\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.hexagonal_blur_frag\n\n@import qtek.util.float\n\n\nvec4 doBlur(sampler2D targetTexture, vec2 offset) {\n#ifdef BLUR_COC\n    float cocSum = 0.0;\n#else\n    vec4 color = vec4(0.0);\n#endif\n\n    float weightSum = 0.0;\n    float kernelWeight = 1.0 / float(KERNEL_SIZE);\n\n    for (int i = 0; i < KERNEL_SIZE; i++) {\n        vec2 coord = v_Texcoord + offset * float(i);\n\n        float w = kernelWeight;\n#ifdef BLUR_COC\n        float fCoc = decodeFloat(texture2D(targetTexture, coord)) * 2.0 - 1.0;\n                cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n        float fCoc = decodeFloat(texture2D(coc, coord)) * 2.0 - 1.0;\n        vec4 texel = texture2D(targetTexture, coord);\n    #if !defined(BLUR_NEARFIELD)\n        w *= abs(fCoc);\n    #endif\n        color += decodeHDR(texel) * w;\n#endif\n\n        weightSum += w;\n    }\n#ifdef BLUR_COC\n    return encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n    return color / weightSum;\n#endif\n}\n\n@end\n\n\n@export qtek.compositor.dof.hexagonal_blur_1\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n        gl_FragColor = doBlur(texture, vec2(0.0, offset.y));\n#if !defined(BLUR_COC)\n    gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_2\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n    offset.y /= 2.0;\n\n        gl_FragColor = doBlur(texture, -offset);\n#if !defined(BLUR_COC)\n    gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_3\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture1;\nuniform sampler2D texture2;\nuniform sampler2D coc;\n\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n    vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n    offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n    offset.y /= 2.0;\n    vec2 vDownRight = vec2(offset.x, -offset.y);\n\n        vec4 texel1 = doBlur(texture1, -offset);\n        vec4 texel2 = doBlur(texture1, vDownRight);\n        vec4 texel3 = doBlur(texture2, vDownRight);\n\n#ifdef BLUR_COC\n    float coc1 = decodeFloat(texel1) * 2.0 - 1.0;\n    float coc2 = decodeFloat(texel2) * 2.0 - 1.0;\n    float coc3 = decodeFloat(texel3) * 2.0 - 1.0;\n    gl_FragColor = encodeFloat(\n        ((coc1 + coc2 + coc3) / 3.0) * 0.5 + 0.5\n    );\n\n#else\n    vec4 color = (texel1 + texel2 + texel3) / 3.0;\n    gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n    vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n    vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n    float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n            fCoc = abs(fCoc * 2.0 - 1.0);\n\n    float weight = smoothstep(0.0, 1.0, fCoc);\n    \n#ifdef NEARFIELD_ENABLED\n    vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n    float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n    fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n        gl_FragColor = encodeHDR(\n        mix(\n            nearfieldColor, mix(originalColor, blurredColor, weight),\n                        pow(1.0 - fNearCoc, 4.0)\n        )\n    );\n#else\n    gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n#if DEBUG == 1\n        gl_FragColor = vec4(vec3(fCoc), 1.0);\n#elif DEBUG == 2\n        gl_FragColor = vec4(vec3(fNearCoc), 1.0);\n#elif DEBUG == 3\n    gl_FragColor = encodeHDR(blurredColor);\n#elif DEBUG == 4\n        gl_FragColor = encodeHDR(nearfieldColor);\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23355,7 +23543,7 @@ module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D textur
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nvarying vec2 v_Texcoord;\n\n#define FXAA_REDUCE_MIN   (1.0/128.0)\n#define FXAA_REDUCE_MUL   (1.0/8.0)\n#define FXAA_SPAN_MAX     8.0\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec2 resolution = 1.0 / viewport.zw;\n    vec3 rgbNW =  decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, -1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbNE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, -1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbSW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, 1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbSE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, 1.0 ) ) * resolution ) ).xyz;\n    vec4 rgbaM  = decodeHDR( texture2D( texture,  gl_FragCoord.xy  * resolution ) );\n    vec3 rgbM  = rgbaM.xyz;\n    float opacity  = rgbaM.w;\n\n    vec3 luma = vec3( 0.299, 0.587, 0.114 );\n\n    float lumaNW = dot( rgbNW, luma );\n    float lumaNE = dot( rgbNE, luma );\n    float lumaSW = dot( rgbSW, luma );\n    float lumaSE = dot( rgbSE, luma );\n    float lumaM  = dot( rgbM,  luma );\n    float lumaMin = min( lumaM, min( min( lumaNW, lumaNE ), min( lumaSW, lumaSE ) ) );\n    float lumaMax = max( lumaM, max( max( lumaNW, lumaNE) , max( lumaSW, lumaSE ) ) );\n\n    vec2 dir;\n    dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n    dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n\n    float dirReduce = max( ( lumaNW + lumaNE + lumaSW + lumaSE ) * ( 0.25 * FXAA_REDUCE_MUL ), FXAA_REDUCE_MIN );\n\n    float rcpDirMin = 1.0 / ( min( abs( dir.x ), abs( dir.y ) ) + dirReduce );\n    dir = min( vec2( FXAA_SPAN_MAX,  FXAA_SPAN_MAX),\n          max( vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),\n                dir * rcpDirMin)) * resolution;\n\n    vec3 rgbA = decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * ( 1.0 / 3.0 - 0.5 ) ) ).xyz;\n    rgbA += decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * ( 2.0 / 3.0 - 0.5 ) ) ).xyz;\n    rgbA *= 0.5;\n\n    vec3 rgbB = decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * -0.5 ) ).xyz;\n    rgbB += decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * 0.5 ) ).xyz;\n    rgbB *= 0.25;\n    rgbB += rgbA * 0.5;\n\n    float lumaB = dot( rgbB, luma );\n\n    if ( ( lumaB < lumaMin ) || ( lumaB > lumaMax ) )\n    {\n                gl_FragColor = vec4( rgbA, opacity );\n\n    }\n    else {\n\n        gl_FragColor = vec4( rgbB, opacity );\n\n    }\n}\n\n@end";
+module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\nfloat brightness(vec3 c)\n{\n    return max(max(c.r, c.g), c.b);\n}\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n    vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n#ifdef ANTI_FLICKER\n            vec3 s1 = decodeHDR(clampSample(texture, v_Texcoord + d.xy)).rgb;\n    vec3 s2 = decodeHDR(clampSample(texture, v_Texcoord + d.zy)).rgb;\n    vec3 s3 = decodeHDR(clampSample(texture, v_Texcoord + d.xw)).rgb;\n    vec3 s4 = decodeHDR(clampSample(texture, v_Texcoord + d.zw)).rgb;\n\n        float s1w = 1.0 / (brightness(s1) + 1.0);\n    float s2w = 1.0 / (brightness(s2) + 1.0);\n    float s3w = 1.0 / (brightness(s3) + 1.0);\n    float s4w = 1.0 / (brightness(s4) + 1.0);\n    float oneDivideSum = 1.0 / (s1w + s2w + s3w + s4w);\n\n    vec4 color = vec4(\n        (s1 * s1w + s2 * s2w + s3 * s3w + s4 * s4w) * oneDivideSum,\n        1.0\n    );\n#else\n    vec4 color = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n    color += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n    color *= 0.25;\n#endif\n\n    gl_FragColor = encodeHDR(color);\n}\n\n@end";
 
 
 /***/ }),
@@ -23363,7 +23551,7 @@ module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nun
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nuniform float subpixel: 0.75;\nuniform float edgeThreshold: 0.125;\nuniform float edgeThresholdMin: 0.0625;\n\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nfloat FxaaLuma(vec4 rgba) { return rgba.y; }\nvec4 FxaaPixelShader(\n    vec2 pos\n    ,sampler2D tex\n    ,vec2 fxaaQualityRcpFrame\n    ,float fxaaQualitySubpix\n    ,float fxaaQualityEdgeThreshold\n    ,float fxaaQualityEdgeThresholdMin\n) {\n    vec2 posM;\n    posM.x = pos.x;\n    posM.y = pos.y;\n    vec4 rgbyM = decodeHDR(texture2D(texture, posM, 0.0));\n    float lumaS = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaN = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n    float maxSM = max(lumaS, rgbyM.y);\n    float minSM = min(lumaS, rgbyM.y);\n    float maxESM = max(lumaE, maxSM);\n    float minESM = min(lumaE, minSM);\n    float maxWN = max(lumaN, lumaW);\n    float minWN = min(lumaN, lumaW);\n    float rangeMax = max(maxWN, maxESM);\n    float rangeMin = min(minWN, minESM);\n    float rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;\n    float range = rangeMax - rangeMin;\n    float rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);\n    bool earlyExit = range < rangeMaxClamped;\n    if(earlyExit) return rgbyM;\n    float lumaNW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaSE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaNE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaSW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n    float lumaNS = lumaN + lumaS;\n    float lumaWE = lumaW + lumaE;\n    float subpixRcpRange = 1.0/range;\n    float subpixNSWE = lumaNS + lumaWE;\n    float edgeHorz1 = (-2.0 * rgbyM.y) + lumaNS;\n    float edgeVert1 = (-2.0 * rgbyM.y) + lumaWE;\n    float lumaNESE = lumaNE + lumaSE;\n    float lumaNWNE = lumaNW + lumaNE;\n    float edgeHorz2 = (-2.0 * lumaE) + lumaNESE;\n    float edgeVert2 = (-2.0 * lumaN) + lumaNWNE;\n    float lumaNWSW = lumaNW + lumaSW;\n    float lumaSWSE = lumaSW + lumaSE;\n    float edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);\n    float edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);\n    float edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;\n    float edgeVert3 = (-2.0 * lumaS) + lumaSWSE;\n    float edgeHorz = abs(edgeHorz3) + edgeHorz4;\n    float edgeVert = abs(edgeVert3) + edgeVert4;\n    float subpixNWSWNESE = lumaNWSW + lumaNESE;\n    float lengthSign = fxaaQualityRcpFrame.x;\n    bool horzSpan = edgeHorz >= edgeVert;\n    float subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;\n    if(!horzSpan) lumaN = lumaW;\n    if(!horzSpan) lumaS = lumaE;\n    if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;\n    float subpixB = (subpixA * (1.0/12.0)) - rgbyM.y;\n    float gradientN = lumaN - rgbyM.y;\n    float gradientS = lumaS - rgbyM.y;\n    float lumaNN = lumaN + rgbyM.y;\n    float lumaSS = lumaS + rgbyM.y;\n    bool pairN = abs(gradientN) >= abs(gradientS);\n    float gradient = max(abs(gradientN), abs(gradientS));\n    if(pairN) lengthSign = -lengthSign;\n    float subpixC = clamp(abs(subpixB) * subpixRcpRange, 0.0, 1.0);\n    vec2 posB;\n    posB.x = posM.x;\n    posB.y = posM.y;\n    vec2 offNP;\n    offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;\n    offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;\n    if(!horzSpan) posB.x += lengthSign * 0.5;\n    if( horzSpan) posB.y += lengthSign * 0.5;\n    vec2 posN;\n    posN.x = posB.x - offNP.x * 1.0;\n    posN.y = posB.y - offNP.y * 1.0;\n    vec2 posP;\n    posP.x = posB.x + offNP.x * 1.0;\n    posP.y = posB.y + offNP.y * 1.0;\n    float subpixD = ((-2.0)*subpixC) + 3.0;\n    float lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN, 0.0)));\n    float subpixE = subpixC * subpixC;\n    float lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP, 0.0)));\n    if(!pairN) lumaNN = lumaSS;\n    float gradientScaled = gradient * 1.0/4.0;\n    float lumaMM = rgbyM.y - lumaNN * 0.5;\n    float subpixF = subpixD * subpixE;\n    bool lumaMLTZero = lumaMM < 0.0;\n    lumaEndN -= lumaNN * 0.5;\n    lumaEndP -= lumaNN * 0.5;\n    bool doneN = abs(lumaEndN) >= gradientScaled;\n    bool doneP = abs(lumaEndP) >= gradientScaled;\n    if(!doneN) posN.x -= offNP.x * 1.5;\n    if(!doneN) posN.y -= offNP.y * 1.5;\n    bool doneNP = (!doneN) || (!doneP);\n    if(!doneP) posP.x += offNP.x * 1.5;\n    if(!doneP) posP.y += offNP.y * 1.5;\n    if(doneNP) {\n        if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n        if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n        if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n        if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n        doneN = abs(lumaEndN) >= gradientScaled;\n        doneP = abs(lumaEndP) >= gradientScaled;\n        if(!doneN) posN.x -= offNP.x * 2.0;\n        if(!doneN) posN.y -= offNP.y * 2.0;\n        doneNP = (!doneN) || (!doneP);\n        if(!doneP) posP.x += offNP.x * 2.0;\n        if(!doneP) posP.y += offNP.y * 2.0;\n\n        if(doneNP) {\n            if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n            if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n            if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n            if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n            doneN = abs(lumaEndN) >= gradientScaled;\n            doneP = abs(lumaEndP) >= gradientScaled;\n            if(!doneN) posN.x -= offNP.x * 4.0;\n            if(!doneN) posN.y -= offNP.y * 4.0;\n            doneNP = (!doneN) || (!doneP);\n            if(!doneP) posP.x += offNP.x * 4.0;\n            if(!doneP) posP.y += offNP.y * 4.0;\n\n            if(doneNP) {\n                if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n                if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n                if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n                if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n                doneN = abs(lumaEndN) >= gradientScaled;\n                doneP = abs(lumaEndP) >= gradientScaled;\n                if(!doneN) posN.x -= offNP.x * 12.0;\n                if(!doneN) posN.y -= offNP.y * 12.0;\n                doneNP = (!doneN) || (!doneP);\n                if(!doneP) posP.x += offNP.x * 12.0;\n                if(!doneP) posP.y += offNP.y * 12.0;\n            }\n        }\n    }\n    float dstN = posM.x - posN.x;\n    float dstP = posP.x - posM.x;\n    if(!horzSpan) dstN = posM.y - posN.y;\n    if(!horzSpan) dstP = posP.y - posM.y;\n    bool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;\n    float spanLength = (dstP + dstN);\n    bool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;\n    float spanLengthRcp = 1.0/spanLength;\n    bool directionN = dstN < dstP;\n    float dst = min(dstN, dstP);\n    bool goodSpan = directionN ? goodSpanN : goodSpanP;\n    float subpixG = subpixF * subpixF;\n    float pixelOffset = (dst * (-spanLengthRcp)) + 0.5;\n    float subpixH = subpixG * fxaaQualitySubpix;\n    float pixelOffsetGood = goodSpan ? pixelOffset : 0.0;\n    float pixelOffsetSubpix = max(pixelOffsetGood, subpixH);\n    if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;\n    if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;\n    return vec4(decodeHDR(texture2D(texture, posM, 0.0)).xyz, rgbyM.y);\n\n}\n\nvoid main()\n{\n    vec4 color = FxaaPixelShader(\n        v_Texcoord,\n        texture,\n        vec2(1.0) / viewport.zw,\n        subpixel,\n        edgeThreshold,\n        edgeThresholdMin\n    );\n    gl_FragColor = vec4(color.rgb, 1.0);\n}\n@end";
+module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nvarying vec2 v_Texcoord;\n\n#define FXAA_REDUCE_MIN   (1.0/128.0)\n#define FXAA_REDUCE_MUL   (1.0/8.0)\n#define FXAA_SPAN_MAX     8.0\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec2 resolution = 1.0 / viewport.zw;\n    vec3 rgbNW =  decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, -1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbNE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, -1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbSW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, 1.0 ) ) * resolution ) ).xyz;\n    vec3 rgbSE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, 1.0 ) ) * resolution ) ).xyz;\n    vec4 rgbaM  = decodeHDR( texture2D( texture,  gl_FragCoord.xy  * resolution ) );\n    vec3 rgbM  = rgbaM.xyz;\n    float opacity  = rgbaM.w;\n\n    vec3 luma = vec3( 0.299, 0.587, 0.114 );\n\n    float lumaNW = dot( rgbNW, luma );\n    float lumaNE = dot( rgbNE, luma );\n    float lumaSW = dot( rgbSW, luma );\n    float lumaSE = dot( rgbSE, luma );\n    float lumaM  = dot( rgbM,  luma );\n    float lumaMin = min( lumaM, min( min( lumaNW, lumaNE ), min( lumaSW, lumaSE ) ) );\n    float lumaMax = max( lumaM, max( max( lumaNW, lumaNE) , max( lumaSW, lumaSE ) ) );\n\n    vec2 dir;\n    dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n    dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n\n    float dirReduce = max( ( lumaNW + lumaNE + lumaSW + lumaSE ) * ( 0.25 * FXAA_REDUCE_MUL ), FXAA_REDUCE_MIN );\n\n    float rcpDirMin = 1.0 / ( min( abs( dir.x ), abs( dir.y ) ) + dirReduce );\n    dir = min( vec2( FXAA_SPAN_MAX,  FXAA_SPAN_MAX),\n          max( vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),\n                dir * rcpDirMin)) * resolution;\n\n    vec3 rgbA = decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * ( 1.0 / 3.0 - 0.5 ) ) ).xyz;\n    rgbA += decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * ( 2.0 / 3.0 - 0.5 ) ) ).xyz;\n    rgbA *= 0.5;\n\n    vec3 rgbB = decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * -0.5 ) ).xyz;\n    rgbB += decodeHDR( texture2D( texture, gl_FragCoord.xy  * resolution + dir * 0.5 ) ).xyz;\n    rgbB *= 0.25;\n    rgbB += rgbA * 0.5;\n\n    float lumaB = dot( rgbB, luma );\n\n    if ( ( lumaB < lumaMin ) || ( lumaB > lumaMax ) )\n    {\n                gl_FragColor = vec4( rgbA, opacity );\n\n    }\n    else {\n\n        gl_FragColor = vec4( rgbB, opacity );\n\n    }\n}\n\n@end";
 
 
 /***/ }),
@@ -23371,7 +23559,7 @@ module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nu
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n    float luminance = dot(tex.rgb, w);\n    luminance = log(luminance + 0.001);\n\n    gl_FragColor = encodeHDR(vec4(vec3(luminance), 1.0));\n}\n\n@end\n\n@export qtek.compositor.hdr.lum_adaption\nvarying vec2 v_Texcoord;\n\nuniform sampler2D adaptedLum;\nuniform sampler2D currentLum;\n\nuniform float frameTime : 0.02;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    float fAdaptedLum = decodeHDR(texture2D(adaptedLum, vec2(0.5, 0.5))).r;\n    float fCurrentLum = exp(encodeHDR(texture2D(currentLum, vec2(0.5, 0.5))).r);\n\n    fAdaptedLum += (fCurrentLum - fAdaptedLum) * (1.0 - pow(0.98, 30.0 * frameTime));\n    gl_FragColor = encodeHDR(vec4(vec3(fAdaptedLum), 1.0));\n}\n@end\n\n@export qtek.compositor.hdr.composite\n\nuniform sampler2D texture;\n#ifdef BLOOM_ENABLED\nuniform sampler2D bloom;\n#endif\n#ifdef LENSFLARE_ENABLED\nuniform sampler2D lensflare;\nuniform sampler2D lensdirt;\n#endif\n\n#ifdef LUM_ENABLED\nuniform sampler2D lum;\n#endif\n\n#ifdef LUT_ENABLED\nuniform sampler2D lut;\n#endif\n\n#ifdef COLOR_CORRECTION\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float saturation : 1.0;\n#endif\n\n#ifdef VIGNETTE\nuniform float vignetteDarkness: 1.0;\nuniform float vignetteOffset: 1.0;\n#endif\n\nuniform float exposure : 1.0;\nuniform float bloomIntensity : 0.25;\nuniform float lensflareIntensity : 1;\n\nvarying vec2 v_Texcoord;\n\nconst vec3 whiteScale = vec3(11.2);\n\n@import qtek.util.srgb\n\nvec3 uncharted2ToneMap(vec3 x)\n{\n    const float A = 0.22;       const float B = 0.30;       const float C = 0.10;       const float D = 0.20;       const float E = 0.01;       const float F = 0.30;   \n    return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;\n}\n\nvec3 filmicToneMap(vec3 color)\n{\n    vec3 x = max(vec3(0.0), color - 0.004);\n    return (x*(6.2*x+0.5))/(x*(6.2*x+1.7)+0.06);\n}\n\nvec3 ACESToneMapping(vec3 color)\n{\n    const float A = 2.51;\n    const float B = 0.03;\n    const float C = 2.43;\n    const float D = 0.59;\n    const float E = 0.14;\n    return (color * (A * color + B)) / (color * (C * color + D) + E);\n}\n\nfloat eyeAdaption(float fLum)\n{\n    return mix(0.2, fLum, 0.5);\n}\n\n#ifdef LUT_ENABLED\nvec3 lutTransform(vec3 color) {\n    float blueColor = color.b * 63.0;\n\n    vec2 quad1;\n    quad1.y = floor(floor(blueColor) / 8.0);\n    quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n    vec2 quad2;\n    quad2.y = floor(ceil(blueColor) / 8.0);\n    quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n    vec2 texPos1;\n    texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n    texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n    vec2 texPos2;\n    texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n    texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n    vec4 newColor1 = texture2D(lut, texPos1);\n    vec4 newColor2 = texture2D(lut, texPos2);\n\n    vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n    return newColor.rgb;\n}\n#endif\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n        vec4 texel = vec4(0.0);\n#ifdef TEXTURE_ENABLED\n    texel += decodeHDR(texture2D(texture, v_Texcoord));\n#endif\n\n#ifdef BLOOM_ENABLED\n    texel += decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity;\n#endif\n\n#ifdef LENSFLARE_ENABLED\n    texel += decodeHDR(texture2D(lensflare, v_Texcoord)) * texture2D(lensdirt, v_Texcoord) * lensflareIntensity;\n#endif\n\n#ifdef LUM_ENABLED\n    float fLum = texture2D(lum, vec2(0.5, 0.5)).r;\n    float adaptedLumDest = 3.0 / (max(0.1, 1.0 + 10.0*eyeAdaption(fLum)));\n    float exposureBias = adaptedLumDest * exposure;\n#else\n    float exposureBias = exposure;\n#endif\n    texel.rgb *= exposureBias;\n\n                texel.rgb = ACESToneMapping(texel.rgb);\n    texel = linearTosRGB(texel);\n\n#ifdef LUT_ENABLED\n    texel.rgb = lutTransform(clamp(texel.rgb,vec3(0.0),vec3(1.0)));\n#endif\n\n#ifdef COLOR_CORRECTION\n        texel.rgb = clamp(texel.rgb + vec3(brightness), 0.0, 1.0);\n        texel.rgb = clamp((texel.rgb - vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n        float lum = dot(texel.rgb, vec3(0.2125, 0.7154, 0.0721));\n    texel.rgb = mix(vec3(lum), texel.rgb, saturation);\n#endif\n\n#ifdef VIGNETTE\n    vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(vignetteOffset);\n    texel.rgb = mix(texel.rgb, vec3(1.0 - vignetteDarkness), dot(uv, uv));\n#endif\n\n    gl_FragColor = encodeHDR(texel);\n\n#ifdef DEBUG\n        #if DEBUG == 1\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(texture, v_Texcoord)));\n        #elif DEBUG == 2\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity);\n        #elif DEBUG == 3\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(lensflare, v_Texcoord) * lensflareIntensity));\n    #endif\n#endif\n        #ifdef PREMULTIPLY_ALPHA\n    gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nuniform float subpixel: 0.75;\nuniform float edgeThreshold: 0.125;\nuniform float edgeThresholdMin: 0.0625;\n\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nfloat FxaaLuma(vec4 rgba) { return rgba.y; }\nvec4 FxaaPixelShader(\n    vec2 pos\n    ,sampler2D tex\n    ,vec2 fxaaQualityRcpFrame\n    ,float fxaaQualitySubpix\n    ,float fxaaQualityEdgeThreshold\n    ,float fxaaQualityEdgeThresholdMin\n) {\n    vec2 posM;\n    posM.x = pos.x;\n    posM.y = pos.y;\n    vec4 rgbyM = decodeHDR(texture2D(texture, posM, 0.0));\n    float lumaS = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaN = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n    float maxSM = max(lumaS, rgbyM.y);\n    float minSM = min(lumaS, rgbyM.y);\n    float maxESM = max(lumaE, maxSM);\n    float minESM = min(lumaE, minSM);\n    float maxWN = max(lumaN, lumaW);\n    float minWN = min(lumaN, lumaW);\n    float rangeMax = max(maxWN, maxESM);\n    float rangeMin = min(minWN, minESM);\n    float rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;\n    float range = rangeMax - rangeMin;\n    float rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);\n    bool earlyExit = range < rangeMaxClamped;\n    if(earlyExit) return rgbyM;\n    float lumaNW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaSE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaNE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n    float lumaSW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n    float lumaNS = lumaN + lumaS;\n    float lumaWE = lumaW + lumaE;\n    float subpixRcpRange = 1.0/range;\n    float subpixNSWE = lumaNS + lumaWE;\n    float edgeHorz1 = (-2.0 * rgbyM.y) + lumaNS;\n    float edgeVert1 = (-2.0 * rgbyM.y) + lumaWE;\n    float lumaNESE = lumaNE + lumaSE;\n    float lumaNWNE = lumaNW + lumaNE;\n    float edgeHorz2 = (-2.0 * lumaE) + lumaNESE;\n    float edgeVert2 = (-2.0 * lumaN) + lumaNWNE;\n    float lumaNWSW = lumaNW + lumaSW;\n    float lumaSWSE = lumaSW + lumaSE;\n    float edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);\n    float edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);\n    float edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;\n    float edgeVert3 = (-2.0 * lumaS) + lumaSWSE;\n    float edgeHorz = abs(edgeHorz3) + edgeHorz4;\n    float edgeVert = abs(edgeVert3) + edgeVert4;\n    float subpixNWSWNESE = lumaNWSW + lumaNESE;\n    float lengthSign = fxaaQualityRcpFrame.x;\n    bool horzSpan = edgeHorz >= edgeVert;\n    float subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;\n    if(!horzSpan) lumaN = lumaW;\n    if(!horzSpan) lumaS = lumaE;\n    if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;\n    float subpixB = (subpixA * (1.0/12.0)) - rgbyM.y;\n    float gradientN = lumaN - rgbyM.y;\n    float gradientS = lumaS - rgbyM.y;\n    float lumaNN = lumaN + rgbyM.y;\n    float lumaSS = lumaS + rgbyM.y;\n    bool pairN = abs(gradientN) >= abs(gradientS);\n    float gradient = max(abs(gradientN), abs(gradientS));\n    if(pairN) lengthSign = -lengthSign;\n    float subpixC = clamp(abs(subpixB) * subpixRcpRange, 0.0, 1.0);\n    vec2 posB;\n    posB.x = posM.x;\n    posB.y = posM.y;\n    vec2 offNP;\n    offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;\n    offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;\n    if(!horzSpan) posB.x += lengthSign * 0.5;\n    if( horzSpan) posB.y += lengthSign * 0.5;\n    vec2 posN;\n    posN.x = posB.x - offNP.x * 1.0;\n    posN.y = posB.y - offNP.y * 1.0;\n    vec2 posP;\n    posP.x = posB.x + offNP.x * 1.0;\n    posP.y = posB.y + offNP.y * 1.0;\n    float subpixD = ((-2.0)*subpixC) + 3.0;\n    float lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN, 0.0)));\n    float subpixE = subpixC * subpixC;\n    float lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP, 0.0)));\n    if(!pairN) lumaNN = lumaSS;\n    float gradientScaled = gradient * 1.0/4.0;\n    float lumaMM = rgbyM.y - lumaNN * 0.5;\n    float subpixF = subpixD * subpixE;\n    bool lumaMLTZero = lumaMM < 0.0;\n    lumaEndN -= lumaNN * 0.5;\n    lumaEndP -= lumaNN * 0.5;\n    bool doneN = abs(lumaEndN) >= gradientScaled;\n    bool doneP = abs(lumaEndP) >= gradientScaled;\n    if(!doneN) posN.x -= offNP.x * 1.5;\n    if(!doneN) posN.y -= offNP.y * 1.5;\n    bool doneNP = (!doneN) || (!doneP);\n    if(!doneP) posP.x += offNP.x * 1.5;\n    if(!doneP) posP.y += offNP.y * 1.5;\n    if(doneNP) {\n        if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n        if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n        if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n        if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n        doneN = abs(lumaEndN) >= gradientScaled;\n        doneP = abs(lumaEndP) >= gradientScaled;\n        if(!doneN) posN.x -= offNP.x * 2.0;\n        if(!doneN) posN.y -= offNP.y * 2.0;\n        doneNP = (!doneN) || (!doneP);\n        if(!doneP) posP.x += offNP.x * 2.0;\n        if(!doneP) posP.y += offNP.y * 2.0;\n\n        if(doneNP) {\n            if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n            if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n            if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n            if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n            doneN = abs(lumaEndN) >= gradientScaled;\n            doneP = abs(lumaEndP) >= gradientScaled;\n            if(!doneN) posN.x -= offNP.x * 4.0;\n            if(!doneN) posN.y -= offNP.y * 4.0;\n            doneNP = (!doneN) || (!doneP);\n            if(!doneP) posP.x += offNP.x * 4.0;\n            if(!doneP) posP.y += offNP.y * 4.0;\n\n            if(doneNP) {\n                if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n                if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n                if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n                if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n                doneN = abs(lumaEndN) >= gradientScaled;\n                doneP = abs(lumaEndP) >= gradientScaled;\n                if(!doneN) posN.x -= offNP.x * 12.0;\n                if(!doneN) posN.y -= offNP.y * 12.0;\n                doneNP = (!doneN) || (!doneP);\n                if(!doneP) posP.x += offNP.x * 12.0;\n                if(!doneP) posP.y += offNP.y * 12.0;\n            }\n        }\n    }\n    float dstN = posM.x - posN.x;\n    float dstP = posP.x - posM.x;\n    if(!horzSpan) dstN = posM.y - posN.y;\n    if(!horzSpan) dstP = posP.y - posM.y;\n    bool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;\n    float spanLength = (dstP + dstN);\n    bool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;\n    float spanLengthRcp = 1.0/spanLength;\n    bool directionN = dstN < dstP;\n    float dst = min(dstN, dstP);\n    bool goodSpan = directionN ? goodSpanN : goodSpanP;\n    float subpixG = subpixF * subpixF;\n    float pixelOffset = (dst * (-spanLengthRcp)) + 0.5;\n    float subpixH = subpixG * fxaaQualitySubpix;\n    float pixelOffsetGood = goodSpan ? pixelOffset : 0.0;\n    float pixelOffsetSubpix = max(pixelOffsetGood, subpixH);\n    if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;\n    if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;\n    return vec4(decodeHDR(texture2D(texture, posM, 0.0)).xyz, rgbyM.y);\n\n}\n\nvoid main()\n{\n    vec4 color = FxaaPixelShader(\n        v_Texcoord,\n        texture,\n        vec2(1.0) / viewport.zw,\n        subpixel,\n        edgeThreshold,\n        edgeThresholdMin\n    );\n    gl_FragColor = vec4(color.rgb, 1.0);\n}\n@end";
 
 
 /***/ }),
@@ -23379,7 +23567,7 @@ module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n\nuniform sampler2D texture;\nuniform sampler2D lenscolor;\n\nuniform vec2 textureSize : [512, 512];\n\nuniform float dispersal : 0.3;\nuniform float haloWidth : 0.4;\nuniform float distortion : 1.0;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvec4 textureDistorted(\n    in vec2 texcoord,\n    in vec2 direction,\n    in vec3 distortion\n) {\n    return vec4(\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.r)).r,\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.g)).g,\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.b)).b,\n        1.0\n    );\n}\n\nvoid main()\n{\n    vec2 texcoord = -v_Texcoord + vec2(1.0);     vec2 textureOffset = 1.0 / textureSize;\n\n    vec2 ghostVec = (vec2(0.5) - texcoord) * dispersal;\n    vec2 haloVec = normalize(ghostVec) * haloWidth;\n\n    vec3 distortion = vec3(-textureOffset.x * distortion, 0.0, textureOffset.x * distortion);\n        vec4 result = vec4(0.0);\n    for (int i = 0; i < SAMPLE_NUMBER; i++)\n    {\n        vec2 offset = fract(texcoord + ghostVec * float(i));\n\n        float weight = length(vec2(0.5) - offset) / length(vec2(0.5));\n        weight = pow(1.0 - weight, 10.0);\n\n        result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n    }\n\n    result *= texture2D(lenscolor, vec2(length(vec2(0.5) - texcoord)) / length(vec2(0.5)));\n        float weight = length(vec2(0.5) - fract(texcoord + haloVec)) / length(vec2(0.5));\n    weight = pow(1.0 - weight, 10.0);\n    vec2 offset = fract(texcoord + haloVec);\n    result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n\n    gl_FragColor = result;\n}\n@end";
+module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n    float luminance = dot(tex.rgb, w);\n    luminance = log(luminance + 0.001);\n\n    gl_FragColor = encodeHDR(vec4(vec3(luminance), 1.0));\n}\n\n@end\n\n@export qtek.compositor.hdr.lum_adaption\nvarying vec2 v_Texcoord;\n\nuniform sampler2D adaptedLum;\nuniform sampler2D currentLum;\n\nuniform float frameTime : 0.02;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    float fAdaptedLum = decodeHDR(texture2D(adaptedLum, vec2(0.5, 0.5))).r;\n    float fCurrentLum = exp(encodeHDR(texture2D(currentLum, vec2(0.5, 0.5))).r);\n\n    fAdaptedLum += (fCurrentLum - fAdaptedLum) * (1.0 - pow(0.98, 30.0 * frameTime));\n    gl_FragColor = encodeHDR(vec4(vec3(fAdaptedLum), 1.0));\n}\n@end\n\n@export qtek.compositor.hdr.composite\n\nuniform sampler2D texture;\n#ifdef BLOOM_ENABLED\nuniform sampler2D bloom;\n#endif\n#ifdef LENSFLARE_ENABLED\nuniform sampler2D lensflare;\nuniform sampler2D lensdirt;\n#endif\n\n#ifdef LUM_ENABLED\nuniform sampler2D lum;\n#endif\n\n#ifdef LUT_ENABLED\nuniform sampler2D lut;\n#endif\n\n#ifdef COLOR_CORRECTION\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float saturation : 1.0;\n#endif\n\n#ifdef VIGNETTE\nuniform float vignetteDarkness: 1.0;\nuniform float vignetteOffset: 1.0;\n#endif\n\nuniform float exposure : 1.0;\nuniform float bloomIntensity : 0.25;\nuniform float lensflareIntensity : 1;\n\nvarying vec2 v_Texcoord;\n\nconst vec3 whiteScale = vec3(11.2);\n\n@import qtek.util.srgb\n\nvec3 uncharted2ToneMap(vec3 x)\n{\n    const float A = 0.22;       const float B = 0.30;       const float C = 0.10;       const float D = 0.20;       const float E = 0.01;       const float F = 0.30;   \n    return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;\n}\n\nvec3 filmicToneMap(vec3 color)\n{\n    vec3 x = max(vec3(0.0), color - 0.004);\n    return (x*(6.2*x+0.5))/(x*(6.2*x+1.7)+0.06);\n}\n\nvec3 ACESToneMapping(vec3 color)\n{\n    const float A = 2.51;\n    const float B = 0.03;\n    const float C = 2.43;\n    const float D = 0.59;\n    const float E = 0.14;\n    return (color * (A * color + B)) / (color * (C * color + D) + E);\n}\n\nfloat eyeAdaption(float fLum)\n{\n    return mix(0.2, fLum, 0.5);\n}\n\n#ifdef LUT_ENABLED\nvec3 lutTransform(vec3 color) {\n    float blueColor = color.b * 63.0;\n\n    vec2 quad1;\n    quad1.y = floor(floor(blueColor) / 8.0);\n    quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n    vec2 quad2;\n    quad2.y = floor(ceil(blueColor) / 8.0);\n    quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n    vec2 texPos1;\n    texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n    texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n    vec2 texPos2;\n    texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n    texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n    vec4 newColor1 = texture2D(lut, texPos1);\n    vec4 newColor2 = texture2D(lut, texPos2);\n\n    vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n    return newColor.rgb;\n}\n#endif\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n        vec4 texel = vec4(0.0);\n#ifdef TEXTURE_ENABLED\n    texel += decodeHDR(texture2D(texture, v_Texcoord));\n#endif\n\n#ifdef BLOOM_ENABLED\n    texel += decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity;\n#endif\n\n#ifdef LENSFLARE_ENABLED\n    texel += decodeHDR(texture2D(lensflare, v_Texcoord)) * texture2D(lensdirt, v_Texcoord) * lensflareIntensity;\n#endif\n\n#ifdef LUM_ENABLED\n    float fLum = texture2D(lum, vec2(0.5, 0.5)).r;\n    float adaptedLumDest = 3.0 / (max(0.1, 1.0 + 10.0*eyeAdaption(fLum)));\n    float exposureBias = adaptedLumDest * exposure;\n#else\n    float exposureBias = exposure;\n#endif\n    texel.rgb *= exposureBias;\n\n                texel.rgb = ACESToneMapping(texel.rgb);\n    texel = linearTosRGB(texel);\n\n#ifdef LUT_ENABLED\n    texel.rgb = lutTransform(clamp(texel.rgb,vec3(0.0),vec3(1.0)));\n#endif\n\n#ifdef COLOR_CORRECTION\n        texel.rgb = clamp(texel.rgb + vec3(brightness), 0.0, 1.0);\n        texel.rgb = clamp((texel.rgb - vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n        float lum = dot(texel.rgb, vec3(0.2125, 0.7154, 0.0721));\n    texel.rgb = mix(vec3(lum), texel.rgb, saturation);\n#endif\n\n#ifdef VIGNETTE\n    vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(vignetteOffset);\n    texel.rgb = mix(texel.rgb, vec3(1.0 - vignetteDarkness), dot(uv, uv));\n#endif\n\n    gl_FragColor = encodeHDR(texel);\n\n#ifdef DEBUG\n        #if DEBUG == 1\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(texture, v_Texcoord)));\n        #elif DEBUG == 2\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity);\n        #elif DEBUG == 3\n    gl_FragColor = encodeHDR(decodeHDR(texture2D(lensflare, v_Texcoord) * lensflareIntensity));\n    #endif\n#endif\n        #ifdef PREMULTIPLY_ALPHA\n    gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23387,7 +23575,7 @@ module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord );\n    float luminance = dot(tex.rgb, w);\n\n    gl_FragColor = vec4(vec3(luminance), 1.0);\n}\n\n@end";
+module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n\nuniform sampler2D texture;\nuniform sampler2D lenscolor;\n\nuniform vec2 textureSize : [512, 512];\n\nuniform float dispersal : 0.3;\nuniform float haloWidth : 0.4;\nuniform float distortion : 1.0;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvec4 textureDistorted(\n    in vec2 texcoord,\n    in vec2 direction,\n    in vec3 distortion\n) {\n    return vec4(\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.r)).r,\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.g)).g,\n        decodeHDR(texture2D(texture, texcoord + direction * distortion.b)).b,\n        1.0\n    );\n}\n\nvoid main()\n{\n    vec2 texcoord = -v_Texcoord + vec2(1.0);     vec2 textureOffset = 1.0 / textureSize;\n\n    vec2 ghostVec = (vec2(0.5) - texcoord) * dispersal;\n    vec2 haloVec = normalize(ghostVec) * haloWidth;\n\n    vec3 distortion = vec3(-textureOffset.x * distortion, 0.0, textureOffset.x * distortion);\n        vec4 result = vec4(0.0);\n    for (int i = 0; i < SAMPLE_NUMBER; i++)\n    {\n        vec2 offset = fract(texcoord + ghostVec * float(i));\n\n        float weight = length(vec2(0.5) - offset) / length(vec2(0.5));\n        weight = pow(1.0 - weight, 10.0);\n\n        result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n    }\n\n    result *= texture2D(lenscolor, vec2(length(vec2(0.5) - texcoord)) / length(vec2(0.5)));\n        float weight = length(vec2(0.5) - fract(texcoord + haloVec)) / length(vec2(0.5));\n    weight = pow(1.0 - weight, 10.0);\n    vec2 offset = fract(texcoord + haloVec);\n    result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n\n    gl_FragColor = result;\n}\n@end";
 
 
 /***/ }),
@@ -23395,7 +23583,7 @@ module.exports = "\n@export qtek.compositor.lum\n\nvarying vec2 v_Texcoord;\n\nu
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\nuniform sampler2D lookup;\n\nvoid main()\n{\n\n    vec4 tex = texture2D(texture, v_Texcoord);\n\n    float blueColor = tex.b * 63.0;\n\n    vec2 quad1;\n    quad1.y = floor(floor(blueColor) / 8.0);\n    quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n    vec2 quad2;\n    quad2.y = floor(ceil(blueColor) / 8.0);\n    quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n    vec2 texPos1;\n    texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n    texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n    vec2 texPos2;\n    texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n    texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n    vec4 newColor1 = texture2D(lookup, texPos1);\n    vec4 newColor2 = texture2D(lookup, texPos2);\n\n    vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n    gl_FragColor = vec4(newColor.rgb, tex.w);\n}\n\n@end";
+module.exports = "\n@export qtek.compositor.lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n    vec4 tex = texture2D( texture, v_Texcoord );\n    float luminance = dot(tex.rgb, w);\n\n    gl_FragColor = vec4(vec3(luminance), 1.0);\n}\n\n@end";
 
 
 /***/ }),
@@ -23403,7 +23591,7 @@ module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nu
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n\n    gl_FragColor.rgb = tex.rgb;\n\n#ifdef OUTPUT_ALPHA\n    gl_FragColor.a = tex.a;\n#else\n    gl_FragColor.a = 1.0;\n#endif\n\n    gl_FragColor = encodeHDR(gl_FragColor);\n\n        #ifdef PREMULTIPLY_ALPHA\n    gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
+module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\nuniform sampler2D lookup;\n\nvoid main()\n{\n\n    vec4 tex = texture2D(texture, v_Texcoord);\n\n    float blueColor = tex.b * 63.0;\n\n    vec2 quad1;\n    quad1.y = floor(floor(blueColor) / 8.0);\n    quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n    vec2 quad2;\n    quad2.y = floor(ceil(blueColor) / 8.0);\n    quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n    vec2 texPos1;\n    texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n    texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n    vec2 texPos2;\n    texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n    texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n    vec4 newColor1 = texture2D(lookup, texPos1);\n    vec4 newColor2 = texture2D(lookup, texPos2);\n\n    vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n    gl_FragColor = vec4(newColor.rgb, tex.w);\n}\n\n@end";
 
 
 /***/ }),
@@ -23411,7 +23599,7 @@ module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvary
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    vec4 s;\n    s  = decodeHDR(clampSample(texture, v_Texcoord - d.xy));\n    s += decodeHDR(clampSample(texture, v_Texcoord - d.wy)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord - d.zy));\n\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zw)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord       )) * 4.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xw)) * 2.0;\n\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.wy)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n\n    gl_FragColor = encodeHDR(s / 16.0);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    vec4 s;\n    s  = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n\n    gl_FragColor = encodeHDR(s / 4.0);\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n\n    gl_FragColor.rgb = tex.rgb;\n\n#ifdef OUTPUT_ALPHA\n    gl_FragColor.a = tex.a;\n#else\n    gl_FragColor.a = 1.0;\n#endif\n\n    gl_FragColor = encodeHDR(gl_FragColor);\n\n        #ifdef PREMULTIPLY_ALPHA\n    gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23419,7 +23607,7 @@ module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\n
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\nvarying vec2 v_Texcoord;\n\nvoid main()\n{\n    v_Texcoord = texcoord;\n    gl_Position = worldViewProjection * vec4(position, 1.0);\n}\n\n@end";
+module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n        vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n    vec4 s;\n    s  = decodeHDR(clampSample(texture, v_Texcoord - d.xy));\n    s += decodeHDR(clampSample(texture, v_Texcoord - d.wy)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord - d.zy));\n\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zw)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord       )) * 4.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xw)) * 2.0;\n\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.wy)) * 2.0;\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n\n    gl_FragColor = encodeHDR(s / 16.0);\n#else\n        vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n    vec4 s;\n    s  = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n    s += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n\n    gl_FragColor = encodeHDR(s / 4.0);\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23427,7 +23615,7 @@ module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProj
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nuniform float darkness: 1;\nuniform float offset: 1;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n    gl_FragColor.rgb = texel.rgb;\n\n    vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(offset);\n\n    gl_FragColor = encodeHDR(vec4(mix(texel.rgb, vec3(1.0 - darkness), dot(uv, uv)), texel.a));\n}\n\n@end";
+module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\nvarying vec2 v_Texcoord;\n\nvoid main()\n{\n    v_Texcoord = texcoord;\n    gl_Position = worldViewProjection * vec4(position, 1.0);\n}\n\n@end";
 
 
 /***/ }),
@@ -23435,11 +23623,19 @@ module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nva
 /***/ (function(module, exports) {
 
 
-module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n    int offset = 9 * idx;\n\n        return ambientSHLightCoefficients[0]\n        + ambientSHLightCoefficients[1] * N.x\n        + ambientSHLightCoefficients[2] * N.y\n        + ambientSHLightCoefficients[3] * N.z\n        + ambientSHLightCoefficients[4] * N.x * N.z\n        + ambientSHLightCoefficients[5] * N.z * N.y\n        + ambientSHLightCoefficients[6] * N.y * N.x\n        + ambientSHLightCoefficients[7] * (3.0 * N.z * N.z - 1.0)\n        + ambientSHLightCoefficients[8] * (N.x * N.x - N.y * N.y);\n}";
+module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nuniform float darkness: 1;\nuniform float offset: 1;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n    vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n    gl_FragColor.rgb = texel.rgb;\n\n    vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(offset);\n\n    gl_FragColor = encodeHDR(vec4(mix(texel.rgb, vec3(1.0 - darkness), dot(uv, uv)), texel.a));\n}\n\n@end";
 
 
 /***/ }),
 /* 80 */
+/***/ (function(module, exports) {
+
+
+module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n    int offset = 9 * idx;\n\n        return ambientSHLightCoefficients[0]\n        + ambientSHLightCoefficients[1] * N.x\n        + ambientSHLightCoefficients[2] * N.y\n        + ambientSHLightCoefficients[3] * N.z\n        + ambientSHLightCoefficients[4] * N.x * N.z\n        + ambientSHLightCoefficients[5] * N.z * N.y\n        + ambientSHLightCoefficients[6] * N.y * N.x\n        + ambientSHLightCoefficients[7] * (3.0 * N.z * N.z - 1.0)\n        + ambientSHLightCoefficients[8] * (N.x * N.x - N.y * N.y);\n}";
+
+
+/***/ }),
+/* 81 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -23461,7 +23657,7 @@ module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n    int offset = 9
         exportHeaderPrefix + 'ambient_sh_light',
         uniformVec3Prefix + 'ambientSHLightColor[AMBIENT_SH_LIGHT_COUNT]' + unconfigurable,
         uniformVec3Prefix + 'ambientSHLightCoefficients[AMBIENT_SH_LIGHT_COUNT * 9]' + unconfigurable,
-        __webpack_require__(79),
+        __webpack_require__(80),
         exportEnd,
 
         exportHeaderPrefix + 'ambient_cubemap_light',
@@ -23489,7 +23685,7 @@ module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n    int offset = 9
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ (function(module, exports) {
 
 
@@ -23497,7 +23693,7 @@ module.exports = "/**\n * http: */\n\n@export qtek.lambert.vertex\n\nuniform mat
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ (function(module, exports) {
 
 
@@ -23505,7 +23701,7 @@ module.exports = "@export qtek.sm.depth.vertex\n\nuniform mat4 worldViewProjecti
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ (function(module, exports) {
 
 
@@ -23513,7 +23709,7 @@ module.exports = "@export qtek.skybox.vertex\n\nuniform mat4 world : WORLD;\nuni
 
 
 /***/ }),
-/* 84 */
+/* 85 */
 /***/ (function(module, exports) {
 
 
@@ -23521,7 +23717,7 @@ module.exports = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n    con
 
 
 /***/ }),
-/* 85 */
+/* 86 */
 /***/ (function(module, exports) {
 
 
@@ -23529,7 +23725,7 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
 
 
 /***/ }),
-/* 86 */
+/* 87 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -23890,187 +24086,6 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
     };
 
     module.exports = meshUtil;
-
-
-/***/ }),
-/* 87 */
-/***/ (function(module, exports) {
-
-/**
- * Only implements needed gestures for mobile.
- */
-var GestureMgr = function () {
-
-    /**
-     * @private
-     * @type {Array.<Object>}
-     */
-    this._track = [];
-};
-
-GestureMgr.prototype = {
-
-    constructor: GestureMgr,
-
-    recognize: function (event, target, root) {
-        this._doTrack(event, target, root);
-        return this._recognize(event);
-    },
-
-    clear: function () {
-        this._track.length = 0;
-        return this;
-    },
-
-    _doTrack: function (event, target, root) {
-        var touches = event.targetTouches;
-
-        if (!touches) {
-            return;
-        }
-
-        var trackItem = {
-            points: [],
-            touches: [],
-            target: target,
-            event: event
-        };
-
-        for (var i = 0, len = touches.length; i < len; i++) {
-            var touch = touches[i];
-            trackItem.points.push([touch.clientX, touch.clientY]);
-            trackItem.touches.push(touch);
-        }
-
-        this._track.push(trackItem);
-    },
-
-    _recognize: function (event) {
-        for (var eventName in recognizers) {
-            if (recognizers.hasOwnProperty(eventName)) {
-                var gestureInfo = recognizers[eventName](this._track, event);
-                if (gestureInfo) {
-                    return gestureInfo;
-                }
-            }
-        }
-    }
-};
-
-function dist(pointPair) {
-    var dx = pointPair[1][0] - pointPair[0][0];
-    var dy = pointPair[1][1] - pointPair[0][1];
-
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-function center(pointPair) {
-    return [
-        (pointPair[0][0] + pointPair[1][0]) / 2,
-        (pointPair[0][1] + pointPair[1][1]) / 2
-    ];
-}
-
-var recognizers = {
-
-    pinch: function (track, event) {
-        var trackLen = track.length;
-
-        if (!trackLen) {
-            return;
-        }
-
-        var pinchEnd = (track[trackLen - 1] || {}).points;
-        var pinchPre = (track[trackLen - 2] || {}).points || pinchEnd;
-
-        if (pinchPre
-            && pinchPre.length > 1
-            && pinchEnd
-            && pinchEnd.length > 1
-        ) {
-            var pinchScale = dist(pinchEnd) / dist(pinchPre);
-            !isFinite(pinchScale) && (pinchScale = 1);
-
-            event.pinchScale = pinchScale;
-
-            var pinchCenter = center(pinchEnd);
-            event.pinchX = pinchCenter[0];
-            event.pinchY = pinchCenter[1];
-
-            return {
-                type: 'pinch',
-                target: track[0].target,
-                event: event
-            };
-        }
-    }
-};
-
-module.exports = GestureMgr;
-
-/***/ }),
-/* 88 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Light = __webpack_require__(8);
-    var vendor = __webpack_require__(12);
-
-    /**
-     * Spherical Harmonic Ambient Light
-     * @constructor qtek.light.AmbientSH
-     * @extends qtek.Light
-     */
-    var AmbientSHLight = Light.extend({
-
-        castShadow: false,
-
-
-        /**
-         * Spherical Harmonic Coefficients
-         * @type {Array.<number>}
-         */
-        coefficients: [],
-
-    }, function () {
-        this._coefficientsTmpArr = new vendor.Float32Array(9 * 3);
-    }, {
-
-        type: 'AMBIENT_SH_LIGHT',
-
-        uniformTemplates: {
-            ambientSHLightColor: {
-                type: '3f',
-                value: function (instance) {
-                    var color = instance.color;
-                    var intensity = instance.intensity;
-                    return [color[0] * intensity, color[1] * intensity, color[2] * intensity];
-                }
-            },
-
-            ambientSHLightCoefficients: {
-                type: '3f',
-                value: function (instance) {
-                    var coefficientsTmpArr = instance._coefficientsTmpArr;
-                    for (var i = 0; i < instance.coefficients.length; i++) {
-                        coefficientsTmpArr[i] = instance.coefficients[i];
-                    }
-                    return coefficientsTmpArr;
-                }
-            }
-        }
-        /**
-         * @method
-         * @name clone
-         * @return {qtek.light.Ambient}
-         * @memberOf qtek.light.Ambient.prototype
-         */
-    });
-
-    module.exports = AmbientSHLight;
 
 
 /***/ })

@@ -127,8 +127,13 @@ Viewer.prototype.focusToModel = function (ratio) {
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
+        var distance = size.len() * ratio;
+        var minDistance = distance * 0.2;
+        var maxDistance = distance * 5;
         this.setCameraControl({
             distance: size.len() * ratio,
+            minDistance: minDistance,
+            maxDistance: maxDistance,
             center: center.toArray()
         });
 
