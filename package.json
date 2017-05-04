@@ -1,0 +1,17 @@
+{
+  "name": "qtek-model-viewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "case-sensitive-paths-webpack-plugin": "^2.0.0",
+    "qtek": "^0.3.4",
+    "webpack": "^2.4.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Yi Shen",
+  "license": "ISC"
+}
