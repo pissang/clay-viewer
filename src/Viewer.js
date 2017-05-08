@@ -150,8 +150,7 @@ Viewer.prototype.focusToModel = function (ratio) {
 Viewer.prototype.loadModel = function (url, cb) {
 
     var loader = new GLTFLoader({
-        rootNode: new Node(),
-        useStandardMaterial: true
+        rootNode: new Node()
     });
     loader.load(url);
 
@@ -168,6 +167,11 @@ Viewer.prototype.loadModel = function (url, cb) {
         res.rootNode.traverse(function (mesh) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
+            }
+            if (mesh.material) {
+                mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
+                mesh.material.shader.define('fragment', 'ALPHA_TEST');
+                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.9);
             }
         });
 
