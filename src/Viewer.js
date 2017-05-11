@@ -17,6 +17,7 @@ var OrbitControl = require('./OrbitControl');
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
  * @param {boolean} [opts.shadow=false] If enable shadow
+ * @param {boolean} [opts.shader='lambert'] If enable shadow
  */
 function Viewer(dom, opts) {
 
@@ -25,6 +26,8 @@ function Viewer(dom, opts) {
 
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
+
+    this._shaderName = opts.shader || 'lambert';
 
     if (opts.shadow) {
         /**
@@ -150,7 +153,8 @@ Viewer.prototype.focusToModel = function (ratio) {
 Viewer.prototype.loadModel = function (url, cb) {
 
     var loader = new GLTFLoader({
-        rootNode: new Node()
+        rootNode: new Node(),
+        shaderName: 'qtek.' + this._shaderName
     });
     loader.load(url);
 
@@ -209,6 +213,15 @@ Viewer.prototype.start = function () {
     this._animation.start();
     this._animation.on('frame', this._loop, this);
 };
+
+/**
+ * Stop loop.
+ */
+Viewer.prototype.stop = function () {
+    this._animation.stop();
+    this._animation.off('frame', this._loop);
+};
+
 
 Viewer.prototype._loop = function (deltaTime) {
     this._skeleton && this._skeleton.setPose(0);
