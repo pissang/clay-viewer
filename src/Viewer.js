@@ -61,7 +61,10 @@ Viewer.prototype.init = function (dom, opts) {
     /**
      * @private
      */
-    this._camera = new PerspectiveCamera();
+    this._camera = new PerspectiveCamera({
+        near: 0.01,
+        far: 100
+    });
 
     this._cameraControl = new OrbitControl({
         renderer: renderer,
