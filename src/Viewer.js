@@ -152,12 +152,17 @@ Viewer.prototype.focusToModel = function (ratio) {
  * Load glTF model resource
  * @param {string} url model url
  * @param {Function} callback
+ * @param {Object} [opts] 
  */
-Viewer.prototype.loadModel = function (url, cb) {
+Viewer.prototype.loadModel = function (url, cb, opts) {
+
+    opts = opts || {};
 
     var loader = new GLTFLoader({
         rootNode: new Node(),
-        shaderName: 'qtek.' + this._shaderName
+        shaderName: 'qtek.' + this._shaderName,
+        textureRootPath: opts.textureRootPath,
+        bufferRootPath: opts.bufferRootPath
     });
     loader.load(url);
 
@@ -174,6 +179,7 @@ Viewer.prototype.loadModel = function (url, cb) {
         res.rootNode.traverse(function (mesh) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
+                mesh.culling = false;
             }
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');

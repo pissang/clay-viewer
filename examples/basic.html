@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script type="text/javascript" src="../dist/QMV.js"></script>
+    <script type="text/javascript" src="../dist/QMV.js?1123"></script>
 </head>
 <body>
     <style>
@@ -21,15 +21,20 @@
 
     <script type="text/javascript">
         var viewer = new QMV.Viewer(document.getElementById('main'), {
-            shadow: true
+            shadow: true,
+            shader: 'standard'
         });
 
-        viewer.loadModel('asset/bmps.gltf', function () {
+        viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf', function () {
             viewer.setCameraControl({
                 alpha: 10,
-                beta: 30
+                beta: 30,
+                distance: 5,
+                minDistance: 1,
+                center: [0, 0, 0]
             });
             viewer.start();
+        }, {
         });
     </script>
 </body>
