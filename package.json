@@ -6,7 +6,7 @@
   "dependencies": {},
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
-    "qtek": "^0.3.4",
+    "qtek": "^0.4.0",
     "webpack": "^2.4.1"
   },
   "scripts": {
