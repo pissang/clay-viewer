@@ -73,6 +73,11 @@ Viewer.prototype.init = function (dom, opts) {
     this._cameraControl.setCamera(this._camera);
     this._cameraControl.init();
 
+    /**
+     * List of skeletons
+     */
+    this._skeletons = [];
+
     this._initLights();
 
     this.resize();
@@ -95,23 +100,32 @@ Viewer.prototype._initLights = function () {
     }));
 };
 
-Viewer.prototype._addModel = function (modelNode, skeleton) {
+Viewer.prototype._addModel = function (modelNode, skeletons) {
     // Remove previous loaded
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
         this._renderer.disposeNode(prevModelNode);
         this._scene.remove(prevModelNode);
     }
-    if (this._skeleton) {
-        this._animation.removeClip(this._skeleton.getClip(0));
-    }
+
+    this._skeletons.forEach(function (skeleton) {
+        this._animation.removeClip(skeleton.getClip(0));
+    }, this);
 
     this._scene.add(modelNode);
-    if (skeleton) {
-        this._animation.addClip(skeleton.getClip(0));
-        skeleton.getClip(0).setLoop(true);
-        this._skeleton = skeleton;
+
+    var skeletonsList = [];
+    for (var id in skeletons) {
+        var skeleton = skeletons[id];
+        if (skeleton.getClip(0)) {
+            this._animation.addClip(skeleton.getClip(0));
+            skeleton.getClip(0).setLoop(true);
+        }
+        skeletonsList.push(skeleton);
     }
+
+    this._skeletons = skeletonsList;
+    
     this._modelNode = modelNode;
 };
 
@@ -169,7 +183,7 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
     loader.success(function (res) {
         var meshNeedsSplit = [];
         res.rootNode.traverse(function (mesh) {
-            if (mesh.skeleton) {
+            if (mesh.skeleton && mesh.skeleton.getClip(0)) {
                 meshNeedsSplit.push(mesh);
             }
         });
@@ -180,6 +194,10 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
                 mesh.culling = false;
+
+                if (!mesh.skeleton || !mesh.skeleton.getClip(0)) {
+                    mesh.material.shader.undefine('vertex', 'SKINNING');
+                }
             }
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
@@ -188,7 +206,7 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             }
         });
 
-        this._addModel(res.rootNode, res.skeletons && res.skeletons['skin_0']);
+        this._addModel(res.rootNode, res.skeletons);
 
         this.focusToModel();
 
@@ -233,7 +251,9 @@ Viewer.prototype.stop = function () {
 
 
 Viewer.prototype._loop = function (deltaTime) {
-    this._skeleton && this._skeleton.setPose(0);
+    this._skeletons.forEach(function (skeleton) {
+        skeleton.setPose(0);
+    });
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
 };
