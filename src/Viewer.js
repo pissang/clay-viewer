@@ -9,15 +9,78 @@ var Node = require('qtek/lib/Node');
 var Vector3 = require('qtek/lib/math/Vector3');
 var Animation = require('qtek/lib/animation/Animation');
 var meshUtil = require('qtek/lib/util/mesh');
+var SphereGeo = require('qtek/lib/geometry/Sphere');
+var Mesh = require('qtek/lib/Mesh');
+var Material = require('qtek/lib/Material');
+var Shader = require('qtek/lib/Shader');
+var StaticGeometry = require('qtek/lib/StaticGeometry');
 
 var OrbitControl = require('./OrbitControl');
 
+function createSkeletonDebugScene(skeleton) {
+    var scene = new Scene();
+    var sphereGeo = new SphereGeo({
+        radius: 0.1
+    });
+    var sphereMat = new Material({
+        shader: new Shader({
+            vertex: Shader.source('qtek.basic.vertex'),
+            fragment: Shader.source('qtek.basic.fragment')
+        })
+    });
+    sphereMat.set('color', [0.3, 0.3, 0.3]);
+
+    var jointDebugSpheres = [];
+
+    var updates = [];
+    skeleton.joints.forEach(function(joint) {
+
+        var parentJoint = skeleton.joints[joint.parentIndex];
+        var sphere = new Mesh({
+            geometry: sphereGeo,
+            material: sphereMat
+        });
+        scene.add(sphere);
+
+        var lineGeo = new StaticGeometry({
+            dynamic: true
+        });
+        var lineGeoVertices = lineGeo.attributes.position;
+        lineGeoVertices.fromArray([0, 0, 0, 0, 0, 0]);
+        var line = new Mesh({
+            geometry: lineGeo,
+            material: sphereMat,
+            mode: Mesh.LINES,
+            lineWidth: 2
+        });
+        scene.add(line);
+
+        updates.push(function() {
+            sphere.localTransform.copy(joint.node.worldTransform);
+            sphere.decomposeLocalTransform();
+            sphere.scale.set(1, 1, 1);
+            if (parentJoint) {
+                lineGeoVertices.set(0, joint.node.getWorldPosition()._array);
+                lineGeoVertices.set(1, parentJoint.node.getWorldPosition()._array);
+            }
+            lineGeo.dirty();
+        });
+    });
+
+    scene.before('render', function() {
+        for (var i = 0; i < updates.length; i++) {
+            updates[i]();
+        }
+    });
+    return scene;
+}
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
  * @param {boolean} [opts.shadow=false] If enable shadow
  * @param {boolean} [opts.shader='lambert'] If enable shadow
+ * @param {boolean} [opts.renderDebugSkeleton=false]
  */
 function Viewer(dom, opts) {
 
@@ -28,6 +91,7 @@ Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
 
     this._shaderName = opts.shader || 'lambert';
+    this._renderDebugSkeleton = opts.renderDebugSkeleton;
 
     if (opts.shadow) {
         /**
@@ -63,7 +127,7 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._camera = new PerspectiveCamera({
         near: 0.01,
-        far: 100
+        far: 500
     });
 
     this._cameraControl = new OrbitControl({
@@ -77,6 +141,10 @@ Viewer.prototype.init = function (dom, opts) {
      * List of skeletons
      */
     this._skeletons = [];
+    /**
+     * List of animation clips
+     */
+    this._clips = [];
 
     this._initLights();
 
@@ -100,7 +168,7 @@ Viewer.prototype._initLights = function () {
     }));
 };
 
-Viewer.prototype._addModel = function (modelNode, skeletons) {
+Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
     // Remove previous loaded
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
@@ -109,22 +177,36 @@ Viewer.prototype._addModel = function (modelNode, skeletons) {
     }
 
     this._skeletons.forEach(function (skeleton) {
-        this._animation.removeClip(skeleton.getClip(0));
+        if (skeleton.__debugScene) {
+            this._renderer.disposeScene(skeleton.__debugScene);
+        }
+    }, this);
+    this._clips.forEach(function (clip) {
+        this._animation.removeClip(clips[id]);
     }, this);
 
     this._scene.add(modelNode);
 
     var skeletonsList = [];
+    var clipsList = [];
     for (var id in skeletons) {
         var skeleton = skeletons[id];
-        if (skeleton.getClip(0)) {
-            this._animation.addClip(skeleton.getClip(0));
-            skeleton.getClip(0).setLoop(true);
+
+        for (var clipId in clips) {
+            clipsList.push(clips[clipId]);
+
+            this._animation.addClip(clips[clipId]);
+            clips[clipId].setLoop(true);
         }
         skeletonsList.push(skeleton);
+
+        if (this._renderDebugSkeleton) {
+            skeleton.__debugScene = createSkeletonDebugScene(skeleton);
+        }
     }
 
     this._skeletons = skeletonsList;
+    this._clips = clipsList;
     
     this._modelNode = modelNode;
 };
@@ -194,19 +276,15 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
                 mesh.culling = false;
-
-                if (!mesh.skeleton || !mesh.skeleton.getClip(0)) {
-                    mesh.material.shader.undefine('vertex', 'SKINNING');
-                }
             }
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
-                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.9);
+                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.95);
             }
         });
 
-        this._addModel(res.rootNode, res.skeletons);
+        this._addModel(res.rootNode, res.skeletons, res.clips);
 
         this.focusToModel();
 
@@ -251,11 +329,32 @@ Viewer.prototype.stop = function () {
 
 
 Viewer.prototype._loop = function (deltaTime) {
+    // Manually sync the transform for nodes not in skeleton
+    this._clips.forEach(function (clip) {
+        if (clip.channels.position) {
+            clip.target.position.setArray(clip.position);
+        }
+        if (clip.channels.rotation) {
+            clip.target.rotation.setArray(clip.rotation);
+        }
+        if (clip.channels.scale) {
+            clip.target.scale.setArray(clip.scale);
+        }
+    });
     this._skeletons.forEach(function (skeleton) {
         skeleton.setPose(0);
     });
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
+
+    if (this._renderDebugSkeleton) {
+        this._renderer.saveClear();
+        this._renderer.clearBit = this._renderer.gl.DEPTH_BUFFER_BIT;
+        this._skeletons.forEach(function (skeleton) {
+            this._renderer.render(skeleton.__debugScene, this._camera);
+        }, this);
+        this._renderer.restoreClear();
+    }
 };
 
 /**

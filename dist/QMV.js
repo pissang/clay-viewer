@@ -16152,15 +16152,78 @@ var Node = __webpack_require__(6);
 var Vector3 = __webpack_require__(3);
 var Animation = __webpack_require__(46);
 var meshUtil = __webpack_require__(87);
+var SphereGeo = __webpack_require__(88);
+var Mesh = __webpack_require__(13);
+var Material = __webpack_require__(12);
+var Shader = __webpack_require__(7);
+var StaticGeometry = __webpack_require__(18);
 
 var OrbitControl = __webpack_require__(41);
 
+function createSkeletonDebugScene(skeleton) {
+    var scene = new Scene();
+    var sphereGeo = new SphereGeo({
+        radius: 0.1
+    });
+    var sphereMat = new Material({
+        shader: new Shader({
+            vertex: Shader.source('qtek.basic.vertex'),
+            fragment: Shader.source('qtek.basic.fragment')
+        })
+    });
+    sphereMat.set('color', [0.3, 0.3, 0.3]);
+
+    var jointDebugSpheres = [];
+
+    var updates = [];
+    skeleton.joints.forEach(function(joint) {
+
+        var parentJoint = skeleton.joints[joint.parentIndex];
+        var sphere = new Mesh({
+            geometry: sphereGeo,
+            material: sphereMat
+        });
+        scene.add(sphere);
+
+        var lineGeo = new StaticGeometry({
+            dynamic: true
+        });
+        var lineGeoVertices = lineGeo.attributes.position;
+        lineGeoVertices.fromArray([0, 0, 0, 0, 0, 0]);
+        var line = new Mesh({
+            geometry: lineGeo,
+            material: sphereMat,
+            mode: Mesh.LINES,
+            lineWidth: 2
+        });
+        scene.add(line);
+
+        updates.push(function() {
+            sphere.localTransform.copy(joint.node.worldTransform);
+            sphere.decomposeLocalTransform();
+            sphere.scale.set(1, 1, 1);
+            if (parentJoint) {
+                lineGeoVertices.set(0, joint.node.getWorldPosition()._array);
+                lineGeoVertices.set(1, parentJoint.node.getWorldPosition()._array);
+            }
+            lineGeo.dirty();
+        });
+    });
+
+    scene.before('render', function() {
+        for (var i = 0; i < updates.length; i++) {
+            updates[i]();
+        }
+    });
+    return scene;
+}
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
  * @param {boolean} [opts.shadow=false] If enable shadow
  * @param {boolean} [opts.shader='lambert'] If enable shadow
+ * @param {boolean} [opts.renderDebugSkeleton=false]
  */
 function Viewer(dom, opts) {
 
@@ -16171,6 +16234,7 @@ Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
 
     this._shaderName = opts.shader || 'lambert';
+    this._renderDebugSkeleton = opts.renderDebugSkeleton;
 
     if (opts.shadow) {
         /**
@@ -16206,7 +16270,7 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._camera = new PerspectiveCamera({
         near: 0.01,
-        far: 100
+        far: 500
     });
 
     this._cameraControl = new OrbitControl({
@@ -16220,6 +16284,10 @@ Viewer.prototype.init = function (dom, opts) {
      * List of skeletons
      */
     this._skeletons = [];
+    /**
+     * List of animation clips
+     */
+    this._clips = [];
 
     this._initLights();
 
@@ -16243,7 +16311,7 @@ Viewer.prototype._initLights = function () {
     }));
 };
 
-Viewer.prototype._addModel = function (modelNode, skeletons) {
+Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
     // Remove previous loaded
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
@@ -16252,22 +16320,36 @@ Viewer.prototype._addModel = function (modelNode, skeletons) {
     }
 
     this._skeletons.forEach(function (skeleton) {
-        this._animation.removeClip(skeleton.getClip(0));
+        if (skeleton.__debugScene) {
+            this._renderer.disposeScene(skeleton.__debugScene);
+        }
+    }, this);
+    this._clips.forEach(function (clip) {
+        this._animation.removeClip(clips[id]);
     }, this);
 
     this._scene.add(modelNode);
 
     var skeletonsList = [];
+    var clipsList = [];
     for (var id in skeletons) {
         var skeleton = skeletons[id];
-        if (skeleton.getClip(0)) {
-            this._animation.addClip(skeleton.getClip(0));
-            skeleton.getClip(0).setLoop(true);
+
+        for (var clipId in clips) {
+            clipsList.push(clips[clipId]);
+
+            this._animation.addClip(clips[clipId]);
+            clips[clipId].setLoop(true);
         }
         skeletonsList.push(skeleton);
+
+        if (this._renderDebugSkeleton) {
+            skeleton.__debugScene = createSkeletonDebugScene(skeleton);
+        }
     }
 
     this._skeletons = skeletonsList;
+    this._clips = clipsList;
     
     this._modelNode = modelNode;
 };
@@ -16337,19 +16419,15 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
                 mesh.culling = false;
-
-                if (!mesh.skeleton || !mesh.skeleton.getClip(0)) {
-                    mesh.material.shader.undefine('vertex', 'SKINNING');
-                }
             }
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
-                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.9);
+                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.95);
             }
         });
 
-        this._addModel(res.rootNode, res.skeletons);
+        this._addModel(res.rootNode, res.skeletons, res.clips);
 
         this.focusToModel();
 
@@ -16394,11 +16472,32 @@ Viewer.prototype.stop = function () {
 
 
 Viewer.prototype._loop = function (deltaTime) {
+    // Manually sync the transform for nodes not in skeleton
+    this._clips.forEach(function (clip) {
+        if (clip.channels.position) {
+            clip.target.position.setArray(clip.position);
+        }
+        if (clip.channels.rotation) {
+            clip.target.rotation.setArray(clip.rotation);
+        }
+        if (clip.channels.scale) {
+            clip.target.scale.setArray(clip.scale);
+        }
+    });
     this._skeletons.forEach(function (skeleton) {
         skeleton.setPose(0);
     });
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
+
+    if (this._renderDebugSkeleton) {
+        this._renderer.saveClear();
+        this._renderer.clearBit = this._renderer.gl.DEPTH_BUFFER_BIT;
+        this._skeletons.forEach(function (skeleton) {
+            this._renderer.render(skeleton.__debugScene, this._camera);
+        }, this);
+        this._renderer.restoreClear();
+    }
 };
 
 /**
@@ -18556,7 +18655,8 @@ module.exports = OrbitControl;
                             joint.node.worldTransform._array
                         );
                         mat4.invert(m4, m4);
-                    } else {
+                    }
+                    else {
                         mat4.copy(m4, joint.node.worldTransform._array);
                         mat4.invert(m4, m4);
                     }
@@ -18598,14 +18698,14 @@ module.exports = OrbitControl;
 
                     // Joint space is relative to root joint's parent, if have
                     // PENDING
-                    if (joint.rootNode && joint.rootNode.getParent()) {
-                        mat4.invert(m4, joint.rootNode.getParent().worldTransform._array);
-                        mat4.multiply(
-                            this._skinMatricesSubArrays[i],
-                            m4,
-                            this._skinMatricesSubArrays[i]
-                        );
-                    }
+                    // if (joint.rootNode && joint.rootNode.getParent()) {
+                    //     mat4.invert(m4, joint.rootNode.getParent().worldTransform._array);
+                    //     mat4.multiply(
+                    //         this._skinMatricesSubArrays[i],
+                    //         m4,
+                    //         this._skinMatricesSubArrays[i]
+                    //     );
+                    // }
                 }
             };
         })(),
@@ -18643,9 +18743,17 @@ module.exports = OrbitControl;
                     }
                     var pose = clip.jointClips[maps[i]];
 
-                    vec3.copy(joint.node.position._array, pose.position);
-                    quat.copy(joint.node.rotation._array, pose.rotation);
-                    vec3.copy(joint.node.scale._array, pose.scale);
+                    // Not update if there is no data.
+                    // PENDING If sync pose.position, pose.rotation, pose.scale
+                    if (pose.channels.position) {
+                        vec3.copy(joint.node.position._array, pose.position);
+                    }
+                    if (pose.channels.rotation) {
+                        quat.copy(joint.node.rotation._array, pose.rotation);
+                    }
+                    if (pose.channels.scale) {
+                        vec3.copy(joint.node.scale._array, pose.scale);
+                    }
 
                     joint.node.position._dirty = true;
                     joint.node.rotation._dirty = true;
@@ -19481,6 +19589,8 @@ module.exports = OrbitControl;
 
 // Sampler clip is especially for the animation sampler in glTF
 // Use Typed Array can reduce a lot of heap memory
+//
+// TODO Sync target transform
 
 
     var Clip = __webpack_require__(14);
@@ -21476,6 +21586,8 @@ module.exports = OrbitControl;
                     meshes: lib.meshes,
                     clips: lib.clips,
                     // Main skinning clip
+                    // TODO Skinning clip used for multiple skeleton ?
+                    // TODO Some clip for individual node animations.
                     clip: skinningClip
                 });
             }
@@ -21998,7 +22110,8 @@ module.exports = OrbitControl;
                             far: cameraInfo.zfar,
                             near: cameraInfo.znear
                         });
-                    } else {
+                    }
+                    else {
                         // TODO
                         node = new OrthographicCamera();
                         console.warn('TODO:Orthographic camera');
@@ -22019,7 +22132,8 @@ module.exports = OrbitControl;
                         // Replace the node with light
                         node = lights[0];
                         node.setName(nodeInfo.name);
-                    } else {
+                    }
+                    else {
                         node = new Node();
                         node.setName(nodeInfo.name);
                         for (var i = 0; i < lights.length; i++) {
@@ -22032,7 +22146,8 @@ module.exports = OrbitControl;
                     var meshKey;
                     if (nodeInfo.meshes) {
                         meshKey = nodeInfo.meshes[0];
-                    } else {
+                    }
+                    else {
                         meshKey = nodeInfo.instanceSkin.sources[0];
                     }
                     if (meshKey) {
@@ -22042,7 +22157,8 @@ module.exports = OrbitControl;
                                 // Replace the node with mesh directly
                                 node = primitives[0];
                                 node.setName(nodeInfo.name);
-                            } else {
+                            }
+                            else {
                                 node = new Node();
                                 node.setName(nodeInfo.name);
                                 for (var j = 0; j < primitives.length; j++) {
@@ -22054,16 +22170,16 @@ module.exports = OrbitControl;
                             }
                         }
                     }
-                } else {
+                }
+                else {
                     node = new Node();
                     node.setName(nodeInfo.name);
                 }
                 if (nodeInfo.matrix) {
-                    for (var i = 0; i < 16; i++) {
-                        node.localTransform._array[i] = nodeInfo.matrix[i];
-                    }
+                    node.localTransform.setArray(nodeInfo.matrix);
                     node.decomposeLocalTransform();
-                } else {
+                }
+                else {
                     if (nodeInfo.translation) {
                         node.position.setArray(nodeInfo.translation);
                     }
@@ -24245,6 +24361,159 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
     };
 
     module.exports = meshUtil;
+
+
+/***/ }),
+/* 88 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var StaticGeometry = __webpack_require__(18);
+    var glMatrix = __webpack_require__(0);
+    var vec3 = glMatrix.vec3;
+    var vec2 = glMatrix.vec2;
+    var BoundingBox = __webpack_require__(4);
+
+    /**
+     * @constructor qtek.geometry.Sphere
+     * @extends qtek.StaticGeometry
+     * @param {Object} [opt]
+     * @param {number} [widthSegments]
+     * @param {number} [heightSegments]
+     * @param {number} [phiStart]
+     * @param {number} [phiLength]
+     * @param {number} [thetaStart]
+     * @param {number} [thetaLength]
+     * @param {number} [radius]
+     */
+    var Sphere = StaticGeometry.extend(
+    /** @lends qtek.geometry.Sphere# */
+    {
+        /**
+         * @type {number}
+         */
+        widthSegments: 20,
+        /**
+         * @type {number}
+         */
+        heightSegments: 20,
+
+        /**
+         * @type {number}
+         */
+        phiStart: 0,
+        /**
+         * @type {number}
+         */
+        phiLength: Math.PI * 2,
+
+        /**
+         * @type {number}
+         */
+        thetaStart: 0,
+        /**
+         * @type {number}
+         */
+        thetaLength: Math.PI,
+
+        /**
+         * @type {number}
+         */
+        radius: 1
+
+    }, function() {
+        this.build();
+    },
+    /** @lends qtek.geometry.Sphere.prototype */
+    {
+        /**
+         * Build sphere geometry
+         */
+        build: function() {
+            var heightSegments = this.heightSegments;
+            var widthSegments = this.widthSegments;
+
+            var positionAttr = this.attributes.position;
+            var texcoordAttr = this.attributes.texcoord0;
+            var normalAttr = this.attributes.normal;
+
+            var vertexCount = (widthSegments + 1) * (heightSegments + 1);
+            positionAttr.init(vertexCount);
+            texcoordAttr.init(vertexCount);
+            normalAttr.init(vertexCount);
+
+            var IndicesCtor = vertexCount > 0xffff ? Uint32Array : Uint16Array;
+            var indices = this.indices = new IndicesCtor(widthSegments * heightSegments * 6);
+
+            var x, y, z,
+                u, v,
+                i, j;
+
+            var radius = this.radius;
+            var phiStart = this.phiStart;
+            var phiLength = this.phiLength;
+            var thetaStart = this.thetaStart;
+            var thetaLength = this.thetaLength;
+            var radius = this.radius;
+
+            var pos = [];
+            var uv = [];
+            var offset = 0;
+            var divider = 1 / radius;
+            for (j = 0; j <= heightSegments; j ++) {
+                for (i = 0; i <= widthSegments; i ++) {
+                    u = i / widthSegments;
+                    v = j / heightSegments;
+
+                    // X axis is inverted so texture can be mapped from left to right
+                    x = -radius * Math.cos(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
+                    y = radius * Math.cos(thetaStart + v * thetaLength);
+                    z = radius * Math.sin(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
+
+                    pos[0] = x; pos[1] = y; pos[2] = z;
+                    uv[0] = u; uv[1] = v;
+                    positionAttr.set(offset, pos);
+                    texcoordAttr.set(offset, uv);
+                    pos[0] *= divider;
+                    pos[1] *= divider;
+                    pos[2] *= divider;
+                    normalAttr.set(offset, pos);
+                    offset++;
+                }
+            }
+
+            var i1, i2, i3, i4;
+
+            var len = widthSegments + 1;
+
+            var n = 0;
+            for (j = 0; j < heightSegments; j ++) {
+                for (i = 0; i < widthSegments; i ++) {
+                    i2 = j * len + i;
+                    i1 = (j * len + i + 1);
+                    i4 = (j + 1) * len + i + 1;
+                    i3 = (j + 1) * len + i;
+
+                    indices[n++] = i1;
+                    indices[n++] = i2;
+                    indices[n++] = i4;
+
+                    indices[n++] = i2;
+                    indices[n++] = i3;
+                    indices[n++] = i4;
+                }
+            }
+
+            this.boundingBox = new BoundingBox();
+            this.boundingBox.max.set(radius, radius, radius);
+            this.boundingBox.min.set(-radius, -radius, -radius);
+        }
+    });
+
+    module.exports = Sphere;
 
 
 /***/ })
