@@ -10,11 +10,13 @@ var Vector3 = require('qtek/lib/math/Vector3');
 var Animation = require('qtek/lib/animation/Animation');
 var meshUtil = require('qtek/lib/util/mesh');
 var SphereGeo = require('qtek/lib/geometry/Sphere');
+var CubeGeo = require('qtek/lib/geometry/Cube');
 var Mesh = require('qtek/lib/Mesh');
 var Material = require('qtek/lib/Material');
 var Shader = require('qtek/lib/Shader');
 var StaticGeometry = require('qtek/lib/StaticGeometry');
 
+var getBundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var OrbitControl = require('./OrbitControl');
 
 function createSkeletonDebugScene(skeleton) {
@@ -74,6 +76,7 @@ function createSkeletonDebugScene(skeleton) {
     });
     return scene;
 }
+
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
@@ -126,8 +129,8 @@ Viewer.prototype.init = function (dom, opts) {
      * @private
      */
     this._camera = new PerspectiveCamera({
-        near: 0.01,
-        far: 500
+        near: 0.1,
+        far: 100
     });
 
     this._cameraControl = new OrbitControl({
@@ -217,30 +220,39 @@ Viewer.prototype.resize = function () {
     this._camera.aspect = renderer.canvas.width / renderer.canvas.height;
 };
 
-Viewer.prototype.focusToModel = function (ratio) {
-    if (ratio == null) {
-        ratio = 2;
-    }
+Viewer.prototype.autoFitModel = function (fitSize) {
+    fitSize = fitSize || 10;
     if (this._modelNode) {
-        var bbox = this._modelNode.getBoundingBox();
+        this._modelNode.update();
+        var bbox = getBundingBoxWithSkinning(this._modelNode);
+
         var size = new Vector3();
-        size.copy(bbox.max).sub(bbox.min).scale(0.5);
+        size.copy(bbox.max).sub(bbox.min);
 
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
-        var distance = size.len() * ratio;
-        var minDistance = distance * 0.2;
-        var maxDistance = distance * 5;
-        this.setCameraControl({
-            distance: size.len() * ratio,
-            minDistance: minDistance,
-            maxDistance: maxDistance,
-            center: center.toArray()
-        });
+        var scale = fitSize / Math.max(size.x, size.y, size.z);
 
-        this._mainLight.position.copy(center).add(new Vector3(1, 3, 1));
-        this._mainLight.lookAt(center);
+        this._modelNode.scale.set(scale, scale, scale);
+        this._modelNode.position.copy(center).scale(-scale);
+
+        this._mainLight.position.set(1, 3, 1);
+        this._mainLight.lookAt(Vector3.ZERO);
+
+        // Debug
+        // var mesh = new Mesh({
+        //     geometry: new CubeGeo(),
+        //     material: new Material({
+        //         shader: new Shader({
+        //             vertex: Shader.source('qtek.standard.vertex'),
+        //             fragment: Shader.source('qtek.standard.fragment')
+        //         })
+        //     })
+        // });
+        // mesh.position.copy(center);
+        // mesh.scale.copy(size).scale(0.5);
+        // this._scene.add(mesh);
     }
 };
 
@@ -286,7 +298,14 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
 
         this._addModel(res.rootNode, res.skeletons, res.clips);
 
-        this.focusToModel();
+        this.autoFitModel();
+
+        this.setCameraControl({
+            distance: 20,
+            minDisntance: 2,
+            maxDistance: 100,
+            center: [0, 0, 0]
+        });
 
         cb && cb();
     }, this);
@@ -329,6 +348,7 @@ Viewer.prototype.stop = function () {
 
 
 Viewer.prototype._loop = function (deltaTime) {
+    this._scene.update();
     // Manually sync the transform for nodes not in skeleton
     this._clips.forEach(function (clip) {
         if (clip.channels.position) {
