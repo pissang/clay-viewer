@@ -16848,7 +16848,7 @@ var HotspotManger = Base.extend(function () {
             var y = (pos.y + 1.0) * 0.5 * this.renderer.getHeight();
 
             hotspot.dom.style.left = x + 'px';
-            hotspot.dom.style.top = y + 'px';
+            hotspot.dom.style.top = this.renderer.getHeight() - y + 'px';
 
             hotspot.onupdate && hotspot.onupdate(x, y);
         }, this);
