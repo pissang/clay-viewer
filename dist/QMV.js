@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 39);
+/******/ 	return __webpack_require__(__webpack_require__.s = 40);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -4450,9 +4450,9 @@ if(typeof(exports) !== 'undefined') {
 
 
 
-    var extendMixin = __webpack_require__(53);
-    var notifierMixin = __webpack_require__(54);
-    var util = __webpack_require__(10);
+    var extendMixin = __webpack_require__(56);
+    var notifierMixin = __webpack_require__(57);
+    var util = __webpack_require__(13);
 
     /**
      * Base class of all objects
@@ -6182,793 +6182,6 @@ module.exports = {
 "use strict";
 
 /**
- * @namespace qtek.core.glinfo
- * @see http://www.khronos.org/registry/webgl/extensions/
- */
-
-
-    var EXTENSION_LIST = [
-        'OES_texture_float',
-        'OES_texture_half_float',
-        'OES_texture_float_linear',
-        'OES_texture_half_float_linear',
-        'OES_standard_derivatives',
-        'OES_vertex_array_object',
-        'OES_element_index_uint',
-        'WEBGL_compressed_texture_s3tc',
-        'WEBGL_depth_texture',
-        'EXT_texture_filter_anisotropic',
-        'EXT_shader_texture_lod',
-        'WEBGL_draw_buffers',
-        'EXT_frag_depth',
-        'EXT_sRGB'
-    ];
-
-    var PARAMETER_NAMES = [
-        'MAX_TEXTURE_SIZE',
-        'MAX_CUBE_MAP_TEXTURE_SIZE'
-    ];
-
-    var extensions = {};
-    var parameters = {};
-
-    var glinfo = {
-        /**
-         * Initialize all extensions and parameters in context
-         * @param  {WebGLRenderingContext} _gl
-         * @memberOf qtek.core.glinfo
-         */
-        initialize: function (_gl) {
-            var glid = _gl.__GLID__;
-            if (extensions[glid]) {
-                return;
-            }
-            extensions[glid] = {};
-            parameters[glid] = {};
-            // Get webgl extension
-            for (var i = 0; i < EXTENSION_LIST.length; i++) {
-                var extName = EXTENSION_LIST[i];
-
-                this._createExtension(_gl, extName);
-            }
-            // Get parameters
-            for (var i = 0; i < PARAMETER_NAMES.length; i++) {
-                var name = PARAMETER_NAMES[i];
-                parameters[glid][name] = _gl.getParameter(_gl[name]);
-            }
-        },
-
-        /**
-         * Get extension
-         * @param  {WebGLRenderingContext} _gl
-         * @param {string} name - Extension name, vendorless
-         * @return {WebGLExtension}
-         * @memberOf qtek.core.glinfo
-         */
-        getExtension: function (_gl, name) {
-            var glid = _gl.__GLID__;
-            if (extensions[glid]) {
-                if (typeof(extensions[glid][name]) == 'undefined') {
-                    this._createExtension(_gl, name);
-                }
-                return extensions[glid][name];
-            }
-        },
-
-        /**
-         * Get parameter
-         * @param {WebGLRenderingContext} _gl
-         * @param {string} name Parameter name
-         * @return {*}
-         */
-        getParameter: function (_gl, name) {
-            var glid = _gl.__GLID__;
-            if (parameters[glid]) {
-                return parameters[glid][name];
-            }
-        },
-
-        /**
-         * Dispose context
-         * @param  {WebGLRenderingContext} _gl
-         * @memberOf qtek.core.glinfo
-         */
-        dispose: function (_gl) {
-            delete extensions[_gl.__GLID__];
-            delete parameters[_gl.__GLID__];
-        },
-
-        _createExtension: function (_gl, name) {
-            var ext = _gl.getExtension(name);
-            if (!ext) {
-                ext = _gl.getExtension('MOZ_' + name);
-            }
-            if (!ext) {
-                ext = _gl.getExtension('WEBKIT_' + name);
-            }
-
-            extensions[_gl.__GLID__][name] = ext;
-        }
-    };
-
-    module.exports = glinfo;
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Base = __webpack_require__(1);
-    var Vector3 = __webpack_require__(3);
-    var Quaternion = __webpack_require__(24);
-    var Matrix4 = __webpack_require__(16);
-    var glMatrix = __webpack_require__(0);
-    var BoundingBox = __webpack_require__(4);
-    var mat4 = glMatrix.mat4;
-
-    var nameId = 0;
-
-    /**
-     * @constructor qtek.Node
-     * @extends qtek.core.Base
-     */
-    var Node = Base.extend(
-    /** @lends qtek.Node# */
-    {
-        /**
-         * Scene node name
-         * @type {string}
-         */
-        name: '',
-
-        /**
-         * Position relative to its parent node. aka translation.
-         * @type {qtek.math.Vector3}
-         */
-        position: null,
-
-        /**
-         * Rotation relative to its parent node. Represented by a quaternion
-         * @type {qtek.math.Quaternion}
-         */
-        rotation: null,
-
-        /**
-         * Scale relative to its parent node
-         * @type {qtek.math.Vector3}
-         */
-        scale: null,
-
-        /**
-         * Affine transform matrix relative to its root scene.
-         * @type {qtek.math.Matrix4}
-         */
-        worldTransform: null,
-
-        /**
-         * Affine transform matrix relative to its parent node.
-         * Composited with position, rotation and scale.
-         * @type {qtek.math.Matrix4}
-         */
-        localTransform: null,
-
-        /**
-         * If the local transform is update from SRT(scale, rotation, translation, which is position here) each frame
-         * @type {boolean}
-         */
-        autoUpdateLocalTransform: true,
-
-        /**
-         * Parent of current scene node
-         * @type {?qtek.Node}
-         * @private
-         */
-        _parent: null,
-        /**
-         * The root scene mounted. Null if it is a isolated node
-         * @type {?qtek.Scene}
-         * @private
-         */
-        _scene: null,
-
-        _needsUpdateWorldTransform: true,
-
-        _inIterating: false,
-
-        // Depth for transparent queue sorting
-        __depth: 0
-
-    }, function () {
-
-        if (!this.name) {
-            this.name = (this.type || 'NODE') + '_' + (nameId++);
-        }
-
-        if (!this.position) {
-            this.position = new Vector3();
-        }
-        if (!this.rotation) {
-            this.rotation = new Quaternion();
-        }
-        if (!this.scale) {
-            this.scale = new Vector3(1, 1, 1);
-        }
-
-        this.worldTransform = new Matrix4();
-        this.localTransform = new Matrix4();
-
-        this._children = [];
-
-    },
-    /**@lends qtek.Node.prototype. */
-    {
-
-        /**
-         * If node and its chilren invisible
-         * @type {boolean}
-         * @memberOf qtek.Node
-         * @instance
-         */
-        invisible: false,
-
-        /**
-         * Return true if it is a renderable scene node, like Mesh and ParticleSystem
-         * @return {boolean}
-         */
-        isRenderable: function () {
-            return false;
-        },
-
-        /**
-         * Set the name of the scene node
-         * @param {string} name
-         */
-        setName: function (name) {
-            var scene = this._scene;
-            if (scene) {
-                var nodeRepository = scene._nodeRepository;
-                delete nodeRepository[this.name];
-                nodeRepository[name] = this;
-            }
-            this.name = name;
-        },
-
-        /**
-         * Add a child node
-         * @param {qtek.Node} node
-         */
-        add: function (node) {
-            if (this._inIterating) {
-                console.warn('Add operation can cause unpredictable error when in iterating');
-            }
-            var originalParent = node._parent;
-            if (originalParent === this) {
-                return;
-            }
-            if (originalParent) {
-                originalParent.remove(node);
-            }
-            node._parent = this;
-            this._children.push(node);
-
-            var scene = this._scene;
-            if (scene && scene !== node.scene) {
-                node.traverse(this._addSelfToScene, this);
-            }
-            // Mark children needs update transform
-            // In case child are remove and added again after parent moved
-            node._needsUpdateWorldTransform = true;
-        },
-
-        /**
-         * Remove the given child scene node
-         * @param {qtek.Node} node
-         */
-        remove: function (node) {
-            if (this._inIterating) {
-                console.warn('Remove operation can cause unpredictable error when in iterating');
-            }
-            var children = this._children;
-            var idx = children.indexOf(node);
-            if (idx < 0) {
-                return;
-            }
-
-            children.splice(idx, 1);
-            node._parent = null;
-
-            if (this._scene) {
-                node.traverse(this._removeSelfFromScene, this);
-            }
-        },
-
-        /**
-         * Remove all children
-         */
-        removeAll: function () {
-            var children = this._children;
-
-            for (var idx = 0; idx < children.length; idx++) {
-                children[idx]._parent = null;
-
-                if (this._scene) {
-                    children[idx].traverse(this._removeSelfFromScene, this);
-                }
-            }
-
-            this._children = [];
-        },
-
-        /**
-         * Get the scene mounted
-         * @return {qtek.Scene}
-         */
-        getScene: function () {
-            return this._scene;
-        },
-
-        /**
-         * Get parent node
-         * @return {qtek.Scene}
-         */
-        getParent: function () {
-            return this._parent;
-        },
-
-        _removeSelfFromScene: function (descendant) {
-            descendant._scene.removeFromScene(descendant);
-            descendant._scene = null;
-        },
-
-        _addSelfToScene: function (descendant) {
-            this._scene.addToScene(descendant);
-            descendant._scene = this._scene;
-        },
-
-        /**
-         * Return true if it is ancestor of the given scene node
-         * @param {qtek.Node} node
-         */
-        isAncestor: function (node) {
-            var parent = node._parent;
-            while(parent) {
-                if (parent === this) {
-                    return true;
-                }
-                parent = parent._parent;
-            }
-            return false;
-        },
-
-        /**
-         * Get a new created array of all its children nodes
-         * @return {qtek.Node[]}
-         */
-        children: function () {
-            return this._children.slice();
-        },
-
-        childAt: function (idx) {
-            return this._children[idx];
-        },
-
-        /**
-         * Get first child with the given name
-         * @param {string} name
-         * @return {qtek.Node}
-         */
-        getChildByName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                if (children[i].name === name) {
-                    return children[i];
-                }
-            }
-        },
-
-        /**
-         * Get first descendant have the given name
-         * @param {string} name
-         * @return {qtek.Node}
-         */
-        getDescendantByName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (child.name === name) {
-                    return child;
-                } else {
-                    var res = child.getDescendantByName(name);
-                    if (res) {
-                        return res;
-                    }
-                }
-            }
-        },
-
-        /**
-         * Query descendant node by path
-         * @param {string} path
-         * @return {qtek.Node}
-         */
-        queryNode: function (path) {
-            if (!path) {
-                return;
-            }
-            // TODO Name have slash ?
-            var pathArr = path.split('/');
-            var current = this;
-            for (var i = 0; i < pathArr.length; i++) {
-                var name = pathArr[i];
-                // Skip empty
-                if (!name) {
-                    continue;
-                }
-                var found = false;
-                var children = current._children;
-                for (var j = 0; j < children.length; j++) {
-                    var child = children[j];
-                    if (child.name === name) {
-                        current = child;
-                        found = true;
-                        break;
-                    }
-                }
-                // Early return if not found
-                if (!found) {
-                    return;
-                }
-            }
-
-            return current;
-        },
-
-        /**
-         * Get query path, relative to rootNode(default is scene)
-         * @return {string}
-         */
-        getPath: function (rootNode) {
-            if (!this._parent) {
-                return '/';
-            }
-
-            var current = this._parent;
-            var path = this.name;
-            while (current._parent) {
-                path = current.name + '/' + path;
-                if (current._parent == rootNode) {
-                    break;
-                }
-                current = current._parent;
-            }
-            if (!current._parent && rootNode) {
-                return null;
-            }
-            return path;
-        },
-
-        /**
-         * Depth first traverse all its descendant scene nodes and
-         * @param {Function} callback
-         * @param {Node} [context]
-         * @param {Function} [ctor]
-         */
-        traverse: function (callback, context, ctor) {
-
-            this._inIterating = true;
-
-            if (ctor == null || this.constructor === ctor) {
-                callback.call(context, this);
-            }
-            var _children = this._children;
-            for(var i = 0, len = _children.length; i < len; i++) {
-                _children[i].traverse(callback, context, ctor);
-            }
-
-            this._inIterating = false;
-        },
-
-        eachChild: function (callback, context, ctor) {
-            this._inIterating = true;
-
-            var _children = this._children;
-            var noCtor = ctor == null;
-            for(var i = 0, len = _children.length; i < len; i++) {
-                var child = _children[i];
-                if (noCtor || child.constructor === ctor) {
-                    callback.call(context, child, i);
-                }
-            }
-
-            this._inIterating = false;
-        },
-
-        /**
-         * Set the local transform and decompose to SRT
-         * @param {qtek.math.Matrix4} matrix
-         */
-        setLocalTransform: function (matrix) {
-            mat4.copy(this.localTransform._array, matrix._array);
-            this.decomposeLocalTransform();
-        },
-
-        /**
-         * Decompose the local transform to SRT
-         */
-        decomposeLocalTransform: function (keepScale) {
-            var scale = !keepScale ? this.scale: null;
-            this.localTransform.decomposeMatrix(scale, this.rotation, this.position);
-        },
-
-        /**
-         * Set the world transform and decompose to SRT
-         * @param {qtek.math.Matrix4} matrix
-         */
-        setWorldTransform: function (matrix) {
-            mat4.copy(this.worldTransform._array, matrix._array);
-            this.decomposeWorldTransform();
-        },
-
-        /**
-         * Decompose the world transform to SRT
-         * @method
-         */
-        decomposeWorldTransform: (function () {
-
-            var tmp = mat4.create();
-
-            return function (keepScale) {
-                var localTransform = this.localTransform;
-                var worldTransform = this.worldTransform;
-                // Assume world transform is updated
-                if (this._parent) {
-                    mat4.invert(tmp, this._parent.worldTransform._array);
-                    mat4.multiply(localTransform._array, tmp, worldTransform._array);
-                } else {
-                    mat4.copy(localTransform._array, worldTransform._array);
-                }
-                var scale = !keepScale ? this.scale: null;
-                localTransform.decomposeMatrix(scale, this.rotation, this.position);
-            };
-        })(),
-
-        transformNeedsUpdate: function () {
-            return this.position._dirty
-                || this.rotation._dirty
-                || this.scale._dirty;
-        },
-
-        /**
-         * Update local transform from SRT
-         * Notice that local transform will not be updated if _dirty mark of position, rotation, scale is all false
-         */
-        updateLocalTransform: function () {
-            var position = this.position;
-            var rotation = this.rotation;
-            var scale = this.scale;
-
-            if (this.transformNeedsUpdate()) {
-                var m = this.localTransform._array;
-
-                // Transform order, scale->rotation->position
-                mat4.fromRotationTranslation(m, rotation._array, position._array);
-
-                mat4.scale(m, m, scale._array);
-
-                rotation._dirty = false;
-                scale._dirty = false;
-                position._dirty = false;
-
-                this._needsUpdateWorldTransform = true;
-            }
-        },
-
-        /**
-         * Update world transform, assume its parent world transform have been updated
-         */
-        _updateWorldTransformTopDown: function () {
-            var localTransform = this.localTransform._array;
-            var worldTransform = this.worldTransform._array;
-            if (this._parent) {
-                mat4.multiplyAffine(
-                    worldTransform,
-                    this._parent.worldTransform._array,
-                    localTransform
-                );
-            }
-            else {
-                mat4.copy(worldTransform, localTransform);
-            }
-        },
-
-        // Update world transform before whole scene is updated.
-        updateWorldTransform: function () {
-            // Find the root node which transform needs update;
-            var rootNodeIsDirty = this;
-            while (rootNodeIsDirty && rootNodeIsDirty.getParent()
-                && rootNodeIsDirty.getParent().transformNeedsUpdate()
-            ) {
-                rootNodeIsDirty = rootNodeIsDirty.getParent();
-            }
-            rootNodeIsDirty.update();
-        },
-
-        /**
-         * Update local transform and world transform recursively
-         * @param {boolean} forceUpdateWorld
-         */
-        update: function (forceUpdateWorld) {
-            if (this.autoUpdateLocalTransform) {
-                this.updateLocalTransform();
-            }
-            else {
-                // Transform is manually setted
-                forceUpdateWorld = true;
-            }
-
-            if (forceUpdateWorld || this._needsUpdateWorldTransform) {
-                this._updateWorldTransformTopDown();
-                forceUpdateWorld = true;
-                this._needsUpdateWorldTransform = false;
-            }
-
-            var children = this._children;
-            for(var i = 0, len = children.length; i < len; i++) {
-                children[i].update(forceUpdateWorld);
-            }
-        },
-
-        /**
-         * Get bounding box of node
-         * @param  {Function} [filter]
-         * @param  {qtek.math.BoundingBox} [out]
-         * @return {qtek.math.BoundingBox}
-         */
-        getBoundingBox: (function () {
-
-            function defaultFilter (el) {
-                return !el.invisible;
-            }
-            return function (filter, out) {
-                out = out || new BoundingBox();
-                filter = filter || defaultFilter;
-
-                var children = this._children;
-                if (children.length === 0) {
-                    out.max.set(-Infinity, -Infinity, -Infinity);
-                    out.min.set(Infinity, Infinity, Infinity);
-                }
-
-                var tmpBBox = new BoundingBox();
-                for (var i = 0; i < children.length; i++) {
-                    var child = children[i];
-                    if (!filter(child)) {
-                        continue;
-                    }
-                    child.getBoundingBox(filter, tmpBBox);
-                    child.updateLocalTransform();
-                    if (tmpBBox.isFinite()) {
-                        tmpBBox.applyTransform(child.localTransform);
-                    }
-                    if (i === 0) {
-                        out.copy(tmpBBox);
-                    }
-                    else {
-                        out.union(tmpBBox);
-                    }
-
-                }
-
-                return out;
-            };
-        })(),
-
-        /**
-         * Get world position, extracted from world transform
-         * @param  {qtek.math.Vector3} [out]
-         * @return {qtek.math.Vector3}
-         */
-        getWorldPosition: function (out) {
-            // PENDING
-            if (this.transformNeedsUpdate()) {
-                this.updateWorldTransform();
-            }
-            var m = this.worldTransform._array;
-            if (out) {
-                var arr = out._array;
-                arr[0] = m[12];
-                arr[1] = m[13];
-                arr[2] = m[14];
-                return out;
-            }
-            else {
-                return new Vector3(m[12], m[13], m[14]);
-            }
-        },
-
-        // TODO Set world transform
-
-        /**
-         * Clone a new node
-         * @return {Node}
-         */
-        clone: function () {
-            var node = new this.constructor();
-            var children = this._children;
-
-            node.setName(this.name);
-            node.position.copy(this.position);
-            node.rotation.copy(this.rotation);
-            node.scale.copy(this.scale);
-
-            for (var i = 0; i < children.length; i++) {
-                node.add(children[i].clone());
-            }
-            return node;
-        },
-
-        /**
-         * Rotate the node around a axis by angle degrees, axis passes through point
-         * @param {qtek.math.Vector3} point Center point
-         * @param {qtek.math.Vector3} axis  Center axis
-         * @param {number}       angle Rotation angle
-         * @see http://docs.unity3d.com/Documentation/ScriptReference/Transform.RotateAround.html
-         * @method
-         */
-        rotateAround: (function () {
-            var v = new Vector3();
-            var RTMatrix = new Matrix4();
-
-            // TODO improve performance
-            return function (point, axis, angle) {
-
-                v.copy(this.position).subtract(point);
-
-                var localTransform = this.localTransform;
-                localTransform.identity();
-                // parent node
-                localTransform.translate(point);
-                localTransform.rotate(angle, axis);
-
-                RTMatrix.fromRotationTranslation(this.rotation, v);
-                localTransform.multiply(RTMatrix);
-                localTransform.scale(this.scale);
-
-                this.decomposeLocalTransform();
-                this._needsUpdateWorldTransform = true;
-            };
-        })(),
-
-        /**
-         * @param {qtek.math.Vector3} target
-         * @param {qtek.math.Vector3} [up]
-         * @see http://www.opengl.org/sdk/docs/man2/xhtml/gluLookAt.xml
-         * @method
-         */
-        // TODO world space ?
-        lookAt: (function () {
-            var m = new Matrix4();
-            return function (target, up) {
-                m.lookAt(this.position, target, up || this.localTransform.y).invert();
-                this.setLocalTransform(m);
-            };
-        })()
-    });
-
-    module.exports = Node;
-
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-/**
  * Mainly do the parse and compile of shader string
  * Support shader code chunk import and export
  * Support shader semantics
@@ -6980,11 +6193,11 @@ module.exports = {
 
 
     var Base = __webpack_require__(1);
-    var util = __webpack_require__(10);
-    var Cache = __webpack_require__(15);
-    var vendor = __webpack_require__(11);
+    var util = __webpack_require__(13);
+    var Cache = __webpack_require__(17);
+    var vendor = __webpack_require__(8);
     var glMatrix = __webpack_require__(0);
-    var glInfo = __webpack_require__(5);
+    var glInfo = __webpack_require__(6);
     var mat2 = glMatrix.mat2;
     var mat3 = glMatrix.mat3;
     var mat4 = glMatrix.mat4;
@@ -8249,6 +7462,792 @@ module.exports = {
 
 
 /***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/**
+ * @namespace qtek.core.glinfo
+ * @see http://www.khronos.org/registry/webgl/extensions/
+ */
+
+
+    var EXTENSION_LIST = [
+        'OES_texture_float',
+        'OES_texture_half_float',
+        'OES_texture_float_linear',
+        'OES_texture_half_float_linear',
+        'OES_standard_derivatives',
+        'OES_vertex_array_object',
+        'OES_element_index_uint',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_depth_texture',
+        'EXT_texture_filter_anisotropic',
+        'EXT_shader_texture_lod',
+        'WEBGL_draw_buffers',
+        'EXT_frag_depth',
+        'EXT_sRGB'
+    ];
+
+    var PARAMETER_NAMES = [
+        'MAX_TEXTURE_SIZE',
+        'MAX_CUBE_MAP_TEXTURE_SIZE'
+    ];
+
+    var extensions = {};
+    var parameters = {};
+
+    var glinfo = {
+        /**
+         * Initialize all extensions and parameters in context
+         * @param  {WebGLRenderingContext} _gl
+         * @memberOf qtek.core.glinfo
+         */
+        initialize: function (_gl) {
+            var glid = _gl.__GLID__;
+            if (extensions[glid]) {
+                return;
+            }
+            extensions[glid] = {};
+            parameters[glid] = {};
+            // Get webgl extension
+            for (var i = 0; i < EXTENSION_LIST.length; i++) {
+                var extName = EXTENSION_LIST[i];
+
+                this._createExtension(_gl, extName);
+            }
+            // Get parameters
+            for (var i = 0; i < PARAMETER_NAMES.length; i++) {
+                var name = PARAMETER_NAMES[i];
+                parameters[glid][name] = _gl.getParameter(_gl[name]);
+            }
+        },
+
+        /**
+         * Get extension
+         * @param  {WebGLRenderingContext} _gl
+         * @param {string} name - Extension name, vendorless
+         * @return {WebGLExtension}
+         * @memberOf qtek.core.glinfo
+         */
+        getExtension: function (_gl, name) {
+            var glid = _gl.__GLID__;
+            if (extensions[glid]) {
+                if (typeof(extensions[glid][name]) == 'undefined') {
+                    this._createExtension(_gl, name);
+                }
+                return extensions[glid][name];
+            }
+        },
+
+        /**
+         * Get parameter
+         * @param {WebGLRenderingContext} _gl
+         * @param {string} name Parameter name
+         * @return {*}
+         */
+        getParameter: function (_gl, name) {
+            var glid = _gl.__GLID__;
+            if (parameters[glid]) {
+                return parameters[glid][name];
+            }
+        },
+
+        /**
+         * Dispose context
+         * @param  {WebGLRenderingContext} _gl
+         * @memberOf qtek.core.glinfo
+         */
+        dispose: function (_gl) {
+            delete extensions[_gl.__GLID__];
+            delete parameters[_gl.__GLID__];
+        },
+
+        _createExtension: function (_gl, name) {
+            var ext = _gl.getExtension(name);
+            if (!ext) {
+                ext = _gl.getExtension('MOZ_' + name);
+            }
+            if (!ext) {
+                ext = _gl.getExtension('WEBKIT_' + name);
+            }
+
+            extensions[_gl.__GLID__][name] = ext;
+        }
+    };
+
+    module.exports = glinfo;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Base = __webpack_require__(1);
+    var Vector3 = __webpack_require__(3);
+    var Quaternion = __webpack_require__(24);
+    var Matrix4 = __webpack_require__(15);
+    var glMatrix = __webpack_require__(0);
+    var BoundingBox = __webpack_require__(4);
+    var mat4 = glMatrix.mat4;
+
+    var nameId = 0;
+
+    /**
+     * @constructor qtek.Node
+     * @extends qtek.core.Base
+     */
+    var Node = Base.extend(
+    /** @lends qtek.Node# */
+    {
+        /**
+         * Scene node name
+         * @type {string}
+         */
+        name: '',
+
+        /**
+         * Position relative to its parent node. aka translation.
+         * @type {qtek.math.Vector3}
+         */
+        position: null,
+
+        /**
+         * Rotation relative to its parent node. Represented by a quaternion
+         * @type {qtek.math.Quaternion}
+         */
+        rotation: null,
+
+        /**
+         * Scale relative to its parent node
+         * @type {qtek.math.Vector3}
+         */
+        scale: null,
+
+        /**
+         * Affine transform matrix relative to its root scene.
+         * @type {qtek.math.Matrix4}
+         */
+        worldTransform: null,
+
+        /**
+         * Affine transform matrix relative to its parent node.
+         * Composited with position, rotation and scale.
+         * @type {qtek.math.Matrix4}
+         */
+        localTransform: null,
+
+        /**
+         * If the local transform is update from SRT(scale, rotation, translation, which is position here) each frame
+         * @type {boolean}
+         */
+        autoUpdateLocalTransform: true,
+
+        /**
+         * Parent of current scene node
+         * @type {?qtek.Node}
+         * @private
+         */
+        _parent: null,
+        /**
+         * The root scene mounted. Null if it is a isolated node
+         * @type {?qtek.Scene}
+         * @private
+         */
+        _scene: null,
+
+        _needsUpdateWorldTransform: true,
+
+        _inIterating: false,
+
+        // Depth for transparent queue sorting
+        __depth: 0
+
+    }, function () {
+
+        if (!this.name) {
+            this.name = (this.type || 'NODE') + '_' + (nameId++);
+        }
+
+        if (!this.position) {
+            this.position = new Vector3();
+        }
+        if (!this.rotation) {
+            this.rotation = new Quaternion();
+        }
+        if (!this.scale) {
+            this.scale = new Vector3(1, 1, 1);
+        }
+
+        this.worldTransform = new Matrix4();
+        this.localTransform = new Matrix4();
+
+        this._children = [];
+
+    },
+    /**@lends qtek.Node.prototype. */
+    {
+
+        /**
+         * If node and its chilren invisible
+         * @type {boolean}
+         * @memberOf qtek.Node
+         * @instance
+         */
+        invisible: false,
+
+        /**
+         * Return true if it is a renderable scene node, like Mesh and ParticleSystem
+         * @return {boolean}
+         */
+        isRenderable: function () {
+            return false;
+        },
+
+        /**
+         * Set the name of the scene node
+         * @param {string} name
+         */
+        setName: function (name) {
+            var scene = this._scene;
+            if (scene) {
+                var nodeRepository = scene._nodeRepository;
+                delete nodeRepository[this.name];
+                nodeRepository[name] = this;
+            }
+            this.name = name;
+        },
+
+        /**
+         * Add a child node
+         * @param {qtek.Node} node
+         */
+        add: function (node) {
+            if (this._inIterating) {
+                console.warn('Add operation can cause unpredictable error when in iterating');
+            }
+            var originalParent = node._parent;
+            if (originalParent === this) {
+                return;
+            }
+            if (originalParent) {
+                originalParent.remove(node);
+            }
+            node._parent = this;
+            this._children.push(node);
+
+            var scene = this._scene;
+            if (scene && scene !== node.scene) {
+                node.traverse(this._addSelfToScene, this);
+            }
+            // Mark children needs update transform
+            // In case child are remove and added again after parent moved
+            node._needsUpdateWorldTransform = true;
+        },
+
+        /**
+         * Remove the given child scene node
+         * @param {qtek.Node} node
+         */
+        remove: function (node) {
+            if (this._inIterating) {
+                console.warn('Remove operation can cause unpredictable error when in iterating');
+            }
+            var children = this._children;
+            var idx = children.indexOf(node);
+            if (idx < 0) {
+                return;
+            }
+
+            children.splice(idx, 1);
+            node._parent = null;
+
+            if (this._scene) {
+                node.traverse(this._removeSelfFromScene, this);
+            }
+        },
+
+        /**
+         * Remove all children
+         */
+        removeAll: function () {
+            var children = this._children;
+
+            for (var idx = 0; idx < children.length; idx++) {
+                children[idx]._parent = null;
+
+                if (this._scene) {
+                    children[idx].traverse(this._removeSelfFromScene, this);
+                }
+            }
+
+            this._children = [];
+        },
+
+        /**
+         * Get the scene mounted
+         * @return {qtek.Scene}
+         */
+        getScene: function () {
+            return this._scene;
+        },
+
+        /**
+         * Get parent node
+         * @return {qtek.Scene}
+         */
+        getParent: function () {
+            return this._parent;
+        },
+
+        _removeSelfFromScene: function (descendant) {
+            descendant._scene.removeFromScene(descendant);
+            descendant._scene = null;
+        },
+
+        _addSelfToScene: function (descendant) {
+            this._scene.addToScene(descendant);
+            descendant._scene = this._scene;
+        },
+
+        /**
+         * Return true if it is ancestor of the given scene node
+         * @param {qtek.Node} node
+         */
+        isAncestor: function (node) {
+            var parent = node._parent;
+            while(parent) {
+                if (parent === this) {
+                    return true;
+                }
+                parent = parent._parent;
+            }
+            return false;
+        },
+
+        /**
+         * Get a new created array of all its children nodes
+         * @return {qtek.Node[]}
+         */
+        children: function () {
+            return this._children.slice();
+        },
+
+        childAt: function (idx) {
+            return this._children[idx];
+        },
+
+        /**
+         * Get first child with the given name
+         * @param {string} name
+         * @return {qtek.Node}
+         */
+        getChildByName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                if (children[i].name === name) {
+                    return children[i];
+                }
+            }
+        },
+
+        /**
+         * Get first descendant have the given name
+         * @param {string} name
+         * @return {qtek.Node}
+         */
+        getDescendantByName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                if (child.name === name) {
+                    return child;
+                } else {
+                    var res = child.getDescendantByName(name);
+                    if (res) {
+                        return res;
+                    }
+                }
+            }
+        },
+
+        /**
+         * Query descendant node by path
+         * @param {string} path
+         * @return {qtek.Node}
+         */
+        queryNode: function (path) {
+            if (!path) {
+                return;
+            }
+            // TODO Name have slash ?
+            var pathArr = path.split('/');
+            var current = this;
+            for (var i = 0; i < pathArr.length; i++) {
+                var name = pathArr[i];
+                // Skip empty
+                if (!name) {
+                    continue;
+                }
+                var found = false;
+                var children = current._children;
+                for (var j = 0; j < children.length; j++) {
+                    var child = children[j];
+                    if (child.name === name) {
+                        current = child;
+                        found = true;
+                        break;
+                    }
+                }
+                // Early return if not found
+                if (!found) {
+                    return;
+                }
+            }
+
+            return current;
+        },
+
+        /**
+         * Get query path, relative to rootNode(default is scene)
+         * @return {string}
+         */
+        getPath: function (rootNode) {
+            if (!this._parent) {
+                return '/';
+            }
+
+            var current = this._parent;
+            var path = this.name;
+            while (current._parent) {
+                path = current.name + '/' + path;
+                if (current._parent == rootNode) {
+                    break;
+                }
+                current = current._parent;
+            }
+            if (!current._parent && rootNode) {
+                return null;
+            }
+            return path;
+        },
+
+        /**
+         * Depth first traverse all its descendant scene nodes and
+         * @param {Function} callback
+         * @param {Node} [context]
+         * @param {Function} [ctor]
+         */
+        traverse: function (callback, context, ctor) {
+
+            this._inIterating = true;
+
+            if (ctor == null || this.constructor === ctor) {
+                callback.call(context, this);
+            }
+            var _children = this._children;
+            for(var i = 0, len = _children.length; i < len; i++) {
+                _children[i].traverse(callback, context, ctor);
+            }
+
+            this._inIterating = false;
+        },
+
+        eachChild: function (callback, context, ctor) {
+            this._inIterating = true;
+
+            var _children = this._children;
+            var noCtor = ctor == null;
+            for(var i = 0, len = _children.length; i < len; i++) {
+                var child = _children[i];
+                if (noCtor || child.constructor === ctor) {
+                    callback.call(context, child, i);
+                }
+            }
+
+            this._inIterating = false;
+        },
+
+        /**
+         * Set the local transform and decompose to SRT
+         * @param {qtek.math.Matrix4} matrix
+         */
+        setLocalTransform: function (matrix) {
+            mat4.copy(this.localTransform._array, matrix._array);
+            this.decomposeLocalTransform();
+        },
+
+        /**
+         * Decompose the local transform to SRT
+         */
+        decomposeLocalTransform: function (keepScale) {
+            var scale = !keepScale ? this.scale: null;
+            this.localTransform.decomposeMatrix(scale, this.rotation, this.position);
+        },
+
+        /**
+         * Set the world transform and decompose to SRT
+         * @param {qtek.math.Matrix4} matrix
+         */
+        setWorldTransform: function (matrix) {
+            mat4.copy(this.worldTransform._array, matrix._array);
+            this.decomposeWorldTransform();
+        },
+
+        /**
+         * Decompose the world transform to SRT
+         * @method
+         */
+        decomposeWorldTransform: (function () {
+
+            var tmp = mat4.create();
+
+            return function (keepScale) {
+                var localTransform = this.localTransform;
+                var worldTransform = this.worldTransform;
+                // Assume world transform is updated
+                if (this._parent) {
+                    mat4.invert(tmp, this._parent.worldTransform._array);
+                    mat4.multiply(localTransform._array, tmp, worldTransform._array);
+                } else {
+                    mat4.copy(localTransform._array, worldTransform._array);
+                }
+                var scale = !keepScale ? this.scale: null;
+                localTransform.decomposeMatrix(scale, this.rotation, this.position);
+            };
+        })(),
+
+        transformNeedsUpdate: function () {
+            return this.position._dirty
+                || this.rotation._dirty
+                || this.scale._dirty;
+        },
+
+        /**
+         * Update local transform from SRT
+         * Notice that local transform will not be updated if _dirty mark of position, rotation, scale is all false
+         */
+        updateLocalTransform: function () {
+            var position = this.position;
+            var rotation = this.rotation;
+            var scale = this.scale;
+
+            if (this.transformNeedsUpdate()) {
+                var m = this.localTransform._array;
+
+                // Transform order, scale->rotation->position
+                mat4.fromRotationTranslation(m, rotation._array, position._array);
+
+                mat4.scale(m, m, scale._array);
+
+                rotation._dirty = false;
+                scale._dirty = false;
+                position._dirty = false;
+
+                this._needsUpdateWorldTransform = true;
+            }
+        },
+
+        /**
+         * Update world transform, assume its parent world transform have been updated
+         */
+        _updateWorldTransformTopDown: function () {
+            var localTransform = this.localTransform._array;
+            var worldTransform = this.worldTransform._array;
+            if (this._parent) {
+                mat4.multiplyAffine(
+                    worldTransform,
+                    this._parent.worldTransform._array,
+                    localTransform
+                );
+            }
+            else {
+                mat4.copy(worldTransform, localTransform);
+            }
+        },
+
+        // Update world transform before whole scene is updated.
+        updateWorldTransform: function () {
+            // Find the root node which transform needs update;
+            var rootNodeIsDirty = this;
+            while (rootNodeIsDirty && rootNodeIsDirty.getParent()
+                && rootNodeIsDirty.getParent().transformNeedsUpdate()
+            ) {
+                rootNodeIsDirty = rootNodeIsDirty.getParent();
+            }
+            rootNodeIsDirty.update();
+        },
+
+        /**
+         * Update local transform and world transform recursively
+         * @param {boolean} forceUpdateWorld
+         */
+        update: function (forceUpdateWorld) {
+            if (this.autoUpdateLocalTransform) {
+                this.updateLocalTransform();
+            }
+            else {
+                // Transform is manually setted
+                forceUpdateWorld = true;
+            }
+
+            if (forceUpdateWorld || this._needsUpdateWorldTransform) {
+                this._updateWorldTransformTopDown();
+                forceUpdateWorld = true;
+                this._needsUpdateWorldTransform = false;
+            }
+
+            var children = this._children;
+            for(var i = 0, len = children.length; i < len; i++) {
+                children[i].update(forceUpdateWorld);
+            }
+        },
+
+        /**
+         * Get bounding box of node
+         * @param  {Function} [filter]
+         * @param  {qtek.math.BoundingBox} [out]
+         * @return {qtek.math.BoundingBox}
+         */
+        getBoundingBox: (function () {
+
+            function defaultFilter (el) {
+                return !el.invisible;
+            }
+            return function (filter, out) {
+                out = out || new BoundingBox();
+                filter = filter || defaultFilter;
+
+                var children = this._children;
+                if (children.length === 0) {
+                    out.max.set(-Infinity, -Infinity, -Infinity);
+                    out.min.set(Infinity, Infinity, Infinity);
+                }
+
+                var tmpBBox = new BoundingBox();
+                for (var i = 0; i < children.length; i++) {
+                    var child = children[i];
+                    if (!filter(child)) {
+                        continue;
+                    }
+                    child.getBoundingBox(filter, tmpBBox);
+                    child.updateLocalTransform();
+                    if (tmpBBox.isFinite()) {
+                        tmpBBox.applyTransform(child.localTransform);
+                    }
+                    if (i === 0) {
+                        out.copy(tmpBBox);
+                    }
+                    else {
+                        out.union(tmpBBox);
+                    }
+                }
+
+                return out;
+            };
+        })(),
+
+        /**
+         * Get world position, extracted from world transform
+         * @param  {qtek.math.Vector3} [out]
+         * @return {qtek.math.Vector3}
+         */
+        getWorldPosition: function (out) {
+            // PENDING
+            if (this.transformNeedsUpdate()) {
+                this.updateWorldTransform();
+            }
+            var m = this.worldTransform._array;
+            if (out) {
+                var arr = out._array;
+                arr[0] = m[12];
+                arr[1] = m[13];
+                arr[2] = m[14];
+                return out;
+            }
+            else {
+                return new Vector3(m[12], m[13], m[14]);
+            }
+        },
+
+        // TODO Set world transform
+
+        /**
+         * Clone a new node
+         * @return {Node}
+         */
+        clone: function () {
+            var node = new this.constructor();
+            var children = this._children;
+
+            node.setName(this.name);
+            node.position.copy(this.position);
+            node.rotation.copy(this.rotation);
+            node.scale.copy(this.scale);
+
+            for (var i = 0; i < children.length; i++) {
+                node.add(children[i].clone());
+            }
+            return node;
+        },
+
+        /**
+         * Rotate the node around a axis by angle degrees, axis passes through point
+         * @param {qtek.math.Vector3} point Center point
+         * @param {qtek.math.Vector3} axis  Center axis
+         * @param {number}       angle Rotation angle
+         * @see http://docs.unity3d.com/Documentation/ScriptReference/Transform.RotateAround.html
+         * @method
+         */
+        rotateAround: (function () {
+            var v = new Vector3();
+            var RTMatrix = new Matrix4();
+
+            // TODO improve performance
+            return function (point, axis, angle) {
+
+                v.copy(this.position).subtract(point);
+
+                var localTransform = this.localTransform;
+                localTransform.identity();
+                // parent node
+                localTransform.translate(point);
+                localTransform.rotate(angle, axis);
+
+                RTMatrix.fromRotationTranslation(this.rotation, v);
+                localTransform.multiply(RTMatrix);
+                localTransform.scale(this.scale);
+
+                this.decomposeLocalTransform();
+                this._needsUpdateWorldTransform = true;
+            };
+        })(),
+
+        /**
+         * @param {qtek.math.Vector3} target
+         * @param {qtek.math.Vector3} [up]
+         * @see http://www.opengl.org/sdk/docs/man2/xhtml/gluLookAt.xml
+         * @method
+         */
+        // TODO world space ?
+        lookAt: (function () {
+            var m = new Matrix4();
+            return function (target, up) {
+                m.lookAt(this.position, target, up || this.localTransform.y).invert();
+                this.setLocalTransform(m);
+            };
+        })()
+    });
+
+    module.exports = Node;
+
+
+/***/ }),
 /* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -8256,7 +8255,54 @@ module.exports = {
 
 
 
-    var Node = __webpack_require__(6);
+    var supportWebGL = true;
+    try {
+        var canvas = document.createElement('canvas');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+            throw new Error();
+        }
+    } catch (e) {
+        supportWebGL = false;
+    }
+
+    var vendor = {};
+
+    /**
+     * If support WebGL
+     * @return {boolean}
+     */
+    vendor.supportWebGL = function () {
+        return supportWebGL;
+    };
+
+
+    vendor.Int8Array = typeof Int8Array == 'undefined' ? Array : Int8Array;
+
+    vendor.Uint8Array = typeof Uint8Array == 'undefined' ? Array : Uint8Array;
+
+    vendor.Uint16Array = typeof Uint16Array == 'undefined' ? Array : Uint16Array;
+
+    vendor.Uint32Array = typeof Uint32Array == 'undefined' ? Array : Uint32Array;
+
+    vendor.Int16Array = typeof Int16Array == 'undefined' ? Array : Int16Array;
+
+    vendor.Float32Array = typeof Float32Array == 'undefined' ? Array : Float32Array;
+
+    vendor.Float64Array = typeof Float64Array == 'undefined' ? Array : Float64Array;
+
+    module.exports = vendor;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Node = __webpack_require__(7);
 
     /**
      * @constructor qtek.Light
@@ -8326,312 +8372,6 @@ module.exports = {
 
 
 /***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-/**
- * Base class for all textures like compressed texture, texture2d, texturecube
- * TODO mapping
- */
-
-
-    var Base = __webpack_require__(1);
-    var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(15);
-    var glinfo = __webpack_require__(5);
-
-    /**
-     * @constructor qtek.Texture
-     * @extends qtek.core.Base
-     */
-    var Texture = Base.extend(
-    /** @lends qtek.Texture# */
-    {
-        /**
-         * Texture width, only needed when the texture is used as a render target
-         * @type {number}
-         */
-        width: 512,
-        /**
-         * Texture height, only needed when the texture is used as a render target
-         * @type {number}
-         */
-        height: 512,
-        /**
-         * Texel data type
-         * @type {number}
-         */
-        type: glenum.UNSIGNED_BYTE,
-        /**
-         * Format of texel data
-         * @type {number}
-         */
-        format: glenum.RGBA,
-        /**
-         * @type {number}
-         */
-        wrapS: glenum.CLAMP_TO_EDGE,
-        /**
-         * @type {number}
-         */
-        wrapT: glenum.CLAMP_TO_EDGE,
-        /**
-         * @type {number}
-         */
-        minFilter: glenum.LINEAR_MIPMAP_LINEAR,
-        /**
-         * @type {number}
-         */
-        magFilter: glenum.LINEAR,
-        /**
-         * @type {boolean}
-         */
-        useMipmap: true,
-
-        /**
-         * Anisotropic filtering, enabled if value is larger than 1
-         * @see http://blog.tojicode.com/2012/03/anisotropic-filtering-in-webgl.html
-         * @type {number}
-         */
-        anisotropic: 1,
-        // pixelStorei parameters, not available when texture is used as render target
-        // http://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml
-        /**
-         * @type {boolean}
-         */
-        flipY: true,
-        /**
-         * @type {number}
-         */
-        unpackAlignment: 4,
-        /**
-         * @type {boolean}
-         */
-        premultiplyAlpha: false,
-
-        /**
-         * Dynamic option for texture like video
-         * @type {boolean}
-         */
-        dynamic: false,
-
-        NPOT: false
-    }, function () {
-        this._cache = new Cache();
-    },
-    /** @lends qtek.Texture.prototype */
-    {
-
-        getWebGLTexture: function (_gl) {
-            var cache = this._cache;
-            cache.use(_gl.__GLID__);
-
-            if (cache.miss('webgl_texture')) {
-                // In a new gl context, create new texture and set dirty true
-                cache.put('webgl_texture', _gl.createTexture());
-            }
-            if (this.dynamic) {
-                this.update(_gl);
-            }
-            else if (cache.isDirty()) {
-                this.update(_gl);
-                cache.fresh();
-            }
-
-            return cache.get('webgl_texture');
-        },
-
-        bind: function () {},
-        unbind: function () {},
-
-        /**
-         * Mark texture is dirty and update in the next frame
-         */
-        dirty: function () {
-            if (this._cache) {
-                this._cache.dirtyAll();
-            }
-        },
-
-        update: function (_gl) {},
-
-        // Update the common parameters of texture
-        updateCommon: function (_gl) {
-            _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, this.flipY);
-            _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, this.premultiplyAlpha);
-            _gl.pixelStorei(_gl.UNPACK_ALIGNMENT, this.unpackAlignment);
-
-            this._fallBack(_gl);
-        },
-
-        _fallBack: function (_gl) {
-            // Use of none-power of two texture
-            // http://www.khronos.org/webgl/wiki/WebGL_and_OpenGL_Differences
-
-            var isPowerOfTwo = this.isPowerOfTwo();
-
-            if (this.format === glenum.DEPTH_COMPONENT) {
-                this.useMipmap = false;
-            }
-
-            var sRGBExt = glinfo.getExtension(_gl, 'EXT_sRGB');
-            // Fallback
-            if (this.format === Texture.SRGB && !sRGBExt) {
-                this.format = Texture.RGB;
-            }
-            if (this.format === Texture.SRGB_ALPHA && !sRGBExt) {
-                this.format = Texture.RGBA;
-            }
-
-            if (!isPowerOfTwo || !this.useMipmap) {
-                // none-power of two flag
-                this.NPOT = true;
-                // Save the original value for restore
-                this._minFilterOriginal = this.minFilter;
-                this._magFilterOriginal = this.magFilter;
-                this._wrapSOriginal = this.wrapS;
-                this._wrapTOriginal = this.wrapT;
-
-                if (this.minFilter == glenum.NEAREST_MIPMAP_NEAREST ||
-                    this.minFilter == glenum.NEAREST_MIPMAP_LINEAR) {
-                    this.minFilter = glenum.NEAREST;
-                } else if (
-                    this.minFilter == glenum.LINEAR_MIPMAP_LINEAR ||
-                    this.minFilter == glenum.LINEAR_MIPMAP_NEAREST
-                ) {
-                    this.minFilter = glenum.LINEAR;
-                }
-
-                this.wrapS = glenum.CLAMP_TO_EDGE;
-                this.wrapT = glenum.CLAMP_TO_EDGE;
-            }
-            else {
-                this.NPOT = false;
-                if (this._minFilterOriginal) {
-                    this.minFilter = this._minFilterOriginal;
-                }
-                if (this._magFilterOriginal) {
-                    this.magFilter = this._magFilterOriginal;
-                }
-                if (this._wrapSOriginal) {
-                    this.wrapS = this._wrapSOriginal;
-                }
-                if (this._wrapTOriginal) {
-                    this.wrapT = this._wrapTOriginal;
-                }
-            }
-
-        },
-
-        nextHighestPowerOfTwo: function (x) {
-            --x;
-            for (var i = 1; i < 32; i <<= 1) {
-                x = x | x >> i;
-            }
-            return x + 1;
-        },
-        /**
-         * @param  {WebGLRenderingContext} _gl
-         */
-        dispose: function (_gl) {
-
-            var cache = this._cache;
-
-            cache.use(_gl.__GLID__);
-
-            var webglTexture = cache.get('webgl_texture');
-            if (webglTexture){
-                _gl.deleteTexture(webglTexture);
-            }
-            cache.deleteContext(_gl.__GLID__);
-
-        },
-        /**
-         * Test if image of texture is valid and loaded.
-         * @return {boolean}
-         */
-        isRenderable: function () {},
-
-        isPowerOfTwo: function () {}
-    });
-
-    Object.defineProperty(Texture.prototype, 'width', {
-        get: function () {
-            return this._width;
-        },
-        set: function (value) {
-            this._width = value;
-        }
-    });
-    Object.defineProperty(Texture.prototype, 'height', {
-        get: function () {
-            return this._height;
-        },
-        set: function (value) {
-            this._height = value;
-        }
-    });
-
-    /* DataType */
-    Texture.BYTE = glenum.BYTE;
-    Texture.UNSIGNED_BYTE = glenum.UNSIGNED_BYTE;
-    Texture.SHORT = glenum.SHORT;
-    Texture.UNSIGNED_SHORT = glenum.UNSIGNED_SHORT;
-    Texture.INT = glenum.INT;
-    Texture.UNSIGNED_INT = glenum.UNSIGNED_INT;
-    Texture.FLOAT = glenum.FLOAT;
-    Texture.HALF_FLOAT = 0x8D61;
-
-    // ext.UNSIGNED_INT_24_8_WEBGL for WEBGL_depth_texture extension
-    Texture.UNSIGNED_INT_24_8_WEBGL = 34042;
-
-    /* PixelFormat */
-    Texture.DEPTH_COMPONENT = glenum.DEPTH_COMPONENT;
-    Texture.DEPTH_STENCIL = glenum.DEPTH_STENCIL;
-    Texture.ALPHA = glenum.ALPHA;
-    Texture.RGB = glenum.RGB;
-    Texture.RGBA = glenum.RGBA;
-    Texture.LUMINANCE = glenum.LUMINANCE;
-    Texture.LUMINANCE_ALPHA = glenum.LUMINANCE_ALPHA;
-
-    // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
-    Texture.SRGB = 0x8C40;
-    Texture.SRGB_ALPHA = 0x8C42;
-
-    /* Compressed Texture */
-    Texture.COMPRESSED_RGB_S3TC_DXT1_EXT = 0x83F0;
-    Texture.COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
-    Texture.COMPRESSED_RGBA_S3TC_DXT3_EXT = 0x83F2;
-    Texture.COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
-
-    /* TextureMagFilter */
-    Texture.NEAREST = glenum.NEAREST;
-    Texture.LINEAR = glenum.LINEAR;
-
-    /* TextureMinFilter */
-    /*      NEAREST */
-    /*      LINEAR */
-    Texture.NEAREST_MIPMAP_NEAREST = glenum.NEAREST_MIPMAP_NEAREST;
-    Texture.LINEAR_MIPMAP_NEAREST = glenum.LINEAR_MIPMAP_NEAREST;
-    Texture.NEAREST_MIPMAP_LINEAR = glenum.NEAREST_MIPMAP_LINEAR;
-    Texture.LINEAR_MIPMAP_LINEAR = glenum.LINEAR_MIPMAP_LINEAR;
-
-    /* TextureParameterName */
-    // Texture.TEXTURE_MAG_FILTER = glenum.TEXTURE_MAG_FILTER;
-    // Texture.TEXTURE_MIN_FILTER = glenum.TEXTURE_MIN_FILTER;
-
-    /* TextureWrapMode */
-    Texture.REPEAT = glenum.REPEAT;
-    Texture.CLAMP_TO_EDGE = glenum.CLAMP_TO_EDGE;
-    Texture.MIRRORED_REPEAT = glenum.MIRRORED_REPEAT;
-
-
-    module.exports = Texture;
-
-
-/***/ }),
 /* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -8639,262 +8379,8 @@ module.exports = {
 
 
 
-    var guid = 0;
-
-    var ArrayProto = Array.prototype;
-    var nativeForEach = ArrayProto.forEach;
-
-    /**
-     * Util functions
-     * @namespace qtek.core.util
-     */
-	var util = {
-
-        /**
-         * Generate GUID
-         * @return {number}
-         * @memberOf qtek.core.util
-         */
-		genGUID: function() {
-			return ++guid;
-		},
-        /**
-         * Relative path to absolute path
-         * @param  {string} path
-         * @param  {string} basePath
-         * @return {string}
-         * @memberOf qtek.core.util
-         */
-        relative2absolute: function(path, basePath) {
-            if (!basePath || path.match(/^\//)) {
-                return path;
-            }
-            var pathParts = path.split('/');
-            var basePathParts = basePath.split('/');
-
-            var item = pathParts[0];
-            while(item === '.' || item === '..') {
-                if (item === '..') {
-                    basePathParts.pop();
-                }
-                pathParts.shift();
-                item = pathParts[0];
-            }
-            return basePathParts.join('/') + '/' + pathParts.join('/');
-        },
-
-        /**
-         * Extend target with source
-         * @param  {Object} target
-         * @param  {Object} source
-         * @return {Object}
-         * @memberOf qtek.core.util
-         */
-        extend: function(target, source) {
-            if (source) {
-                for (var name in source) {
-                    if (source.hasOwnProperty(name)) {
-                        target[name] = source[name];
-                    }
-                }
-            }
-            return target;
-        },
-
-        /**
-         * Extend properties to target if not exist.
-         * @param  {Object} target
-         * @param  {Object} source
-         * @return {Object}
-         * @memberOf qtek.core.util
-         */
-        defaults: function(target, source) {
-            if (source) {
-                for (var propName in source) {
-                    if (target[propName] === undefined) {
-                        target[propName] = source[propName];
-                    }
-                }
-            }
-            return target;
-        },
-        /**
-         * Extend properties with a given property list to avoid for..in.. iteration.
-         * @param  {Object} target
-         * @param  {Object} source
-         * @param  {Array.<string>} propList
-         * @return {Object}
-         * @memberOf qtek.core.util
-         */
-        extendWithPropList: function(target, source, propList) {
-            if (source) {
-                for (var i = 0; i < propList.length; i++) {
-                    var propName = propList[i];
-                    target[propName] = source[propName];
-                }
-            }
-            return target;
-        },
-        /**
-         * Extend properties to target if not exist. With a given property list avoid for..in.. iteration.
-         * @param  {Object} target
-         * @param  {Object} source
-         * @param  {Array.<string>} propList
-         * @return {Object}
-         * @memberOf qtek.core.util
-         */
-        defaultsWithPropList: function(target, source, propList) {
-            if (source) {
-                for (var i = 0; i < propList.length; i++) {
-                    var propName = propList[i];
-                    if (target[propName] == null) {
-                        target[propName] = source[propName];
-                    }
-                }
-            }
-            return target;
-        },
-        /**
-         * @param  {Object|Array} obj
-         * @param  {Function} iterator
-         * @param  {Object} [context]
-         * @memberOf qtek.core.util
-         */
-        each: function(obj, iterator, context) {
-            if (!(obj && iterator)) {
-                return;
-            }
-            if (obj.forEach && obj.forEach === nativeForEach) {
-                obj.forEach(iterator, context);
-            } else if (obj.length === + obj.length) {
-                for (var i = 0, len = obj.length; i < len; i++) {
-                    iterator.call(context, obj[i], i, obj);
-                }
-            } else {
-                for (var key in obj) {
-                    if (obj.hasOwnProperty(key)) {
-                        iterator.call(context, obj[key], key, obj);
-                    }
-                }
-            }
-        },
-
-        /**
-         * Is object ?
-         * @param  {}  obj
-         * @return {boolean}
-         * @memberOf qtek.core.util
-         */
-        isObject: function(obj) {
-            return obj === Object(obj);
-        },
-
-        /**
-         * Is array ?
-         * @param  {}  obj
-         * @return {boolean}
-         * @memberOf qtek.core.util
-         */
-        isArray: function(obj) {
-            return obj instanceof Array;
-        },
-
-        /**
-         * Is array like, which have a length property
-         * @param  {}  obj
-         * @return {boolean}
-         * @memberOf qtek.core.util
-         */
-        isArrayLike: function(obj) {
-            if (!obj) {
-                return false;
-            } else {
-                return obj.length === + obj.length;
-            }
-        },
-
-        /**
-         * @param  {} obj
-         * @return {}
-         * @memberOf qtek.core.util
-         */
-        clone: function(obj) {
-            if (!util.isObject(obj)) {
-                return obj;
-            } else if (util.isArray(obj)) {
-                return obj.slice();
-            } else if (util.isArrayLike(obj)) { // is typed array
-                var ret = new obj.constructor(obj.length);
-                for (var i = 0; i < obj.length; i++) {
-                    ret[i] = obj[i];
-                }
-                return ret;
-            } else {
-                return util.extend({}, obj);
-            }
-        }
-	};
-
-    module.exports = util;
-
-
-/***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var supportWebGL = true;
-    try {
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!gl) {
-            throw new Error();
-        }
-    } catch (e) {
-        supportWebGL = false;
-    }
-
-    var vendor = {};
-
-    /**
-     * If support WebGL
-     * @return {boolean}
-     */
-    vendor.supportWebGL = function () {
-        return supportWebGL;
-    };
-
-
-    vendor.Int8Array = typeof Int8Array == 'undefined' ? Array : Int8Array;
-
-    vendor.Uint8Array = typeof Uint8Array == 'undefined' ? Array : Uint8Array;
-
-    vendor.Uint16Array = typeof Uint16Array == 'undefined' ? Array : Uint16Array;
-
-    vendor.Uint32Array = typeof Uint32Array == 'undefined' ? Array : Uint32Array;
-
-    vendor.Int16Array = typeof Int16Array == 'undefined' ? Array : Int16Array;
-
-    vendor.Float32Array = typeof Float32Array == 'undefined' ? Array : Float32Array;
-
-    vendor.Float64Array = typeof Float64Array == 'undefined' ? Array : Float64Array;
-
-    module.exports = vendor;
-
-
-/***/ }),
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
     var Base = __webpack_require__(1);
-    var Texture = __webpack_require__(9);
+    var Texture = __webpack_require__(12);
 
     /**
      * @constructor qtek.Material
@@ -9245,6 +8731,979 @@ module.exports = {
 
 
 /***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/**
+ * StaticGeometry can not be changed once they've been setup
+ */
+
+
+    var Geometry = __webpack_require__(46);
+    var BoundingBox = __webpack_require__(4);
+    var glMatrix = __webpack_require__(0);
+    var vendor = __webpack_require__(8);
+    var glenum = __webpack_require__(2);
+    var mat4 = glMatrix.mat4;
+    var vec3 = glMatrix.vec3;
+
+    var StaticAttribute = Geometry.StaticAttribute;
+    var vec3Create = vec3.create;
+    var vec3Add = vec3.add;
+    var vec3Set = vec3.set;
+
+    function makeAttrKey(attrName) {
+        return 'attr_' + attrName;
+    }
+    /**
+     * @constructor qtek.StaticGeometry
+     * @extends qtek.Geometry
+     */
+    var StaticGeometry = Geometry.extend(function () {
+        return /** @lends qtek.StaticGeometry# */ {
+            attributes: {
+                 position: new StaticAttribute('position', 'float', 3, 'POSITION'),
+                 texcoord0: new StaticAttribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
+                 texcoord1: new StaticAttribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
+                 normal: new StaticAttribute('normal', 'float', 3, 'NORMAL'),
+                 tangent: new StaticAttribute('tangent', 'float', 4, 'TANGENT'),
+                 color: new StaticAttribute('color', 'float', 4, 'COLOR'),
+                 // Skinning attributes
+                 // Each vertex can be bind to 4 bones, because the
+                 // sum of weights is 1, so the weights is stored in vec3 and the last
+                 // can be calculated by 1-w.x-w.y-w.z
+                 weight: new StaticAttribute('weight', 'float', 3, 'WEIGHT'),
+                 joint: new StaticAttribute('joint', 'float', 4, 'JOINT'),
+                 // For wireframe display
+                 // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
+                 barycentric: new StaticAttribute('barycentric', 'float', 3, null),
+            },
+
+            hint: glenum.STATIC_DRAW,
+
+            /**
+             * @type {Uint16Array|Uint32Array}
+             */
+            indices: null,
+
+            _normalType: 'vertex',
+
+            _enabledAttributes: null
+        };
+    },
+    /** @lends qtek.StaticGeometry.prototype */
+    {
+        updateBoundingBox: function () {
+            var bbox = this.boundingBox;
+            if (!bbox) {
+                bbox = this.boundingBox = new BoundingBox();
+            }
+            var posArr = this.attributes.position.value;
+            if (posArr && posArr.length) {
+                var min = bbox.min;
+                var max = bbox.max;
+                var minArr = min._array;
+                var maxArr = max._array;
+                vec3.set(minArr, posArr[0], posArr[1], posArr[2]);
+                vec3.set(maxArr, posArr[0], posArr[1], posArr[2]);
+                for (var i = 3; i < posArr.length;) {
+                    var x = posArr[i++];
+                    var y = posArr[i++];
+                    var z = posArr[i++];
+                    if (x < minArr[0]) { minArr[0] = x; }
+                    if (y < minArr[1]) { minArr[1] = y; }
+                    if (z < minArr[2]) { minArr[2] = z; }
+
+                    if (x > maxArr[0]) { maxArr[0] = x; }
+                    if (y > maxArr[1]) { maxArr[1] = y; }
+                    if (z > maxArr[2]) { maxArr[2] = z; }
+                }
+                min._dirty = true;
+                max._dirty = true;
+            }
+        },
+
+        dirty: function () {
+            var enabledAttributes = this.getEnabledAttributes();
+            for (var i = 0; i < enabledAttributes.length; i++) {
+                this.dirtyAttribute(enabledAttributes[i]);
+            }
+            this.dirtyIndices();
+            this._enabledAttributes = null;
+        },
+
+        dirtyIndices: function () {
+            this._cache.dirtyAll('indices');
+        },
+
+        dirtyAttribute: function (attrName) {
+            this._cache.dirtyAll(makeAttrKey(attrName));
+            this._cache.dirtyAll('attributes');
+        },
+
+        getTriangleIndices: function (idx, out) {
+            if (idx < this.triangleCount && idx >= 0) {
+                if (!out) {
+                    out = vec3Create();
+                }
+                var indices = this.indices;
+                out[0] = indices[idx * 3];
+                out[1] = indices[idx * 3 + 1];
+                out[2] = indices[idx * 3 + 2];
+                return out;
+            }
+        },
+
+        setTriangleIndices: function (idx, arr) {
+            var indices = this.indices;
+            indices[idx * 3] = arr[0];
+            indices[idx * 3 + 1] = arr[1];
+            indices[idx * 3 + 2] = arr[2];
+        },
+
+        isUseIndices: function () {
+            return !!this.indices;
+        },
+
+        initIndicesFromArray: function (array) {
+            var value;
+            var ArrayConstructor = this.vertexCount > 0xffff
+                ? vendor.Uint32Array : vendor.Uint16Array;
+            // Convert 2d array to flat
+            if (array[0] && (array[0].length)) {
+                var n = 0;
+                var size = 3;
+
+                value = new ArrayConstructor(array.length * size);
+                for (var i = 0; i < array.length; i++) {
+                    for (var j = 0; j < size; j++) {
+                        value[n++] = array[i][j];
+                    }
+                }
+            }
+            else {
+                value = new ArrayConstructor(array);
+            }
+
+            this.indices = value;
+        },
+
+        createAttribute: function (name, type, size, semantic) {
+            var attrib = new StaticAttribute(name, type, size, semantic);
+            if (this.attributes[name]) {
+                this.removeAttribute(name);
+            }
+            this.attributes[name] = attrib;
+            this._attributeList.push(name);
+            return attrib;
+        },
+
+        removeAttribute: function (name) {
+            var attributeList = this._attributeList;
+            var idx = attributeList.indexOf(name);
+            if (idx >= 0) {
+                attributeList.splice(idx, 1);
+                delete this.attributes[name];
+                return true;
+            }
+            return false;
+        },
+
+        /**
+         * Get enabled attributes name list
+         * Attribute which has the same vertex number with position is treated as a enabled attribute
+         * @return {string[]}
+         */
+        getEnabledAttributes: function () {
+            var enabledAttributes = this._enabledAttributes;
+            var attributeList = this._attributeList;
+            // Cache
+            if (enabledAttributes) {
+                return enabledAttributes;
+            }
+
+            var result = [];
+            var nVertex = this.vertexCount;
+
+            for (var i = 0; i < attributeList.length; i++) {
+                var name = attributeList[i];
+                var attrib = this.attributes[name];
+                if (attrib.value) {
+                    if (attrib.value.length === nVertex * attrib.size) {
+                        result.push(name);
+                    }
+                }
+            }
+
+            this._enabledAttributes = result;
+
+            return result;
+        },
+
+        getBufferChunks: function (_gl) {
+            var cache = this._cache;
+            cache.use(_gl.__GLID__);
+            var isAttributesDirty = cache.isDirty('attributes');
+            var isIndicesDirty = cache.isDirty('indices');
+            if (isAttributesDirty || isIndicesDirty) {
+                this._updateBuffer(_gl, isAttributesDirty, isIndicesDirty);
+                var enabledAttributes = this.getEnabledAttributes();
+                for (var i = 0; i < enabledAttributes.length; i++) {
+                    cache.fresh(makeAttrKey(enabledAttributes[i]));
+                }
+                cache.fresh('attributes');
+                cache.fresh('indices');
+            }
+            return cache.get('chunks');
+        },
+
+        _updateBuffer: function (_gl, isAttributesDirty, isIndicesDirty) {
+            var cache = this._cache;
+            var chunks = cache.get('chunks');
+            var firstUpdate = false;
+            if (!chunks) {
+                chunks = [];
+                // Intialize
+                chunks[0] = {
+                    attributeBuffers: [],
+                    indicesBuffer: null
+                };
+                cache.put('chunks', chunks);
+                firstUpdate = true;
+            }
+
+            var chunk = chunks[0];
+            var attributeBuffers = chunk.attributeBuffers;
+            var indicesBuffer = chunk.indicesBuffer;
+
+            if (isAttributesDirty || firstUpdate) {
+                var attributeList = this.getEnabledAttributes();
+
+                var attributeBufferMap = {};
+                if (!firstUpdate) {
+                    for (var i = 0; i < attributeBuffers.length; i++) {
+                        attributeBufferMap[attributeBuffers[i].name] = attributeBuffers[i];
+                    }
+                }
+                // FIXME If some attributes removed
+                for (var k = 0; k < attributeList.length; k++) {
+                    var name = attributeList[k];
+                    var attribute = this.attributes[name];
+
+                    var bufferInfo;
+
+                    if (!firstUpdate) {
+                        bufferInfo = attributeBufferMap[name];
+                    }
+                    var buffer;
+                    if (bufferInfo) {
+                        buffer = bufferInfo.buffer;
+                    }
+                    else {
+                        buffer = _gl.createBuffer();
+                    }
+                    if (cache.isDirty(makeAttrKey(name))) {
+                        // Only update when they are dirty.
+                        // TODO: Use BufferSubData?
+                        _gl.bindBuffer(_gl.ARRAY_BUFFER, buffer);
+                        _gl.bufferData(_gl.ARRAY_BUFFER, attribute.value, this.hint);
+                    }
+
+                    attributeBuffers[k] = new Geometry.AttributeBuffer(name, attribute.type, buffer, attribute.size, attribute.semantic);
+                }
+                // Remove unused attributes buffers.
+                // PENDING
+                for (var i = k; i < attributeBuffers.length; i++) {
+                    _gl.deleteBuffer(attributeBuffers[i].buffer);
+                }
+                attributeBuffers.length = k;
+
+            }
+
+            if (this.isUseIndices() && (isIndicesDirty || firstUpdate)) {
+                if (!indicesBuffer) {
+                    indicesBuffer = new Geometry.IndicesBuffer(_gl.createBuffer());
+                    chunk.indicesBuffer = indicesBuffer;
+                }
+                indicesBuffer.count = this.indices.length;
+                _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, indicesBuffer.buffer);
+                _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, this.indices, this.hint);
+            }
+        },
+
+        generateVertexNormals: function () {
+            if (!this.vertexCount) {
+                return;
+            }
+
+            var indices = this.indices;
+            var attributes = this.attributes;
+            var positions = attributes.position.value;
+            var normals = attributes.normal.value;
+
+            if (!normals || normals.length !== positions.length) {
+                normals = attributes.normal.value = new vendor.Float32Array(positions.length);
+            }
+            else {
+                // Reset
+                for (var i = 0; i < normals.length; i++) {
+                    normals[i] = 0;
+                }
+            }
+
+            var p1 = vec3Create();
+            var p2 = vec3Create();
+            var p3 = vec3Create();
+
+            var v21 = vec3Create();
+            var v32 = vec3Create();
+
+            var n = vec3Create();
+
+            // TODO if no indices
+            for (var f = 0; f < indices.length;) {
+                var i1 = indices[f++];
+                var i2 = indices[f++];
+                var i3 = indices[f++];
+
+                vec3Set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
+                vec3Set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
+                vec3Set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
+
+                vec3.sub(v21, p1, p2);
+                vec3.sub(v32, p2, p3);
+                vec3.cross(n, v21, v32);
+                // Already be weighted by the triangle area
+                for (var i = 0; i < 3; i++) {
+                    normals[i1*3+i] = normals[i1*3+i] + n[i];
+                    normals[i2*3+i] = normals[i2*3+i] + n[i];
+                    normals[i3*3+i] = normals[i3*3+i] + n[i];
+                }
+            }
+
+            for (var i = 0; i < normals.length;) {
+                vec3Set(n, normals[i], normals[i+1], normals[i+2]);
+                vec3.normalize(n, n);
+                normals[i++] = n[0];
+                normals[i++] = n[1];
+                normals[i++] = n[2];
+            }
+            this.dirty();
+        },
+
+        generateFaceNormals: function () {
+            if (!this.vertexCount) {
+                return;
+            }
+
+            if (!this.isUniqueVertex()) {
+                this.generateUniqueVertex();
+            }
+
+            var indices = this.indices;
+            var attributes = this.attributes;
+            var positions = attributes.position.value;
+            var normals = attributes.normal.value;
+
+            var p1 = vec3Create();
+            var p2 = vec3Create();
+            var p3 = vec3Create();
+
+            var v21 = vec3Create();
+            var v32 = vec3Create();
+            var n = vec3Create();
+
+            if (!normals) {
+                normals = attributes.normal.value = new Float32Array(positions.length);
+            }
+            for (var f = 0; f < indices.length;) {
+                var i1 = indices[f++];
+                var i2 = indices[f++];
+                var i3 = indices[f++];
+
+                vec3Set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
+                vec3Set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
+                vec3Set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
+
+                vec3.sub(v21, p1, p2);
+                vec3.sub(v32, p2, p3);
+                vec3.cross(n, v21, v32);
+
+                vec3.normalize(n, n);
+
+                for (var i = 0; i < 3; i++) {
+                    normals[i1*3 + i] = n[i];
+                    normals[i2*3 + i] = n[i];
+                    normals[i3*3 + i] = n[i];
+                }
+            }
+            this.dirty();
+        },
+
+        generateTangents: function () {
+            if (!this.vertexCount) {
+                return;
+            }
+
+            var nVertex = this.vertexCount;
+            var attributes = this.attributes;
+            if (!attributes.tangent.value) {
+                attributes.tangent.value = new Float32Array(nVertex * 4);
+            }
+            var texcoords = attributes.texcoord0.value;
+            var positions = attributes.position.value;
+            var tangents = attributes.tangent.value;
+            var normals = attributes.normal.value;
+
+            var tan1 = [];
+            var tan2 = [];
+            for (var i = 0; i < nVertex; i++) {
+                tan1[i] = [0.0, 0.0, 0.0];
+                tan2[i] = [0.0, 0.0, 0.0];
+            }
+
+            var sdir = [0.0, 0.0, 0.0];
+            var tdir = [0.0, 0.0, 0.0];
+            var indices = this.indices;
+            for (var i = 0; i < indices.length;) {
+                var i1 = indices[i++],
+                    i2 = indices[i++],
+                    i3 = indices[i++],
+
+                    st1s = texcoords[i1 * 2],
+                    st2s = texcoords[i2 * 2],
+                    st3s = texcoords[i3 * 2],
+                    st1t = texcoords[i1 * 2 + 1],
+                    st2t = texcoords[i2 * 2 + 1],
+                    st3t = texcoords[i3 * 2 + 1],
+
+                    p1x = positions[i1 * 3],
+                    p2x = positions[i2 * 3],
+                    p3x = positions[i3 * 3],
+                    p1y = positions[i1 * 3 + 1],
+                    p2y = positions[i2 * 3 + 1],
+                    p3y = positions[i3 * 3 + 1],
+                    p1z = positions[i1 * 3 + 2],
+                    p2z = positions[i2 * 3 + 2],
+                    p3z = positions[i3 * 3 + 2];
+
+                var x1 = p2x - p1x,
+                    x2 = p3x - p1x,
+                    y1 = p2y - p1y,
+                    y2 = p3y - p1y,
+                    z1 = p2z - p1z,
+                    z2 = p3z - p1z;
+
+                var s1 = st2s - st1s,
+                    s2 = st3s - st1s,
+                    t1 = st2t - st1t,
+                    t2 = st3t - st1t;
+
+                var r = 1.0 / (s1 * t2 - t1 * s2);
+                sdir[0] = (t2 * x1 - t1 * x2) * r;
+                sdir[1] = (t2 * y1 - t1 * y2) * r;
+                sdir[2] = (t2 * z1 - t1 * z2) * r;
+
+                tdir[0] = (s1 * x2 - s2 * x1) * r;
+                tdir[1] = (s1 * y2 - s2 * y1) * r;
+                tdir[2] = (s1 * z2 - s2 * z1) * r;
+
+                vec3Add(tan1[i1], tan1[i1], sdir);
+                vec3Add(tan1[i2], tan1[i2], sdir);
+                vec3Add(tan1[i3], tan1[i3], sdir);
+                vec3Add(tan2[i1], tan2[i1], tdir);
+                vec3Add(tan2[i2], tan2[i2], tdir);
+                vec3Add(tan2[i3], tan2[i3], tdir);
+            }
+            var tmp = vec3Create();
+            var nCrossT = vec3Create();
+            var n = vec3Create();
+            for (var i = 0; i < nVertex; i++) {
+                n[0] = normals[i * 3];
+                n[1] = normals[i * 3 + 1];
+                n[2] = normals[i * 3 + 2];
+                var t = tan1[i];
+
+                // Gram-Schmidt orthogonalize
+                vec3.scale(tmp, n, vec3.dot(n, t));
+                vec3.sub(tmp, t, tmp);
+                vec3.normalize(tmp, tmp);
+                // Calculate handedness.
+                vec3.cross(nCrossT, n, t);
+                tangents[i * 4] = tmp[0];
+                tangents[i * 4 + 1] = tmp[1];
+                tangents[i * 4 + 2] = tmp[2];
+                tangents[i * 4 + 3] = vec3.dot(nCrossT, tan2[i]) < 0.0 ? -1.0 : 1.0;
+            }
+            this.dirty();
+        },
+
+        isUniqueVertex: function () {
+            if (this.isUseIndices()) {
+                return this.vertexCount === this.indices.length;
+            }
+            else {
+                return true;
+            }
+        },
+
+        generateUniqueVertex: function () {
+            if (!this.vertexCount) {
+                return;
+            }
+
+            if (this.indices.length > 0xffff) {
+                this.indices = new vendor.Uint32Array(this.indices);
+            }
+
+            var attributes = this.attributes;
+            var indices = this.indices;
+
+            var attributeNameList = this.getEnabledAttributes();
+
+            var oldAttrValues = {};
+            for (var a = 0; a < attributeNameList.length; a++) {
+                var name = attributeNameList[a];
+                oldAttrValues[name] = attributes[name].value;
+                attributes[name].init(this.indices.length);
+            }
+
+            var cursor = 0;
+            for (var i = 0; i < indices.length; i++) {
+                var ii = indices[i];
+                for (var a = 0; a < attributeNameList.length; a++) {
+                    var name = attributeNameList[a];
+                    var array = attributes[name].value;
+                    var size = attributes[name].size;
+
+                    for (var k = 0; k < size; k++) {
+                        array[cursor * size + k] = oldAttrValues[name][ii * size + k];
+                    }
+                }
+                indices[i] = cursor;
+                cursor++;
+            }
+
+            this.dirty();
+        },
+
+        generateBarycentric: function () {
+            if (!this.vertexCount) {
+                return;
+            }
+
+            if (!this.isUniqueVertex()) {
+                this.generateUniqueVertex();
+            }
+
+            var attributes = this.attributes;
+            var array = attributes.barycentric.value;
+            var indices = this.indices;
+            // Already existed;
+            if (array && array.length === indices.length * 3) {
+                return;
+            }
+            array = attributes.barycentric.value = new Float32Array(indices.length * 3);
+            for (var i = 0; i < indices.length;) {
+                for (var j = 0; j < 3; j++) {
+                    var ii = indices[i++];
+                    array[ii * 3 + j] = 1;
+                }
+            }
+            this.dirty();
+        },
+
+        applyTransform: function (matrix) {
+
+            var attributes = this.attributes;
+            var positions = attributes.position.value;
+            var normals = attributes.normal.value;
+            var tangents = attributes.tangent.value;
+
+            matrix = matrix._array;
+            // Normal Matrix
+            var inverseTransposeMatrix = mat4.create();
+            mat4.invert(inverseTransposeMatrix, matrix);
+            mat4.transpose(inverseTransposeMatrix, inverseTransposeMatrix);
+
+            var vec3TransformMat4 = vec3.transformMat4;
+            var vec3ForEach = vec3.forEach;
+            vec3ForEach(positions, 3, 0, null, vec3TransformMat4, matrix);
+            if (normals) {
+                vec3ForEach(normals, 3, 0, null, vec3TransformMat4, inverseTransposeMatrix);
+            }
+            if (tangents) {
+                vec3ForEach(tangents, 4, 0, null, vec3TransformMat4, inverseTransposeMatrix);
+            }
+
+            if (this.boundingBox) {
+                this.updateBoundingBox();
+            }
+        },
+
+        dispose: function (_gl) {
+
+            var cache = this._cache;
+
+            cache.use(_gl.__GLID__);
+            var chunks = cache.get('chunks');
+            if (chunks) {
+                for (var c = 0; c < chunks.length; c++) {
+                    var chunk = chunks[c];
+
+                    for (var k = 0; k < chunk.attributeBuffers.length; k++) {
+                        var attribs = chunk.attributeBuffers[k];
+                        _gl.deleteBuffer(attribs.buffer);
+                    }
+                }
+            }
+            cache.deleteContext(_gl.__GLID__);
+        }
+    });
+
+    if (Object.defineProperty) {
+        Object.defineProperty(StaticGeometry.prototype, 'vertexCount', {
+
+            enumerable: false,
+
+            get: function () {
+                var mainAttribute = this.attributes[this.mainAttribute];
+                if (!mainAttribute || !mainAttribute.value) {
+                    return 0;
+                }
+                return mainAttribute.value.length / mainAttribute.size;
+            }
+        });
+        Object.defineProperty(StaticGeometry.prototype, 'triangleCount', {
+
+            enumerable: false,
+
+            get: function () {
+                var indices = this.indices;
+                if (!indices) {
+                    return 0;
+                }
+                else {
+                    return indices.length / 3;
+                }
+            }
+        });
+    }
+
+    StaticGeometry.Attribute = Geometry.StaticAttribute;
+
+    module.exports = StaticGeometry;
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/**
+ * Base class for all textures like compressed texture, texture2d, texturecube
+ * TODO mapping
+ */
+
+
+    var Base = __webpack_require__(1);
+    var glenum = __webpack_require__(2);
+    var Cache = __webpack_require__(17);
+    var glinfo = __webpack_require__(6);
+
+    /**
+     * @constructor qtek.Texture
+     * @extends qtek.core.Base
+     */
+    var Texture = Base.extend(
+    /** @lends qtek.Texture# */
+    {
+        /**
+         * Texture width, only needed when the texture is used as a render target
+         * @type {number}
+         */
+        width: 512,
+        /**
+         * Texture height, only needed when the texture is used as a render target
+         * @type {number}
+         */
+        height: 512,
+        /**
+         * Texel data type
+         * @type {number}
+         */
+        type: glenum.UNSIGNED_BYTE,
+        /**
+         * Format of texel data
+         * @type {number}
+         */
+        format: glenum.RGBA,
+        /**
+         * @type {number}
+         */
+        wrapS: glenum.CLAMP_TO_EDGE,
+        /**
+         * @type {number}
+         */
+        wrapT: glenum.CLAMP_TO_EDGE,
+        /**
+         * @type {number}
+         */
+        minFilter: glenum.LINEAR_MIPMAP_LINEAR,
+        /**
+         * @type {number}
+         */
+        magFilter: glenum.LINEAR,
+        /**
+         * @type {boolean}
+         */
+        useMipmap: true,
+
+        /**
+         * Anisotropic filtering, enabled if value is larger than 1
+         * @see http://blog.tojicode.com/2012/03/anisotropic-filtering-in-webgl.html
+         * @type {number}
+         */
+        anisotropic: 1,
+        // pixelStorei parameters, not available when texture is used as render target
+        // http://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml
+        /**
+         * @type {boolean}
+         */
+        flipY: true,
+        /**
+         * @type {number}
+         */
+        unpackAlignment: 4,
+        /**
+         * @type {boolean}
+         */
+        premultiplyAlpha: false,
+
+        /**
+         * Dynamic option for texture like video
+         * @type {boolean}
+         */
+        dynamic: false,
+
+        NPOT: false
+    }, function () {
+        this._cache = new Cache();
+    },
+    /** @lends qtek.Texture.prototype */
+    {
+
+        getWebGLTexture: function (_gl) {
+            var cache = this._cache;
+            cache.use(_gl.__GLID__);
+
+            if (cache.miss('webgl_texture')) {
+                // In a new gl context, create new texture and set dirty true
+                cache.put('webgl_texture', _gl.createTexture());
+            }
+            if (this.dynamic) {
+                this.update(_gl);
+            }
+            else if (cache.isDirty()) {
+                this.update(_gl);
+                cache.fresh();
+            }
+
+            return cache.get('webgl_texture');
+        },
+
+        bind: function () {},
+        unbind: function () {},
+
+        /**
+         * Mark texture is dirty and update in the next frame
+         */
+        dirty: function () {
+            if (this._cache) {
+                this._cache.dirtyAll();
+            }
+        },
+
+        update: function (_gl) {},
+
+        // Update the common parameters of texture
+        updateCommon: function (_gl) {
+            _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, this.flipY);
+            _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, this.premultiplyAlpha);
+            _gl.pixelStorei(_gl.UNPACK_ALIGNMENT, this.unpackAlignment);
+
+            this._fallBack(_gl);
+        },
+
+        _fallBack: function (_gl) {
+            // Use of none-power of two texture
+            // http://www.khronos.org/webgl/wiki/WebGL_and_OpenGL_Differences
+
+            var isPowerOfTwo = this.isPowerOfTwo();
+
+            if (this.format === glenum.DEPTH_COMPONENT) {
+                this.useMipmap = false;
+            }
+
+            var sRGBExt = glinfo.getExtension(_gl, 'EXT_sRGB');
+            // Fallback
+            if (this.format === Texture.SRGB && !sRGBExt) {
+                this.format = Texture.RGB;
+            }
+            if (this.format === Texture.SRGB_ALPHA && !sRGBExt) {
+                this.format = Texture.RGBA;
+            }
+
+            if (!isPowerOfTwo || !this.useMipmap) {
+                // none-power of two flag
+                this.NPOT = true;
+                // Save the original value for restore
+                this._minFilterOriginal = this.minFilter;
+                this._magFilterOriginal = this.magFilter;
+                this._wrapSOriginal = this.wrapS;
+                this._wrapTOriginal = this.wrapT;
+
+                if (this.minFilter == glenum.NEAREST_MIPMAP_NEAREST ||
+                    this.minFilter == glenum.NEAREST_MIPMAP_LINEAR) {
+                    this.minFilter = glenum.NEAREST;
+                } else if (
+                    this.minFilter == glenum.LINEAR_MIPMAP_LINEAR ||
+                    this.minFilter == glenum.LINEAR_MIPMAP_NEAREST
+                ) {
+                    this.minFilter = glenum.LINEAR;
+                }
+
+                this.wrapS = glenum.CLAMP_TO_EDGE;
+                this.wrapT = glenum.CLAMP_TO_EDGE;
+            }
+            else {
+                this.NPOT = false;
+                if (this._minFilterOriginal) {
+                    this.minFilter = this._minFilterOriginal;
+                }
+                if (this._magFilterOriginal) {
+                    this.magFilter = this._magFilterOriginal;
+                }
+                if (this._wrapSOriginal) {
+                    this.wrapS = this._wrapSOriginal;
+                }
+                if (this._wrapTOriginal) {
+                    this.wrapT = this._wrapTOriginal;
+                }
+            }
+
+        },
+
+        nextHighestPowerOfTwo: function (x) {
+            --x;
+            for (var i = 1; i < 32; i <<= 1) {
+                x = x | x >> i;
+            }
+            return x + 1;
+        },
+        /**
+         * @param  {WebGLRenderingContext} _gl
+         */
+        dispose: function (_gl) {
+
+            var cache = this._cache;
+
+            cache.use(_gl.__GLID__);
+
+            var webglTexture = cache.get('webgl_texture');
+            if (webglTexture){
+                _gl.deleteTexture(webglTexture);
+            }
+            cache.deleteContext(_gl.__GLID__);
+
+        },
+        /**
+         * Test if image of texture is valid and loaded.
+         * @return {boolean}
+         */
+        isRenderable: function () {},
+
+        isPowerOfTwo: function () {}
+    });
+
+    Object.defineProperty(Texture.prototype, 'width', {
+        get: function () {
+            return this._width;
+        },
+        set: function (value) {
+            this._width = value;
+        }
+    });
+    Object.defineProperty(Texture.prototype, 'height', {
+        get: function () {
+            return this._height;
+        },
+        set: function (value) {
+            this._height = value;
+        }
+    });
+
+    /* DataType */
+    Texture.BYTE = glenum.BYTE;
+    Texture.UNSIGNED_BYTE = glenum.UNSIGNED_BYTE;
+    Texture.SHORT = glenum.SHORT;
+    Texture.UNSIGNED_SHORT = glenum.UNSIGNED_SHORT;
+    Texture.INT = glenum.INT;
+    Texture.UNSIGNED_INT = glenum.UNSIGNED_INT;
+    Texture.FLOAT = glenum.FLOAT;
+    Texture.HALF_FLOAT = 0x8D61;
+
+    // ext.UNSIGNED_INT_24_8_WEBGL for WEBGL_depth_texture extension
+    Texture.UNSIGNED_INT_24_8_WEBGL = 34042;
+
+    /* PixelFormat */
+    Texture.DEPTH_COMPONENT = glenum.DEPTH_COMPONENT;
+    Texture.DEPTH_STENCIL = glenum.DEPTH_STENCIL;
+    Texture.ALPHA = glenum.ALPHA;
+    Texture.RGB = glenum.RGB;
+    Texture.RGBA = glenum.RGBA;
+    Texture.LUMINANCE = glenum.LUMINANCE;
+    Texture.LUMINANCE_ALPHA = glenum.LUMINANCE_ALPHA;
+
+    // https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
+    Texture.SRGB = 0x8C40;
+    Texture.SRGB_ALPHA = 0x8C42;
+
+    /* Compressed Texture */
+    Texture.COMPRESSED_RGB_S3TC_DXT1_EXT = 0x83F0;
+    Texture.COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
+    Texture.COMPRESSED_RGBA_S3TC_DXT3_EXT = 0x83F2;
+    Texture.COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
+
+    /* TextureMagFilter */
+    Texture.NEAREST = glenum.NEAREST;
+    Texture.LINEAR = glenum.LINEAR;
+
+    /* TextureMinFilter */
+    /*      NEAREST */
+    /*      LINEAR */
+    Texture.NEAREST_MIPMAP_NEAREST = glenum.NEAREST_MIPMAP_NEAREST;
+    Texture.LINEAR_MIPMAP_NEAREST = glenum.LINEAR_MIPMAP_NEAREST;
+    Texture.NEAREST_MIPMAP_LINEAR = glenum.NEAREST_MIPMAP_LINEAR;
+    Texture.LINEAR_MIPMAP_LINEAR = glenum.LINEAR_MIPMAP_LINEAR;
+
+    /* TextureParameterName */
+    // Texture.TEXTURE_MAG_FILTER = glenum.TEXTURE_MAG_FILTER;
+    // Texture.TEXTURE_MIN_FILTER = glenum.TEXTURE_MIN_FILTER;
+
+    /* TextureWrapMode */
+    Texture.REPEAT = glenum.REPEAT;
+    Texture.CLAMP_TO_EDGE = glenum.CLAMP_TO_EDGE;
+    Texture.MIRRORED_REPEAT = glenum.MIRRORED_REPEAT;
+
+
+    module.exports = Texture;
+
+
+/***/ }),
 /* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -9252,7 +9711,214 @@ module.exports = {
 
 
 
-    var Renderable = __webpack_require__(44);
+    var guid = 0;
+
+    var ArrayProto = Array.prototype;
+    var nativeForEach = ArrayProto.forEach;
+
+    /**
+     * Util functions
+     * @namespace qtek.core.util
+     */
+	var util = {
+
+        /**
+         * Generate GUID
+         * @return {number}
+         * @memberOf qtek.core.util
+         */
+		genGUID: function() {
+			return ++guid;
+		},
+        /**
+         * Relative path to absolute path
+         * @param  {string} path
+         * @param  {string} basePath
+         * @return {string}
+         * @memberOf qtek.core.util
+         */
+        relative2absolute: function(path, basePath) {
+            if (!basePath || path.match(/^\//)) {
+                return path;
+            }
+            var pathParts = path.split('/');
+            var basePathParts = basePath.split('/');
+
+            var item = pathParts[0];
+            while(item === '.' || item === '..') {
+                if (item === '..') {
+                    basePathParts.pop();
+                }
+                pathParts.shift();
+                item = pathParts[0];
+            }
+            return basePathParts.join('/') + '/' + pathParts.join('/');
+        },
+
+        /**
+         * Extend target with source
+         * @param  {Object} target
+         * @param  {Object} source
+         * @return {Object}
+         * @memberOf qtek.core.util
+         */
+        extend: function(target, source) {
+            if (source) {
+                for (var name in source) {
+                    if (source.hasOwnProperty(name)) {
+                        target[name] = source[name];
+                    }
+                }
+            }
+            return target;
+        },
+
+        /**
+         * Extend properties to target if not exist.
+         * @param  {Object} target
+         * @param  {Object} source
+         * @return {Object}
+         * @memberOf qtek.core.util
+         */
+        defaults: function(target, source) {
+            if (source) {
+                for (var propName in source) {
+                    if (target[propName] === undefined) {
+                        target[propName] = source[propName];
+                    }
+                }
+            }
+            return target;
+        },
+        /**
+         * Extend properties with a given property list to avoid for..in.. iteration.
+         * @param  {Object} target
+         * @param  {Object} source
+         * @param  {Array.<string>} propList
+         * @return {Object}
+         * @memberOf qtek.core.util
+         */
+        extendWithPropList: function(target, source, propList) {
+            if (source) {
+                for (var i = 0; i < propList.length; i++) {
+                    var propName = propList[i];
+                    target[propName] = source[propName];
+                }
+            }
+            return target;
+        },
+        /**
+         * Extend properties to target if not exist. With a given property list avoid for..in.. iteration.
+         * @param  {Object} target
+         * @param  {Object} source
+         * @param  {Array.<string>} propList
+         * @return {Object}
+         * @memberOf qtek.core.util
+         */
+        defaultsWithPropList: function(target, source, propList) {
+            if (source) {
+                for (var i = 0; i < propList.length; i++) {
+                    var propName = propList[i];
+                    if (target[propName] == null) {
+                        target[propName] = source[propName];
+                    }
+                }
+            }
+            return target;
+        },
+        /**
+         * @param  {Object|Array} obj
+         * @param  {Function} iterator
+         * @param  {Object} [context]
+         * @memberOf qtek.core.util
+         */
+        each: function(obj, iterator, context) {
+            if (!(obj && iterator)) {
+                return;
+            }
+            if (obj.forEach && obj.forEach === nativeForEach) {
+                obj.forEach(iterator, context);
+            } else if (obj.length === + obj.length) {
+                for (var i = 0, len = obj.length; i < len; i++) {
+                    iterator.call(context, obj[i], i, obj);
+                }
+            } else {
+                for (var key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        iterator.call(context, obj[key], key, obj);
+                    }
+                }
+            }
+        },
+
+        /**
+         * Is object ?
+         * @param  {}  obj
+         * @return {boolean}
+         * @memberOf qtek.core.util
+         */
+        isObject: function(obj) {
+            return obj === Object(obj);
+        },
+
+        /**
+         * Is array ?
+         * @param  {}  obj
+         * @return {boolean}
+         * @memberOf qtek.core.util
+         */
+        isArray: function(obj) {
+            return obj instanceof Array;
+        },
+
+        /**
+         * Is array like, which have a length property
+         * @param  {}  obj
+         * @return {boolean}
+         * @memberOf qtek.core.util
+         */
+        isArrayLike: function(obj) {
+            if (!obj) {
+                return false;
+            } else {
+                return obj.length === + obj.length;
+            }
+        },
+
+        /**
+         * @param  {} obj
+         * @return {}
+         * @memberOf qtek.core.util
+         */
+        clone: function(obj) {
+            if (!util.isObject(obj)) {
+                return obj;
+            } else if (util.isArray(obj)) {
+                return obj.slice();
+            } else if (util.isArrayLike(obj)) { // is typed array
+                var ret = new obj.constructor(obj.length);
+                for (var i = 0; i < obj.length; i++) {
+                    ret[i] = obj[i];
+                }
+                return ret;
+            } else {
+                return util.extend({}, obj);
+            }
+        }
+	};
+
+    module.exports = util;
+
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Renderable = __webpack_require__(47);
     var glenum = __webpack_require__(2);
 
     /**
@@ -9309,370 +9975,7 @@ module.exports = {
 
 
 /***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Easing = __webpack_require__(50);
-
-    function noop () {}
-    /**
-     * @constructor
-     * @alias qtek.animation.Clip
-     * @param {Object} [opts]
-     * @param {Object} [opts.target]
-     * @param {number} [opts.life]
-     * @param {number} [opts.delay]
-     * @param {number} [opts.gap]
-     * @param {number} [opts.playbackRate]
-     * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
-     * @param {string|Function} [opts.easing]
-     * @param {Function} [opts.onframe]
-     * @param {Function} [opts.onfinish]
-     * @param {Function} [opts.onrestart]
-     */
-    var Clip = function (opts) {
-
-        opts = opts || {};
-
-        /**
-         * @type {string}
-         */
-        this.name = opts.name || '';
-
-        /**
-         * @type {Object}
-         */
-        this.target = opts.target;
-
-        /**
-         * @type {number}
-         */
-        this.life = opts.life || 1000;
-
-        /**
-         * @type {number}
-         */
-        this.delay = opts.delay || 0;
-
-        /**
-         * @type {number}
-         */
-        this.gap = opts.gap || 0;
-
-        /**
-         * @type {number}
-         */
-        this.playbackRate = opts.playbackRate || 1;
-
-
-        this._initialized = false;
-
-        this._elapsedTime = 0;
-
-        this._loop = opts.loop == null ? false : opts.loop;
-        this.setLoop(this._loop);
-
-        if (opts.easing != null) {
-            this.setEasing(opts.easing);
-        }
-
-        /**
-         * @type {Function}
-         */
-        this.onframe = opts.onframe || noop;
-
-        /**
-         * @type {Function}
-         */
-        this.onfinish = opts.onfinish || noop;
-
-        /**
-         * @type {Function}
-         */
-        this.onrestart = opts.onrestart || noop;
-
-    };
-
-    Clip.prototype = {
-
-        gap: 0,
-
-        life: 0,
-
-        delay: 0,
-
-        /**
-         * @param {number|boolean} loop
-         */
-        setLoop: function (loop) {
-            this._loop = loop;
-            if (loop) {
-                if (typeof(loop) == 'number') {
-                    this._loopRemained = loop;
-                }
-                else {
-                    this._loopRemained = 1e8;
-                }
-            }
-        },
-
-        /**
-         * @param {string|function} easing
-         */
-        setEasing: function (easing) {
-            if (typeof(easing) === 'string') {
-                easing = Easing[easing];
-            }
-            this.easing = easing;
-        },
-
-        /**
-         * @param  {number} time
-         * @return {string}
-         */
-        step: function (time) {
-            if (!this._initialized) {
-                this._currentTime = time;
-                this._startTime = this._currentTime + this.delay;
-                this._initialized = true;
-            }
-
-            if (time < this._startTime) {
-                this._currentTime = time;
-                return;
-            }
-
-            this._elapse(time);
-
-            var percent = this._elapsedTime / this.life;
-
-            if (percent < 0) {
-                return;
-            }
-            if (percent > 1) {
-                percent = 1;
-            }
-
-            var schedule;
-            if (this.easing) {
-                schedule = this.easing(percent);
-            }
-            else {
-                schedule = percent;
-            }
-            this.fire('frame', schedule);
-
-            if (percent === 1) {
-                if (this._loop && this._loopRemained > 0) {
-                    this._restartInLoop(time);
-                    this._loopRemained--;
-                    return 'restart';
-                }
-                else {
-                    // Mark this clip to be deleted
-                    // In the animation.update
-                    this._needsRemove = true;
-
-                    return 'finish';
-                }
-            }
-            else {
-                return null;
-            }
-        },
-
-        /**
-         * @param  {number} time
-         * @return {string}
-         */
-        setTime: function (time) {
-            return this.step(time + this._startTime);
-        },
-
-        restart: function (time) {
-            // If user leave the page for a while, when he gets back
-            // All clips may be expired and all start from the beginning value(position)
-            // It is clearly wrong, so we use remainder to add a offset
-
-            var remainder = 0;
-
-            time = time;
-            // Remainder ignored if restart is invoked manually
-            if (time) {
-                this._elapse(time);
-                remainder = this._elapsedTime % this.life;
-            }
-            time = time || new Date().getTime();
-
-            this._startTime = time - remainder + this.delay;
-            this._elapsedTime = 0;
-            this._currentTime = time - remainder;
-
-            this._needsRemove = false;
-        },
-
-        _restartInLoop: function (time) {
-            this._startTime = time + this.gap;
-            this._currentTime = time;
-            this._elapsedTime = 0;
-        },
-
-        _elapse: function (time) {
-            this._elapsedTime += (time - this._currentTime) * this.playbackRate;
-            this._currentTime = time;
-        },
-
-        fire: function (eventType, arg) {
-            var eventName = 'on' + eventType;
-            if (this[eventName]) {
-                this[eventName](this.target, arg);
-            }
-        },
-
-        clone: function () {
-            var clip = new this.constructor();
-            clip.name = this.name;
-            clip._loop = this._loop;
-            clip._loopRemained = this._loopRemained;
-
-            clip.life = this.life;
-            clip.gap = this.gap;
-            clip.delay = this.delay;
-
-            return clip;
-        }
-    };
-    Clip.prototype.constructor = Clip;
-
-    module.exports = Clip;
-
-
-/***/ }),
 /* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var DIRTY_PREFIX = '__dt__';
-
-    var Cache = function () {
-
-        this._contextId = 0;
-
-        this._caches = [];
-
-        this._context = {};
-    };
-
-    Cache.prototype = {
-
-        use: function (contextId, documentSchema) {
-            var caches = this._caches;
-            if (!caches[contextId]) {
-                caches[contextId] = {};
-
-                if (documentSchema) {
-                    caches[contextId] = documentSchema();
-                }
-            }
-            this._contextId = contextId;
-
-            this._context = caches[contextId];
-        },
-
-        put: function (key, value) {
-            this._context[key] = value;
-        },
-
-        get: function (key) {
-            return this._context[key];
-        },
-
-        dirty: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            this.put(key, true);
-        },
-
-        dirtyAll: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var caches = this._caches;
-            for (var i = 0; i < caches.length; i++) {
-                if (caches[i]) {
-                    caches[i][key] = true;
-                }
-            }
-        },
-
-        fresh: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            this.put(key, false);
-        },
-
-        freshAll: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var caches = this._caches;
-            for (var i = 0; i < caches.length; i++) {
-                if (caches[i]) {
-                    caches[i][key] = false;
-                }
-            }
-        },
-
-        isDirty: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var context = this._context;
-            return  !context.hasOwnProperty(key)
-                || context[key] === true;
-        },
-
-        deleteContext: function (contextId) {
-            delete this._caches[contextId];
-            this._context = {};
-        },
-
-        delete: function (key) {
-            delete this._context[key];
-        },
-
-        clearAll: function () {
-            this._caches = {};
-        },
-
-        getContext: function () {
-            return this._context;
-        },
-
-        eachContext : function (cb, context) {
-            var keys = Object.keys(this._caches);
-            keys.forEach(function (key) {
-                cb && cb.call(context, key);
-            });
-        },
-
-        miss: function (key) {
-            return ! this._context.hasOwnProperty(key);
-        }
-    };
-
-    Cache.prototype.constructor = Cache;
-
-    module.exports = Cache;
-
-
-
-/***/ }),
-/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10400,7 +10703,370 @@ module.exports = {
 
 
 /***/ }),
+/* 16 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Easing = __webpack_require__(53);
+
+    function noop () {}
+    /**
+     * @constructor
+     * @alias qtek.animation.Clip
+     * @param {Object} [opts]
+     * @param {Object} [opts.target]
+     * @param {number} [opts.life]
+     * @param {number} [opts.delay]
+     * @param {number} [opts.gap]
+     * @param {number} [opts.playbackRate]
+     * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
+     * @param {string|Function} [opts.easing]
+     * @param {Function} [opts.onframe]
+     * @param {Function} [opts.onfinish]
+     * @param {Function} [opts.onrestart]
+     */
+    var Clip = function (opts) {
+
+        opts = opts || {};
+
+        /**
+         * @type {string}
+         */
+        this.name = opts.name || '';
+
+        /**
+         * @type {Object}
+         */
+        this.target = opts.target;
+
+        /**
+         * @type {number}
+         */
+        this.life = opts.life || 1000;
+
+        /**
+         * @type {number}
+         */
+        this.delay = opts.delay || 0;
+
+        /**
+         * @type {number}
+         */
+        this.gap = opts.gap || 0;
+
+        /**
+         * @type {number}
+         */
+        this.playbackRate = opts.playbackRate || 1;
+
+
+        this._initialized = false;
+
+        this._elapsedTime = 0;
+
+        this._loop = opts.loop == null ? false : opts.loop;
+        this.setLoop(this._loop);
+
+        if (opts.easing != null) {
+            this.setEasing(opts.easing);
+        }
+
+        /**
+         * @type {Function}
+         */
+        this.onframe = opts.onframe || noop;
+
+        /**
+         * @type {Function}
+         */
+        this.onfinish = opts.onfinish || noop;
+
+        /**
+         * @type {Function}
+         */
+        this.onrestart = opts.onrestart || noop;
+
+    };
+
+    Clip.prototype = {
+
+        gap: 0,
+
+        life: 0,
+
+        delay: 0,
+
+        /**
+         * @param {number|boolean} loop
+         */
+        setLoop: function (loop) {
+            this._loop = loop;
+            if (loop) {
+                if (typeof(loop) == 'number') {
+                    this._loopRemained = loop;
+                }
+                else {
+                    this._loopRemained = 1e8;
+                }
+            }
+        },
+
+        /**
+         * @param {string|function} easing
+         */
+        setEasing: function (easing) {
+            if (typeof(easing) === 'string') {
+                easing = Easing[easing];
+            }
+            this.easing = easing;
+        },
+
+        /**
+         * @param  {number} time
+         * @return {string}
+         */
+        step: function (time) {
+            if (!this._initialized) {
+                this._currentTime = time;
+                this._startTime = this._currentTime + this.delay;
+                this._initialized = true;
+            }
+
+            if (time < this._startTime) {
+                this._currentTime = time;
+                return;
+            }
+
+            this._elapse(time);
+
+            var percent = this._elapsedTime / this.life;
+
+            if (percent < 0) {
+                return;
+            }
+            if (percent > 1) {
+                percent = 1;
+            }
+
+            var schedule;
+            if (this.easing) {
+                schedule = this.easing(percent);
+            }
+            else {
+                schedule = percent;
+            }
+            this.fire('frame', schedule);
+
+            if (percent === 1) {
+                if (this._loop && this._loopRemained > 0) {
+                    this._restartInLoop(time);
+                    this._loopRemained--;
+                    return 'restart';
+                }
+                else {
+                    // Mark this clip to be deleted
+                    // In the animation.update
+                    this._needsRemove = true;
+
+                    return 'finish';
+                }
+            }
+            else {
+                return null;
+            }
+        },
+
+        /**
+         * @param  {number} time
+         * @return {string}
+         */
+        setTime: function (time) {
+            return this.step(time + this._startTime);
+        },
+
+        restart: function (time) {
+            // If user leave the page for a while, when he gets back
+            // All clips may be expired and all start from the beginning value(position)
+            // It is clearly wrong, so we use remainder to add a offset
+
+            var remainder = 0;
+
+            time = time;
+            // Remainder ignored if restart is invoked manually
+            if (time) {
+                this._elapse(time);
+                remainder = this._elapsedTime % this.life;
+            }
+            time = time || new Date().getTime();
+
+            this._startTime = time - remainder + this.delay;
+            this._elapsedTime = 0;
+            this._currentTime = time - remainder;
+
+            this._needsRemove = false;
+        },
+
+        _restartInLoop: function (time) {
+            this._startTime = time + this.gap;
+            this._currentTime = time;
+            this._elapsedTime = 0;
+        },
+
+        _elapse: function (time) {
+            this._elapsedTime += (time - this._currentTime) * this.playbackRate;
+            this._currentTime = time;
+        },
+
+        fire: function (eventType, arg) {
+            var eventName = 'on' + eventType;
+            if (this[eventName]) {
+                this[eventName](this.target, arg);
+            }
+        },
+
+        clone: function () {
+            var clip = new this.constructor();
+            clip.name = this.name;
+            clip._loop = this._loop;
+            clip._loopRemained = this._loopRemained;
+
+            clip.life = this.life;
+            clip.gap = this.gap;
+            clip.delay = this.delay;
+
+            return clip;
+        }
+    };
+    Clip.prototype.constructor = Clip;
+
+    module.exports = Clip;
+
+
+/***/ }),
 /* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var DIRTY_PREFIX = '__dt__';
+
+    var Cache = function () {
+
+        this._contextId = 0;
+
+        this._caches = [];
+
+        this._context = {};
+    };
+
+    Cache.prototype = {
+
+        use: function (contextId, documentSchema) {
+            var caches = this._caches;
+            if (!caches[contextId]) {
+                caches[contextId] = {};
+
+                if (documentSchema) {
+                    caches[contextId] = documentSchema();
+                }
+            }
+            this._contextId = contextId;
+
+            this._context = caches[contextId];
+        },
+
+        put: function (key, value) {
+            this._context[key] = value;
+        },
+
+        get: function (key) {
+            return this._context[key];
+        },
+
+        dirty: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            this.put(key, true);
+        },
+
+        dirtyAll: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var caches = this._caches;
+            for (var i = 0; i < caches.length; i++) {
+                if (caches[i]) {
+                    caches[i][key] = true;
+                }
+            }
+        },
+
+        fresh: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            this.put(key, false);
+        },
+
+        freshAll: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var caches = this._caches;
+            for (var i = 0; i < caches.length; i++) {
+                if (caches[i]) {
+                    caches[i][key] = false;
+                }
+            }
+        },
+
+        isDirty: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var context = this._context;
+            return  !context.hasOwnProperty(key)
+                || context[key] === true;
+        },
+
+        deleteContext: function (contextId) {
+            delete this._caches[contextId];
+            this._context = {};
+        },
+
+        delete: function (key) {
+            delete this._context[key];
+        },
+
+        clearAll: function () {
+            this._caches = {};
+        },
+
+        getContext: function () {
+            return this._context;
+        },
+
+        eachContext : function (cb, context) {
+            var keys = Object.keys(this._caches);
+            keys.forEach(function (key) {
+                cb && cb.call(context, key);
+            });
+        },
+
+        miss: function (key) {
+            return ! this._context.hasOwnProperty(key);
+        }
+    };
+
+    Cache.prototype.constructor = Cache;
+
+    module.exports = Cache;
+
+
+
+/***/ }),
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -10408,8 +11074,8 @@ module.exports = {
  */
 
 
-    var Shader = __webpack_require__(7);
-    var util = __webpack_require__(10);
+    var Shader = __webpack_require__(5);
+    var util = __webpack_require__(13);
 
     var _library = {};
 
@@ -10548,682 +11214,15 @@ module.exports = {
 
 
 /***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-/**
- * StaticGeometry can not be changed once they've been setup
- */
-
-
-    var Geometry = __webpack_require__(43);
-    var BoundingBox = __webpack_require__(4);
-    var glMatrix = __webpack_require__(0);
-    var vendor = __webpack_require__(11);
-    var glenum = __webpack_require__(2);
-    var mat4 = glMatrix.mat4;
-    var vec3 = glMatrix.vec3;
-
-    var StaticAttribute = Geometry.StaticAttribute;
-    var vec3Create = vec3.create;
-    var vec3Add = vec3.add;
-    var vec3Set = vec3.set;
-
-    function makeAttrKey(attrName) {
-        return 'attr_' + attrName;
-    }
-    /**
-     * @constructor qtek.StaticGeometry
-     * @extends qtek.Geometry
-     */
-    var StaticGeometry = Geometry.extend(function () {
-        return /** @lends qtek.StaticGeometry# */ {
-            attributes: {
-                 position: new StaticAttribute('position', 'float', 3, 'POSITION'),
-                 texcoord0: new StaticAttribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
-                 texcoord1: new StaticAttribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
-                 normal: new StaticAttribute('normal', 'float', 3, 'NORMAL'),
-                 tangent: new StaticAttribute('tangent', 'float', 4, 'TANGENT'),
-                 color: new StaticAttribute('color', 'float', 4, 'COLOR'),
-                 // Skinning attributes
-                 // Each vertex can be bind to 4 bones, because the
-                 // sum of weights is 1, so the weights is stored in vec3 and the last
-                 // can be calculated by 1-w.x-w.y-w.z
-                 weight: new StaticAttribute('weight', 'float', 3, 'WEIGHT'),
-                 joint: new StaticAttribute('joint', 'float', 4, 'JOINT'),
-                 // For wireframe display
-                 // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
-                 barycentric: new StaticAttribute('barycentric', 'float', 3, null),
-            },
-
-            hint: glenum.STATIC_DRAW,
-
-            /**
-             * @type {Uint16Array|Uint32Array}
-             */
-            indices: null,
-
-            _normalType: 'vertex',
-
-            _enabledAttributes: null
-        };
-    },
-    /** @lends qtek.StaticGeometry.prototype */
-    {
-        updateBoundingBox: function () {
-            var bbox = this.boundingBox;
-            if (!bbox) {
-                bbox = this.boundingBox = new BoundingBox();
-            }
-            var posArr = this.attributes.position.value;
-            if (posArr && posArr.length) {
-                var min = bbox.min;
-                var max = bbox.max;
-                var minArr = min._array;
-                var maxArr = max._array;
-                vec3.set(minArr, posArr[0], posArr[1], posArr[2]);
-                vec3.set(maxArr, posArr[0], posArr[1], posArr[2]);
-                for (var i = 3; i < posArr.length;) {
-                    var x = posArr[i++];
-                    var y = posArr[i++];
-                    var z = posArr[i++];
-                    if (x < minArr[0]) { minArr[0] = x; }
-                    if (y < minArr[1]) { minArr[1] = y; }
-                    if (z < minArr[2]) { minArr[2] = z; }
-
-                    if (x > maxArr[0]) { maxArr[0] = x; }
-                    if (y > maxArr[1]) { maxArr[1] = y; }
-                    if (z > maxArr[2]) { maxArr[2] = z; }
-                }
-                min._dirty = true;
-                max._dirty = true;
-            }
-        },
-
-        dirty: function () {
-            var enabledAttributes = this.getEnabledAttributes();
-            for (var i = 0; i < enabledAttributes.length; i++) {
-                this.dirtyAttribute(enabledAttributes[i]);
-            }
-            this.dirtyIndices();
-            this._enabledAttributes = null;
-        },
-
-        dirtyIndices: function () {
-            this._cache.dirtyAll('indices');
-        },
-
-        dirtyAttribute: function (attrName) {
-            this._cache.dirtyAll(makeAttrKey(attrName));
-            this._cache.dirtyAll('attributes');
-        },
-
-        getTriangleIndices: function (idx, out) {
-            if (idx < this.triangleCount && idx >= 0) {
-                if (!out) {
-                    out = vec3Create();
-                }
-                var indices = this.indices;
-                out[0] = indices[idx * 3];
-                out[1] = indices[idx * 3 + 1];
-                out[2] = indices[idx * 3 + 2];
-                return out;
-            }
-        },
-
-        setTriangleIndices: function (idx, arr) {
-            var indices = this.indices;
-            indices[idx * 3] = arr[0];
-            indices[idx * 3 + 1] = arr[1];
-            indices[idx * 3 + 2] = arr[2];
-        },
-
-        isUseIndices: function () {
-            return !!this.indices;
-        },
-
-        initIndicesFromArray: function (array) {
-            var value;
-            var ArrayConstructor = this.vertexCount > 0xffff
-                ? vendor.Uint32Array : vendor.Uint16Array;
-            // Convert 2d array to flat
-            if (array[0] && (array[0].length)) {
-                var n = 0;
-                var size = 3;
-
-                value = new ArrayConstructor(array.length * size);
-                for (var i = 0; i < array.length; i++) {
-                    for (var j = 0; j < size; j++) {
-                        value[n++] = array[i][j];
-                    }
-                }
-            }
-            else {
-                value = new ArrayConstructor(array);
-            }
-
-            this.indices = value;
-        },
-
-        createAttribute: function (name, type, size, semantic) {
-            var attrib = new StaticAttribute(name, type, size, semantic);
-            if (this.attributes[name]) {
-                this.removeAttribute(name);
-            }
-            this.attributes[name] = attrib;
-            this._attributeList.push(name);
-            return attrib;
-        },
-
-        removeAttribute: function (name) {
-            var attributeList = this._attributeList;
-            var idx = attributeList.indexOf(name);
-            if (idx >= 0) {
-                attributeList.splice(idx, 1);
-                delete this.attributes[name];
-                return true;
-            }
-            return false;
-        },
-
-        /**
-         * Get enabled attributes name list
-         * Attribute which has the same vertex number with position is treated as a enabled attribute
-         * @return {string[]}
-         */
-        getEnabledAttributes: function () {
-            var enabledAttributes = this._enabledAttributes;
-            var attributeList = this._attributeList;
-            // Cache
-            if (enabledAttributes) {
-                return enabledAttributes;
-            }
-
-            var result = [];
-            var nVertex = this.vertexCount;
-
-            for (var i = 0; i < attributeList.length; i++) {
-                var name = attributeList[i];
-                var attrib = this.attributes[name];
-                if (attrib.value) {
-                    if (attrib.value.length === nVertex * attrib.size) {
-                        result.push(name);
-                    }
-                }
-            }
-
-            this._enabledAttributes = result;
-
-            return result;
-        },
-
-        getBufferChunks: function (_gl) {
-            var cache = this._cache;
-            cache.use(_gl.__GLID__);
-            var isAttributesDirty = cache.isDirty('attributes');
-            var isIndicesDirty = cache.isDirty('indices');
-            if (isAttributesDirty || isIndicesDirty) {
-                this._updateBuffer(_gl, isAttributesDirty, isIndicesDirty);
-                var enabledAttributes = this.getEnabledAttributes();
-                for (var i = 0; i < enabledAttributes.length; i++) {
-                    cache.fresh(makeAttrKey(enabledAttributes[i]));
-                }
-                cache.fresh('attributes');
-                cache.fresh('indices');
-            }
-            return cache.get('chunks');
-        },
-
-        _updateBuffer: function (_gl, isAttributesDirty, isIndicesDirty) {
-            var cache = this._cache;
-            var chunks = cache.get('chunks');
-            var firstUpdate = false;
-            if (!chunks) {
-                chunks = [];
-                // Intialize
-                chunks[0] = {
-                    attributeBuffers: [],
-                    indicesBuffer: null
-                };
-                cache.put('chunks', chunks);
-                firstUpdate = true;
-            }
-
-            var chunk = chunks[0];
-            var attributeBuffers = chunk.attributeBuffers;
-            var indicesBuffer = chunk.indicesBuffer;
-
-            if (isAttributesDirty || firstUpdate) {
-                var attributeList = this.getEnabledAttributes();
-
-                var attributeBufferMap = {};
-                if (!firstUpdate) {
-                    for (var i = 0; i < attributeBuffers.length; i++) {
-                        attributeBufferMap[attributeBuffers[i].name] = attributeBuffers[i];
-                    }
-                }
-                // FIXME If some attributes removed
-                for (var k = 0; k < attributeList.length; k++) {
-                    var name = attributeList[k];
-                    var attribute = this.attributes[name];
-
-                    var bufferInfo;
-
-                    if (!firstUpdate) {
-                        bufferInfo = attributeBufferMap[name];
-                    }
-                    var buffer;
-                    if (bufferInfo) {
-                        buffer = bufferInfo.buffer;
-                    }
-                    else {
-                        buffer = _gl.createBuffer();
-                    }
-                    if (cache.isDirty(makeAttrKey(name))) {
-                        // Only update when they are dirty.
-                        // TODO: Use BufferSubData?
-                        _gl.bindBuffer(_gl.ARRAY_BUFFER, buffer);
-                        _gl.bufferData(_gl.ARRAY_BUFFER, attribute.value, this.hint);
-                    }
-
-                    attributeBuffers[k] = new Geometry.AttributeBuffer(name, attribute.type, buffer, attribute.size, attribute.semantic);
-                }
-                // Remove unused attributes buffers.
-                // PENDING
-                for (var i = k; i < attributeBuffers.length; i++) {
-                    _gl.deleteBuffer(attributeBuffers[i].buffer);
-                }
-                attributeBuffers.length = k;
-
-            }
-
-            if (this.isUseIndices() && (isIndicesDirty || firstUpdate)) {
-                if (!indicesBuffer) {
-                    indicesBuffer = new Geometry.IndicesBuffer(_gl.createBuffer());
-                    chunk.indicesBuffer = indicesBuffer;
-                }
-                indicesBuffer.count = this.indices.length;
-                _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, indicesBuffer.buffer);
-                _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, this.indices, this.hint);
-            }
-        },
-
-        generateVertexNormals: function () {
-            if (!this.vertexCount) {
-                return;
-            }
-
-            var indices = this.indices;
-            var attributes = this.attributes;
-            var positions = attributes.position.value;
-            var normals = attributes.normal.value;
-
-            if (!normals || normals.length !== positions.length) {
-                normals = attributes.normal.value = new vendor.Float32Array(positions.length);
-            }
-            else {
-                // Reset
-                for (var i = 0; i < normals.length; i++) {
-                    normals[i] = 0;
-                }
-            }
-
-            var p1 = vec3Create();
-            var p2 = vec3Create();
-            var p3 = vec3Create();
-
-            var v21 = vec3Create();
-            var v32 = vec3Create();
-
-            var n = vec3Create();
-
-            // TODO if no indices
-            for (var f = 0; f < indices.length;) {
-                var i1 = indices[f++];
-                var i2 = indices[f++];
-                var i3 = indices[f++];
-
-                vec3Set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
-                vec3Set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
-                vec3Set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
-
-                vec3.sub(v21, p1, p2);
-                vec3.sub(v32, p2, p3);
-                vec3.cross(n, v21, v32);
-                // Already be weighted by the triangle area
-                for (var i = 0; i < 3; i++) {
-                    normals[i1*3+i] = normals[i1*3+i] + n[i];
-                    normals[i2*3+i] = normals[i2*3+i] + n[i];
-                    normals[i3*3+i] = normals[i3*3+i] + n[i];
-                }
-            }
-
-            for (var i = 0; i < normals.length;) {
-                vec3Set(n, normals[i], normals[i+1], normals[i+2]);
-                vec3.normalize(n, n);
-                normals[i++] = n[0];
-                normals[i++] = n[1];
-                normals[i++] = n[2];
-            }
-            this.dirty();
-        },
-
-        generateFaceNormals: function () {
-            if (!this.vertexCount) {
-                return;
-            }
-
-            if (!this.isUniqueVertex()) {
-                this.generateUniqueVertex();
-            }
-
-            var indices = this.indices;
-            var attributes = this.attributes;
-            var positions = attributes.position.value;
-            var normals = attributes.normal.value;
-
-            var p1 = vec3Create();
-            var p2 = vec3Create();
-            var p3 = vec3Create();
-
-            var v21 = vec3Create();
-            var v32 = vec3Create();
-            var n = vec3Create();
-
-            if (!normals) {
-                normals = attributes.normal.value = new Float32Array(positions.length);
-            }
-            for (var f = 0; f < indices.length;) {
-                var i1 = indices[f++];
-                var i2 = indices[f++];
-                var i3 = indices[f++];
-
-                vec3Set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
-                vec3Set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
-                vec3Set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
-
-                vec3.sub(v21, p1, p2);
-                vec3.sub(v32, p2, p3);
-                vec3.cross(n, v21, v32);
-
-                vec3.normalize(n, n);
-
-                for (var i = 0; i < 3; i++) {
-                    normals[i1*3 + i] = n[i];
-                    normals[i2*3 + i] = n[i];
-                    normals[i3*3 + i] = n[i];
-                }
-            }
-            this.dirty();
-        },
-
-        generateTangents: function () {
-            if (!this.vertexCount) {
-                return;
-            }
-
-            var nVertex = this.vertexCount;
-            var attributes = this.attributes;
-            if (!attributes.tangent.value) {
-                attributes.tangent.value = new Float32Array(nVertex * 4);
-            }
-            var texcoords = attributes.texcoord0.value;
-            var positions = attributes.position.value;
-            var tangents = attributes.tangent.value;
-            var normals = attributes.normal.value;
-
-            var tan1 = [];
-            var tan2 = [];
-            for (var i = 0; i < nVertex; i++) {
-                tan1[i] = [0.0, 0.0, 0.0];
-                tan2[i] = [0.0, 0.0, 0.0];
-            }
-
-            var sdir = [0.0, 0.0, 0.0];
-            var tdir = [0.0, 0.0, 0.0];
-            var indices = this.indices;
-            for (var i = 0; i < indices.length;) {
-                var i1 = indices[i++],
-                    i2 = indices[i++],
-                    i3 = indices[i++],
-
-                    st1s = texcoords[i1 * 2],
-                    st2s = texcoords[i2 * 2],
-                    st3s = texcoords[i3 * 2],
-                    st1t = texcoords[i1 * 2 + 1],
-                    st2t = texcoords[i2 * 2 + 1],
-                    st3t = texcoords[i3 * 2 + 1],
-
-                    p1x = positions[i1 * 3],
-                    p2x = positions[i2 * 3],
-                    p3x = positions[i3 * 3],
-                    p1y = positions[i1 * 3 + 1],
-                    p2y = positions[i2 * 3 + 1],
-                    p3y = positions[i3 * 3 + 1],
-                    p1z = positions[i1 * 3 + 2],
-                    p2z = positions[i2 * 3 + 2],
-                    p3z = positions[i3 * 3 + 2];
-
-                var x1 = p2x - p1x,
-                    x2 = p3x - p1x,
-                    y1 = p2y - p1y,
-                    y2 = p3y - p1y,
-                    z1 = p2z - p1z,
-                    z2 = p3z - p1z;
-
-                var s1 = st2s - st1s,
-                    s2 = st3s - st1s,
-                    t1 = st2t - st1t,
-                    t2 = st3t - st1t;
-
-                var r = 1.0 / (s1 * t2 - t1 * s2);
-                sdir[0] = (t2 * x1 - t1 * x2) * r;
-                sdir[1] = (t2 * y1 - t1 * y2) * r;
-                sdir[2] = (t2 * z1 - t1 * z2) * r;
-
-                tdir[0] = (s1 * x2 - s2 * x1) * r;
-                tdir[1] = (s1 * y2 - s2 * y1) * r;
-                tdir[2] = (s1 * z2 - s2 * z1) * r;
-
-                vec3Add(tan1[i1], tan1[i1], sdir);
-                vec3Add(tan1[i2], tan1[i2], sdir);
-                vec3Add(tan1[i3], tan1[i3], sdir);
-                vec3Add(tan2[i1], tan2[i1], tdir);
-                vec3Add(tan2[i2], tan2[i2], tdir);
-                vec3Add(tan2[i3], tan2[i3], tdir);
-            }
-            var tmp = vec3Create();
-            var nCrossT = vec3Create();
-            var n = vec3Create();
-            for (var i = 0; i < nVertex; i++) {
-                n[0] = normals[i * 3];
-                n[1] = normals[i * 3 + 1];
-                n[2] = normals[i * 3 + 2];
-                var t = tan1[i];
-
-                // Gram-Schmidt orthogonalize
-                vec3.scale(tmp, n, vec3.dot(n, t));
-                vec3.sub(tmp, t, tmp);
-                vec3.normalize(tmp, tmp);
-                // Calculate handedness.
-                vec3.cross(nCrossT, n, t);
-                tangents[i * 4] = tmp[0];
-                tangents[i * 4 + 1] = tmp[1];
-                tangents[i * 4 + 2] = tmp[2];
-                tangents[i * 4 + 3] = vec3.dot(nCrossT, tan2[i]) < 0.0 ? -1.0 : 1.0;
-            }
-            this.dirty();
-        },
-
-        isUniqueVertex: function () {
-            if (this.isUseIndices()) {
-                return this.vertexCount === this.indices.length;
-            }
-            else {
-                return true;
-            }
-        },
-
-        generateUniqueVertex: function () {
-            if (!this.vertexCount) {
-                return;
-            }
-
-            if (this.indices.length > 0xffff) {
-                this.indices = new vendor.Uint32Array(this.indices);
-            }
-
-            var attributes = this.attributes;
-            var indices = this.indices;
-
-            var attributeNameList = this.getEnabledAttributes();
-
-            var oldAttrValues = {};
-            for (var a = 0; a < attributeNameList.length; a++) {
-                var name = attributeNameList[a];
-                oldAttrValues[name] = attributes[name].value;
-                attributes[name].init(this.indices.length);
-            }
-
-            var cursor = 0;
-            for (var i = 0; i < indices.length; i++) {
-                var ii = indices[i];
-                for (var a = 0; a < attributeNameList.length; a++) {
-                    var name = attributeNameList[a];
-                    var array = attributes[name].value;
-                    var size = attributes[name].size;
-
-                    for (var k = 0; k < size; k++) {
-                        array[cursor * size + k] = oldAttrValues[name][ii * size + k];
-                    }
-                }
-                indices[i] = cursor;
-                cursor++;
-            }
-
-            this.dirty();
-        },
-
-        generateBarycentric: function () {
-            if (!this.vertexCount) {
-                return;
-            }
-
-            if (!this.isUniqueVertex()) {
-                this.generateUniqueVertex();
-            }
-
-            var attributes = this.attributes;
-            var array = attributes.barycentric.value;
-            var indices = this.indices;
-            // Already existed;
-            if (array && array.length === indices.length * 3) {
-                return;
-            }
-            array = attributes.barycentric.value = new Float32Array(indices.length * 3);
-            for (var i = 0; i < indices.length;) {
-                for (var j = 0; j < 3; j++) {
-                    var ii = indices[i++];
-                    array[ii * 3 + j] = 1;
-                }
-            }
-            this.dirty();
-        },
-
-        applyTransform: function (matrix) {
-
-            var attributes = this.attributes;
-            var positions = attributes.position.value;
-            var normals = attributes.normal.value;
-            var tangents = attributes.tangent.value;
-
-            matrix = matrix._array;
-            // Normal Matrix
-            var inverseTransposeMatrix = mat4.create();
-            mat4.invert(inverseTransposeMatrix, matrix);
-            mat4.transpose(inverseTransposeMatrix, inverseTransposeMatrix);
-
-            var vec3TransformMat4 = vec3.transformMat4;
-            var vec3ForEach = vec3.forEach;
-            vec3ForEach(positions, 3, 0, null, vec3TransformMat4, matrix);
-            if (normals) {
-                vec3ForEach(normals, 3, 0, null, vec3TransformMat4, inverseTransposeMatrix);
-            }
-            if (tangents) {
-                vec3ForEach(tangents, 4, 0, null, vec3TransformMat4, inverseTransposeMatrix);
-            }
-
-            if (this.boundingBox) {
-                this.updateBoundingBox();
-            }
-        },
-
-        dispose: function (_gl) {
-
-            var cache = this._cache;
-
-            cache.use(_gl.__GLID__);
-            var chunks = cache.get('chunks');
-            if (chunks) {
-                for (var c = 0; c < chunks.length; c++) {
-                    var chunk = chunks[c];
-
-                    for (var k = 0; k < chunk.attributeBuffers.length; k++) {
-                        var attribs = chunk.attributeBuffers[k];
-                        _gl.deleteBuffer(attribs.buffer);
-                    }
-                }
-            }
-            cache.deleteContext(_gl.__GLID__);
-        }
-    });
-
-    if (Object.defineProperty) {
-        Object.defineProperty(StaticGeometry.prototype, 'vertexCount', {
-
-            enumerable: false,
-
-            get: function () {
-                var mainAttribute = this.attributes[this.mainAttribute];
-                if (!mainAttribute || !mainAttribute.value) {
-                    return 0;
-                }
-                return mainAttribute.value.length / mainAttribute.size;
-            }
-        });
-        Object.defineProperty(StaticGeometry.prototype, 'triangleCount', {
-
-            enumerable: false,
-
-            get: function () {
-                var indices = this.indices;
-                if (!indices) {
-                    return 0;
-                }
-                else {
-                    return indices.length / 3;
-                }
-            }
-        });
-    }
-
-    StaticGeometry.Attribute = Geometry.StaticAttribute;
-
-    module.exports = StaticGeometry;
-
-
-/***/ }),
 /* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
 
-    var Texture = __webpack_require__(9);
-    var glinfo = __webpack_require__(5);
+    var Texture = __webpack_require__(12);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var mathUtil = __webpack_require__(35);
+    var mathUtil = __webpack_require__(36);
     var isPowerOfTwo = mathUtil.isPowerOfTwo;
 
     /**
@@ -11450,11 +11449,11 @@ module.exports = {
 
 
 
-    var Texture = __webpack_require__(9);
-    var glinfo = __webpack_require__(5);
+    var Texture = __webpack_require__(12);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var util = __webpack_require__(10);
-    var mathUtil = __webpack_require__(35);
+    var util = __webpack_require__(13);
+    var mathUtil = __webpack_require__(36);
     var isPowerOfTwo = mathUtil.isPowerOfTwo;
 
     var targetList = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
@@ -11865,7 +11864,7 @@ module.exports = {
 
 
 
-    var Light = __webpack_require__(8);
+    var Light = __webpack_require__(9);
     var Vector3 = __webpack_require__(3);
 
     /**
@@ -12732,10 +12731,10 @@ module.exports = {
 
 
 
-    var Node = __webpack_require__(6);
-    var Matrix4 = __webpack_require__(16);
-    var Frustum = __webpack_require__(33);
-    var Ray = __webpack_require__(60);
+    var Node = __webpack_require__(7);
+    var Matrix4 = __webpack_require__(15);
+    var Frustum = __webpack_require__(34);
+    var Ray = __webpack_require__(64);
 
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
@@ -12920,19 +12919,19 @@ module.exports = {
 
 
     var Base = __webpack_require__(1);
-    var glinfo = __webpack_require__(5);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var vendor = __webpack_require__(11);
+    var vendor = __webpack_require__(8);
     var BoundingBox = __webpack_require__(4);
-    var Matrix4 = __webpack_require__(16);
-    var shaderLibrary = __webpack_require__(17);
-    var Material = __webpack_require__(12);
-    var Vector2 = __webpack_require__(34);
+    var Matrix4 = __webpack_require__(15);
+    var shaderLibrary = __webpack_require__(18);
+    var Material = __webpack_require__(10);
+    var Vector2 = __webpack_require__(35);
 
     // Light header
-    var Shader = __webpack_require__(7);
-    Shader['import'](__webpack_require__(81));
-    Shader['import'](__webpack_require__(36));
+    var Shader = __webpack_require__(5);
+    Shader['import'](__webpack_require__(86));
+    Shader['import'](__webpack_require__(37));
 
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
@@ -13920,8 +13919,8 @@ module.exports = {
 
 
 
-    var Node = __webpack_require__(6);
-    var Light = __webpack_require__(8);
+    var Node = __webpack_require__(7);
+    var Light = __webpack_require__(9);
     var BoundingBox = __webpack_require__(4);
 
     /**
@@ -14274,11 +14273,11 @@ module.exports = {
 
 
 
-    var Material = __webpack_require__(12);
+    var Material = __webpack_require__(10);
 
-    var Shader = __webpack_require__(7);
+    var Shader = __webpack_require__(5);
     // Import standard shader
-    Shader['import'](__webpack_require__(37));
+    Shader['import'](__webpack_require__(38));
 
     var shaderLibrary = {};
     var shaderUsedCount = {};
@@ -14711,7 +14710,7 @@ module.exports = {
 
 
 
-    var Clip = __webpack_require__(14);
+    var Clip = __webpack_require__(16);
 
     var glMatrix = __webpack_require__(0);
     var quat = glMatrix.quat;
@@ -14985,7 +14984,88 @@ module.exports = {
 
 
 
-    var Light = __webpack_require__(8);
+    var StaticGeometry = __webpack_require__(11);
+    var BoundingBox = __webpack_require__(4);
+
+    /**
+     * @constructor qtek.geometry.Plane
+     * @extends qtek.StaticGeometry
+     * @param {Object} [opt]
+     * @param {number} [opt.widthSegments]
+     * @param {number} [opt.heightSegments]
+     */
+    var Plane = StaticGeometry.extend(
+    /** @lends qtek.geometry.Plane# */
+    {
+        /**
+         * @type {number}
+         */
+        widthSegments: 1,
+        /**
+         * @type {number}
+         */
+        heightSegments: 1
+    }, function() {
+        this.build();
+    },
+    /** @lends qtek.geometry.Plane.prototype */
+    {
+        /**
+         * Build plane geometry
+         */
+        build: function() {
+            var heightSegments = this.heightSegments;
+            var widthSegments = this.widthSegments;
+            var attributes = this.attributes;
+            var positions = [];
+            var texcoords = [];
+            var normals = [];
+            var faces = [];
+
+            for (var y = 0; y <= heightSegments; y++) {
+                var t = y / heightSegments;
+                for (var x = 0; x <= widthSegments; x++) {
+                    var s = x / widthSegments;
+
+                    positions.push([2 * s - 1, 2 * t - 1, 0]);
+                    if (texcoords) {
+                        texcoords.push([s, t]);
+                    }
+                    if (normals) {
+                        normals.push([0, 0, 1]);
+                    }
+                    if (x < widthSegments && y < heightSegments) {
+                        var i = x + y * (widthSegments + 1);
+                        faces.push([i, i + 1, i + widthSegments + 1]);
+                        faces.push([i + widthSegments + 1, i + 1, i + widthSegments + 2]);
+                    }
+                }
+            }
+
+            attributes.position.fromArray(positions);
+            attributes.texcoord0.fromArray(texcoords);
+            attributes.normal.fromArray(normals);
+
+            this.initIndicesFromArray(faces);
+
+            this.boundingBox = new BoundingBox();
+            this.boundingBox.min.set(-1, -1, 0);
+            this.boundingBox.max.set(1, 1, 0);
+        }
+    });
+
+    module.exports = Plane;
+
+
+/***/ }),
+/* 32 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Light = __webpack_require__(9);
 
     /**
      * @constructor qtek.light.Point
@@ -15044,14 +15124,14 @@ module.exports = {
 
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Light = __webpack_require__(8);
+    var Light = __webpack_require__(9);
     var Vector3 = __webpack_require__(3);
 
     /**
@@ -15157,7 +15237,7 @@ module.exports = {
 
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15166,7 +15246,7 @@ module.exports = {
 
     var Vector3 = __webpack_require__(3);
     var BoundingBox = __webpack_require__(4);
-    var Plane = __webpack_require__(59);
+    var Plane = __webpack_require__(63);
 
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
@@ -15352,7 +15432,7 @@ module.exports = {
 
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16091,7 +16171,7 @@ module.exports = {
 
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ (function(module, exports) {
 
 
@@ -16122,7 +16202,7 @@ module.exports = {
 
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ (function(module, exports) {
 
 
@@ -16130,7 +16210,7 @@ module.exports = "@export qtek.prez.vertex\n\nuniform mat4 worldViewProjection :
 
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ (function(module, exports) {
 
 
@@ -16138,27 +16218,30 @@ module.exports = "\n\n@export qtek.standard.vertex\n\nuniform mat4 worldViewProj
 
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var Renderer = __webpack_require__(27);
 var PerspectiveCamera = __webpack_require__(22);
-var ShadowMapPass = __webpack_require__(61);
-var GLTFLoader = __webpack_require__(58);
+var ShadowMapPass = __webpack_require__(66);
+var GLTFLoader = __webpack_require__(62);
 var DirectionalLight = __webpack_require__(23);
-var AmbientSHLight = __webpack_require__(57);
+var AmbientSHLight = __webpack_require__(61);
 var Scene = __webpack_require__(28);
-var Node = __webpack_require__(6);
+var Node = __webpack_require__(7);
 var Vector3 = __webpack_require__(3);
-var Animation = __webpack_require__(46);
-var meshUtil = __webpack_require__(87);
-var SphereGeo = __webpack_require__(88);
-var Mesh = __webpack_require__(13);
-var Material = __webpack_require__(12);
-var Shader = __webpack_require__(7);
-var StaticGeometry = __webpack_require__(18);
+var Animation = __webpack_require__(49);
+var meshUtil = __webpack_require__(92);
+var SphereGeo = __webpack_require__(60);
+var CubeGeo = __webpack_require__(59);
+var Mesh = __webpack_require__(14);
+var Material = __webpack_require__(10);
+var Shader = __webpack_require__(5);
+var StaticGeometry = __webpack_require__(11);
 
-var OrbitControl = __webpack_require__(41);
+var getBundingBoxWithSkinning = __webpack_require__(44);
+var OrbitControl = __webpack_require__(43);
+var HotspotManager = __webpack_require__(42);
 
 function createSkeletonDebugScene(skeleton) {
     var scene = new Scene();
@@ -16217,6 +16300,7 @@ function createSkeletonDebugScene(skeleton) {
     });
     return scene;
 }
+
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
@@ -16255,6 +16339,7 @@ Viewer.prototype.init = function (dom, opts) {
 
     var renderer = new Renderer();
     dom.appendChild(renderer.canvas);
+    renderer.canvas.style.cssText = 'position:absolute;left:0;top:0';
 
     /**
      * @private
@@ -16269,16 +16354,23 @@ Viewer.prototype.init = function (dom, opts) {
      * @private
      */
     this._camera = new PerspectiveCamera({
-        near: 0.01,
-        far: 500
+        near: 0.1,
+        far: 100
     });
 
     this._cameraControl = new OrbitControl({
         renderer: renderer,
-        animation: this._animation
+        animation: this._animation,
+        root: dom
     });
     this._cameraControl.setCamera(this._camera);
     this._cameraControl.init();
+
+    this._hotspotManager = new HotspotManager({
+        root: dom,
+        renderer: renderer,
+        camera: this._camera
+    });
 
     /**
      * List of skeletons
@@ -16360,30 +16452,39 @@ Viewer.prototype.resize = function () {
     this._camera.aspect = renderer.canvas.width / renderer.canvas.height;
 };
 
-Viewer.prototype.focusToModel = function (ratio) {
-    if (ratio == null) {
-        ratio = 2;
-    }
+Viewer.prototype.autoFitModel = function (fitSize) {
+    fitSize = fitSize || 10;
     if (this._modelNode) {
-        var bbox = this._modelNode.getBoundingBox();
+        this._modelNode.update();
+        var bbox = getBundingBoxWithSkinning(this._modelNode);
+
         var size = new Vector3();
-        size.copy(bbox.max).sub(bbox.min).scale(0.5);
+        size.copy(bbox.max).sub(bbox.min);
 
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
-        var distance = size.len() * ratio;
-        var minDistance = distance * 0.2;
-        var maxDistance = distance * 5;
-        this.setCameraControl({
-            distance: size.len() * ratio,
-            minDistance: minDistance,
-            maxDistance: maxDistance,
-            center: center.toArray()
-        });
+        var scale = fitSize / Math.max(size.x, size.y, size.z);
 
-        this._mainLight.position.copy(center).add(new Vector3(1, 3, 1));
-        this._mainLight.lookAt(center);
+        this._modelNode.scale.set(scale, scale, scale);
+        this._modelNode.position.copy(center).scale(-scale);
+
+        this._mainLight.position.set(1, 3, 1);
+        this._mainLight.lookAt(Vector3.ZERO);
+
+        // Debug
+        // var mesh = new Mesh({
+        //     geometry: new CubeGeo(),
+        //     material: new Material({
+        //         shader: new Shader({
+        //             vertex: Shader.source('qtek.standard.vertex'),
+        //             fragment: Shader.source('qtek.standard.fragment')
+        //         })
+        //     })
+        // });
+        // mesh.position.copy(center);
+        // mesh.scale.copy(size).scale(0.5);
+        // this._scene.add(mesh);
     }
 };
 
@@ -16429,7 +16530,14 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
 
         this._addModel(res.rootNode, res.skeletons, res.clips);
 
-        this.focusToModel();
+        this.autoFitModel();
+
+        this.setCameraControl({
+            distance: 20,
+            minDisntance: 2,
+            maxDistance: 100,
+            center: [0, 0, 0]
+        });
 
         cb && cb();
     }, this);
@@ -16470,8 +16578,16 @@ Viewer.prototype.stop = function () {
     this._animation.off('frame', this._loop);
 };
 
+/**
+ * Add html tip
+ */
+Viewer.prototype.addHotspot = function (position, tipHTML) {
+    return this._hotspotManager.add(position, tipHTML);
+};
+
 
 Viewer.prototype._loop = function (deltaTime) {
+    this._scene.update();
     // Manually sync the transform for nodes not in skeleton
     this._clips.forEach(function (clip) {
         if (clip.channels.position) {
@@ -16489,6 +16605,8 @@ Viewer.prototype._loop = function (deltaTime) {
     });
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
+
+    this._hotspotManager.update();
 
     if (this._renderDebugSkeleton) {
         this._renderer.saveClear();
@@ -16516,15 +16634,15 @@ Viewer.prototype.dispose = function () {
 module.exports = Viewer;
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = {
-    Viewer: __webpack_require__(38)
+    Viewer: __webpack_require__(39)
 };
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ (function(module, exports) {
 
 /**
@@ -16640,7 +16758,107 @@ var recognizers = {
 module.exports = GestureMgr;
 
 /***/ }),
-/* 41 */
+/* 42 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var Base = __webpack_require__(1);
+var Vector4 = __webpack_require__(65);
+
+var HotspotManger = Base.extend(function () {
+
+    return {
+
+        /**
+         * @type {HTMLDomElement}
+         */
+        root: null,
+
+        /**
+         * @type {qtek.Renderer}
+         */
+        renderer: null,
+
+        /**
+         * @type {qtek.camera.Perspective}
+         */
+        camera: null,
+
+        /**
+         * @type {HTMLDomElement}
+         * @private
+         */
+        _hotspotRoot: null,
+
+        _hotspots: []
+    };
+}, function () {
+    if (!this.root || !this.renderer || !this.camera) {
+        throw new Error('Tip manager needs `root`,  `camera`, `renderer`');
+    }
+
+    var tipRoot = this._hotspotRoot = document.createElement('div');
+    tipRoot.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;';
+    this.root.appendChild(tipRoot);
+}, {
+    add: function (position, tipDom) {
+
+        if (typeof tipDom === 'string') {
+            var tipDom2 = document.createElement('div');
+            tipDom2.innerHTML = tipDom;
+            tipDom = tipDom2;
+        }
+
+        tipDom.classList.add('qmv-annotation');
+        tipDom.style.position = 'absolute';
+
+        this._hotspotRoot.appendChild(tipDom);
+
+        this._hotspots.push({
+            position: position,
+            dom: tipDom
+        });
+
+        return tipDom;
+    },
+
+    remove: function (tipDom) {
+        var idx = -1;
+        for (var i = 0; i < this._hotspots.length; i++) {
+            if (this._hotspots[i].dom === tipDom) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx >= 0) {
+            this._hotspots.splice(idx, 1);
+            this._hotspotRoot.removeChild(tipDom);
+        }
+    },
+
+    update: function () {
+        var pos = new Vector4();
+        this._hotspots.forEach(function (hotspot) {
+            var p = hotspot.position;
+            pos.set(p[0], p[1], p[2], 1);
+            pos.transformMat4(this.camera.viewMatrix);
+            pos.transformMat4(this.camera.projectionMatrix);
+            pos.scale(1 / pos.w);
+
+            var x = (pos.x + 1.0) * 0.5 * this.renderer.getWidth();
+            var y = (pos.y + 1.0) * 0.5 * this.renderer.getHeight();
+
+            hotspot.dom.style.left = x + 'px';
+            hotspot.dom.style.top = y + 'px';
+
+            hotspot.onupdate && hotspot.onupdate(x, y);
+        }, this);
+    }
+});
+
+module.exports = HotspotManger;
+
+/***/ }),
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16652,10 +16870,10 @@ module.exports = GestureMgr;
 
 // TODO Remove magic numbers on sensitivity
 var Base = __webpack_require__(1);
-var Vector2 = __webpack_require__(34);
+var Vector2 = __webpack_require__(35);
 var Vector3 = __webpack_require__(3);
 var Quaternion = __webpack_require__(24);
-var GestureMgr = __webpack_require__(40);
+var GestureMgr = __webpack_require__(41);
 
 function firstNotNull() {
     for (var i = 0, len = arguments.length; i < len; i++) {
@@ -16676,6 +16894,10 @@ var OrbitControl = Base.extend(function () {
         animation: null,
 
         /**
+         * @type {HTMLDomElement}
+         */
+        root: null,
+        /**
          * @type {qtek.math.Vector3}
          */
         _center: new Vector3(),
@@ -16685,14 +16907,14 @@ var OrbitControl = Base.extend(function () {
          * @type {number}
          * @default 0.5
          */
-        minDistance: 0.5,
+        minDistance: 2,
 
         /**
          * Maximum distance to the center
          * @type {number}
          * @default 2
          */
-        maxDistance: 1.5,
+        maxDistance: 100,
 
         /**
          * Minimum alpha rotation
@@ -16717,6 +16939,16 @@ var OrbitControl = Base.extend(function () {
          * Start auto rotating after still for the given time
          */
         autoRotateAfterStill: 0,
+
+        /**
+         * Direction of autoRotate. cw or ccw when looking top down.
+         */
+        autoRotateDirection: 'cw',
+
+        /**
+         * Degree per second
+         */
+        autoRotateSpeed: 60,
 
         /**
          * Pan or rotate
@@ -16744,6 +16976,7 @@ var OrbitControl = Base.extend(function () {
          */
         panSensitivity: 1,
 
+
         /**
          * @type {qtek.Camera}
          */
@@ -16765,7 +16998,7 @@ var OrbitControl = Base.extend(function () {
 
         _panVelocity: new Vector2(),
 
-        _distance: 500,
+        _distance: 20,
 
         _zoomSpeed: 0,
 
@@ -16789,7 +17022,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event binding
      */
     init: function () {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
 
         dom.addEventListener('touchstart', this._mouseDownHandler);
 
@@ -16804,7 +17037,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event unbinding
      */
     dispose: function () {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
 
         dom.removeEventListener('touchstart', this._mouseDownHandler);
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
@@ -16916,6 +17149,7 @@ var OrbitControl = Base.extend(function () {
         opts = opts || {};
 
         ['autoRotate', 'autoRotateAfterStill',
+            'autoRotateDirection', 'autoRotateSpeed',
             'damping',
             'minDistance', 'maxDistance',
             'minAlpha', 'maxAlpha', 'minBeta', 'maxBeta',
@@ -17013,7 +17247,9 @@ var OrbitControl = Base.extend(function () {
     _update: function (deltaTime) {
 
         if (this._rotating) {
-            this._phi -= deltaTime * 1e-4;
+            var radian = (this.autoRotateDirection === 'cw' ? 1 : -1)
+                 * this.autoRotateSpeed / 180 * Math.PI;
+            this._phi -= radian * deltaTime / 1000;
             this._needsUpdate = true;
         }
         else if (this._rotateVelocity.len() > 0) {
@@ -17158,7 +17394,7 @@ var OrbitControl = Base.extend(function () {
             this._processGesture(e, 'start');
         }
 
-        var dom = this.renderer.canvas;
+        var dom = this.root;
         dom.addEventListener('touchmove', this._mouseMoveHandler);
         dom.addEventListener('touchend', this._mouseUpHandler);
 
@@ -17256,7 +17492,7 @@ var OrbitControl = Base.extend(function () {
     },
 
     _mouseUpHandler: function (event) {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
         dom.removeEventListener('touchend', this._mouseUpHandler);
         dom.removeEventListener('mousemove', this._mouseMoveHandler);
@@ -17286,7 +17522,7 @@ var OrbitControl = Base.extend(function () {
         var gestureInfo = gestureMgr.recognize(
             event,
             null,
-            this.renderer.canvas
+            this.root
         );
 
         stage === 'end' && gestureMgr.clear();
@@ -17322,7 +17558,112 @@ Object.defineProperty(OrbitControl.prototype, 'autoRotate', {
 module.exports = OrbitControl;
 
 /***/ }),
-/* 42 */
+/* 44 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var BoundingBox = __webpack_require__(4);
+var glmatrix = __webpack_require__(0);
+var vec3 = glmatrix.vec3;
+var mat4 = glmatrix.mat4;
+
+function getBoundingBoxOfSkinningMesh(mesh, out) {
+    var pos = [];
+    var joint = [];
+    var weight = [];
+    var skinMatrices = [];
+    var skinnedPos = [];
+    var tmp = [];
+
+    var geometry = mesh.geometry;
+    var skinMatricesArray = mesh.skeleton.getSubSkinMatrices(mesh.__GUID__, mesh.joints);
+    for (var i = 0; i < mesh.joints.length; i++) {
+        skinMatrices[i] = skinMatrices[i] || [];
+        for (var k = 0; k < 16; k++) {
+            skinMatrices[i][k] = skinMatricesArray[i * 16 + k];
+        }
+    }
+    
+    var positionAttr = geometry.attributes.position;
+    var weightAttr = geometry.attributes.weight;
+    var jointAttr = geometry.attributes.joint;
+
+    var min = [Infinity, Infinity, Infinity];
+    var max = [-Infinity, -Infinity, -Infinity];
+
+    var timeSamples = [0];
+    var clip = mesh.skeleton.getClip(0);
+    if (clip) {
+        timeSamples.push(clip.life);
+    }
+    for (var t = 0; t < timeSamples.length; t++) {
+        if (clip) {
+            clip.setTime(timeSamples[t]);
+            mesh.skeleton.setPose(0);
+            for (var i = 0; i < geometry.vertexCount; i++) {
+                positionAttr.get(i, pos);
+                weightAttr.get(i, weight);
+                jointAttr.get(i, joint);
+                weight[3] = 1 - weight[0] - weight[1] - weight[2];
+
+                vec3.set(skinnedPos, 0, 0, 0);
+                for (var k = 0; k < 4; k++) {
+                    if (joint[k] >= 0) {
+                        vec3.transformMat4(tmp, pos, skinMatrices[joint[k]]);
+                        vec3.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
+                    }   
+                }
+
+                vec3.min(min, min, skinnedPos);
+                vec3.max(max, max, skinnedPos);
+
+            }
+        }
+    }
+    out.min.setArray(min);
+    out.max.setArray(max);
+}
+
+function getBoundingBoxWithSkinning(node, out) {
+    out = out || new BoundingBox();
+
+    var children = node.children();
+    if (children.length === 0) {
+        out.max.set(-Infinity, -Infinity, -Infinity);
+        out.min.set(Infinity, Infinity, Infinity);
+    }
+
+    var tmpBBox = new BoundingBox();
+    for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        getBoundingBoxWithSkinning(child, tmpBBox);
+        child.updateLocalTransform();
+        if (tmpBBox.isFinite()) {
+            tmpBBox.applyTransform(child.localTransform);
+        }
+        if (i === 0) {
+            out.copy(tmpBBox);
+        }
+        else {
+            out.union(tmpBBox);
+        }
+    }
+
+    if (node.geometry) {
+        if (node.skeleton && node.joints && node.joints.length) {
+            getBoundingBoxOfSkinningMesh(node, tmpBBox);
+            out.union(tmpBBox);
+        }
+        else {
+            out.union(node.geometry.boundingBox);
+        }
+    }
+    return out;
+}
+
+module.exports = getBoundingBoxWithSkinning;
+
+/***/ }),
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17330,11 +17671,11 @@ module.exports = OrbitControl;
 
 
     var Base = __webpack_require__(1);
-    var Texture = __webpack_require__(9);
+    var Texture = __webpack_require__(12);
     var TextureCube = __webpack_require__(20);
-    var glinfo = __webpack_require__(5);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(15);
+    var Cache = __webpack_require__(17);
 
     var KEY_FRAMEBUFFER = 'framebuffer';
     var KEY_RENDERBUFFER = 'renderbuffer';
@@ -17725,7 +18066,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 43 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17734,8 +18075,8 @@ module.exports = OrbitControl;
 
     var Base = __webpack_require__(1);
     var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(15);
-    var vendor = __webpack_require__(11);
+    var Cache = __webpack_require__(17);
+    var vendor = __webpack_require__(8);
 
     function getArrayCtorByType (type) {
         var ArrayConstructor;
@@ -18078,16 +18419,16 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 44 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Node = __webpack_require__(6);
+    var Node = __webpack_require__(7);
     var glenum = __webpack_require__(2);
-    var glinfo = __webpack_require__(5);
+    var glinfo = __webpack_require__(6);
 
     // Cache
     var prevDrawID = 0;
@@ -18473,7 +18814,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 45 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18493,6 +18834,12 @@ module.exports = OrbitControl;
      */
     var Skeleton = Base.extend(function() {
         return /** @lends qtek.Skeleton# */{
+
+            /**
+             * Relative root node that not affect transform of joint.
+             * @type {qtek.Node}
+             */
+            relativeRootNode: null,
             /**
              * @type {string}
              */
@@ -18542,7 +18889,8 @@ module.exports = OrbitControl;
                 if (joint.parentIndex >= 0) {
                     var parent = joints[joint.parentIndex].node;
                     parent.add(joint.node);
-                }else{
+                }
+                else {
                     this.roots.push(joint);
                 }
             }
@@ -18645,10 +18993,10 @@ module.exports = OrbitControl;
 
                 for (var i = 0; i < this.joints.length; i++) {
                     var joint = this.joints[i];
-                    // Joint space is relative to root joint's parent, if have
+                    // Joint space is relative to root, if have
                     // !!Parent node and joint node must all be updated
-                    if (joint.rootNode && joint.rootNode.getParent()) {
-                        mat4.invert(m4, joint.rootNode.getParent().worldTransform._array);
+                    if (this.relativeRootNode) {
+                        mat4.invert(m4, this.relativeRootNode.worldTransform._array);
                         mat4.multiply(
                             m4,
                             m4,
@@ -18696,16 +19044,15 @@ module.exports = OrbitControl;
                         this._jointMatricesSubArrays[i]
                     );
 
-                    // Joint space is relative to root joint's parent, if have
-                    // PENDING
-                    // if (joint.rootNode && joint.rootNode.getParent()) {
-                    //     mat4.invert(m4, joint.rootNode.getParent().worldTransform._array);
-                    //     mat4.multiply(
-                    //         this._skinMatricesSubArrays[i],
-                    //         m4,
-                    //         this._skinMatricesSubArrays[i]
-                    //     );
-                    // }
+                    // Joint space is relative to root, if have
+                    if (this.relativeRootNode) {
+                        mat4.invert(m4, this.relativeRootNode.worldTransform._array);
+                        mat4.multiply(
+                            this._skinMatricesSubArrays[i],
+                            m4,
+                            this._skinMatricesSubArrays[i]
+                        );
+                    }
                 }
             };
         })(),
@@ -18779,7 +19126,8 @@ module.exports = OrbitControl;
                 if (path != null && rootNodePath != null) {
                     newJoint.node = newRootNode.queryNode(path);
                     newJoint.rootNode = newRootNode.queryNode(rootNodePath);
-                } else {
+                }
+                else {
                     // PENDING
                     console.warn('Something wrong in clone, may be the skeleton root nodes is not mounted on the cloned root node.')
                 }
@@ -18811,7 +19159,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 46 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18819,7 +19167,7 @@ module.exports = OrbitControl;
 
 
     var Base = __webpack_require__(1);
-    var Animator = __webpack_require__(47);
+    var Animator = __webpack_require__(50);
 
     var requestAnimationFrame = window.requestAnimationFrame
                                 || window.msRequestAnimationFrame
@@ -19043,7 +19391,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 47 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -19051,7 +19399,7 @@ module.exports = OrbitControl;
  */
 
 
-    var Clip = __webpack_require__(14);
+    var Clip = __webpack_require__(16);
 
     var arraySlice = Array.prototype.slice;
 
@@ -19582,7 +19930,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 48 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19593,7 +19941,7 @@ module.exports = OrbitControl;
 // TODO Sync target transform
 
 
-    var Clip = __webpack_require__(14);
+    var Clip = __webpack_require__(16);
     var TransformClip = __webpack_require__(30);
 
     var glMatrix = __webpack_require__(0);
@@ -19913,14 +20261,14 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 49 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Clip = __webpack_require__(14);
+    var Clip = __webpack_require__(16);
 
     var TransformClip = __webpack_require__(30);
 
@@ -20120,7 +20468,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 50 */
+/* 53 */
 /***/ (function(module, exports) {
 
 // 缓动函数来自 https://github.com/sole/tween.js/blob/master/src/Tween.js
@@ -20474,7 +20822,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 51 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20483,14 +20831,14 @@ module.exports = OrbitControl;
 
     var Base = __webpack_require__(1);
     var OrthoCamera = __webpack_require__(21);
-    var Plane = __webpack_require__(56);
-    var Shader = __webpack_require__(7);
-    var Material = __webpack_require__(12);
-    var Mesh = __webpack_require__(13);
-    var glinfo = __webpack_require__(5);
+    var Plane = __webpack_require__(31);
+    var Shader = __webpack_require__(5);
+    var Material = __webpack_require__(10);
+    var Mesh = __webpack_require__(14);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
 
-    Shader['import'](__webpack_require__(78));
+    Shader['import'](__webpack_require__(83));
 
     var planeGeo = new Plane();
     var mesh = new Mesh({
@@ -20696,7 +21044,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 52 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20705,7 +21053,7 @@ module.exports = OrbitControl;
 
     var Texture2D = __webpack_require__(19);
     var glenum = __webpack_require__(2);
-    var util = __webpack_require__(10);
+    var util = __webpack_require__(13);
 
     var TexturePool = function () {
 
@@ -20814,7 +21162,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 53 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20930,7 +21278,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 54 */
+/* 57 */
 /***/ (function(module, exports) {
 
 
@@ -21141,7 +21489,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 55 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21185,25 +21533,33 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 56 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var StaticGeometry = __webpack_require__(18);
+    var StaticGeometry = __webpack_require__(11);
+    var Plane = __webpack_require__(31);
+    var Matrix4 = __webpack_require__(15);
+    var Vector3 = __webpack_require__(3);
     var BoundingBox = __webpack_require__(4);
+    var vendor = __webpack_require__(8);
+
+    var planeMatrix = new Matrix4();
 
     /**
-     * @constructor qtek.geometry.Plane
+     * @constructor qtek.geometry.Cube
      * @extends qtek.StaticGeometry
      * @param {Object} [opt]
      * @param {number} [opt.widthSegments]
      * @param {number} [opt.heightSegments]
+     * @param {number} [opt.depthSegments]
+     * @param {boolean} [opt.inside]
      */
-    var Plane = StaticGeometry.extend(
-    /** @lends qtek.geometry.Plane# */
+    var Cube = StaticGeometry.extend(
+    /**@lends qtek.geometry.Cube# */
     {
         /**
          * @type {number}
@@ -21212,69 +21568,279 @@ module.exports = OrbitControl;
         /**
          * @type {number}
          */
-        heightSegments: 1
+        heightSegments: 1,
+        /**
+         * @type {number}
+         */
+        depthSegments: 1,
+        /**
+         * @type {boolean}
+         */
+        inside: false
     }, function() {
         this.build();
     },
-    /** @lends qtek.geometry.Plane.prototype */
+    /** @lends qtek.geometry.Cube.prototype */
     {
         /**
-         * Build plane geometry
+         * Build cube geometry
          */
         build: function() {
-            var heightSegments = this.heightSegments;
-            var widthSegments = this.widthSegments;
-            var attributes = this.attributes;
-            var positions = [];
-            var texcoords = [];
-            var normals = [];
-            var faces = [];
 
-            for (var y = 0; y <= heightSegments; y++) {
-                var t = y / heightSegments;
-                for (var x = 0; x <= widthSegments; x++) {
-                    var s = x / widthSegments;
+            var planes = {
+                'px': createPlane('px', this.depthSegments, this.heightSegments),
+                'nx': createPlane('nx', this.depthSegments, this.heightSegments),
+                'py': createPlane('py', this.widthSegments, this.depthSegments),
+                'ny': createPlane('ny', this.widthSegments, this.depthSegments),
+                'pz': createPlane('pz', this.widthSegments, this.heightSegments),
+                'nz': createPlane('nz', this.widthSegments, this.heightSegments),
+            };
 
-                    positions.push([2 * s - 1, 2 * t - 1, 0]);
-                    if (texcoords) {
-                        texcoords.push([s, t]);
-                    }
-                    if (normals) {
-                        normals.push([0, 0, 1]);
-                    }
-                    if (x < widthSegments && y < heightSegments) {
-                        var i = x + y * (widthSegments + 1);
-                        faces.push([i, i + 1, i + widthSegments + 1]);
-                        faces.push([i + widthSegments + 1, i + 1, i + widthSegments + 2]);
+            var attrList = ['position', 'texcoord0', 'normal'];
+            var vertexNumber = 0;
+            var faceNumber = 0;
+            for (var pos in planes) {
+                vertexNumber += planes[pos].vertexCount;
+                faceNumber += planes[pos].indices.length;
+            }
+            for (var k = 0; k < attrList.length; k++) {
+                this.attributes[attrList[k]].init(vertexNumber);
+            }
+            this.indices = new vendor.Uint16Array(faceNumber);
+            var faceOffset = 0;
+            var vertexOffset = 0;
+            for (var pos in planes) {
+                var plane = planes[pos];
+                for (var k = 0; k < attrList.length; k++) {
+                    var attrName = attrList[k];
+                    var attrArray = plane.attributes[attrName].value;
+                    var attrSize = plane.attributes[attrName].size;
+                    var isNormal = attrName === 'normal';
+                    for (var i = 0; i < attrArray.length; i++) {
+                        var value = attrArray[i];
+                        if (this.inside && isNormal) {
+                            value = -value;
+                        }
+                        this.attributes[attrName].value[i + attrSize * vertexOffset] = value;
                     }
                 }
+                for (var i = 0; i < plane.indices.length; i++) {
+                    this.indices[i + faceOffset] = vertexOffset + plane.indices[i];
+                }
+                faceOffset += plane.indices.length;
+                vertexOffset += plane.vertexCount;
             }
 
-            attributes.position.fromArray(positions);
-            attributes.texcoord0.fromArray(texcoords);
-            attributes.normal.fromArray(normals);
-
-            this.initIndicesFromArray(faces);
-
             this.boundingBox = new BoundingBox();
-            this.boundingBox.min.set(-1, -1, 0);
-            this.boundingBox.max.set(1, 1, 0);
+            this.boundingBox.max.set(1, 1, 1);
+            this.boundingBox.min.set(-1, -1, -1);
         }
     });
 
-    module.exports = Plane;
+    function createPlane(pos, widthSegments, heightSegments) {
+
+        planeMatrix.identity();
+
+        var plane = new Plane({
+            widthSegments: widthSegments,
+            heightSegments: heightSegments
+        });
+
+        switch(pos) {
+            case 'px':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.POSITIVE_X);
+                Matrix4.rotateY(planeMatrix, planeMatrix, Math.PI / 2);
+                break;
+            case 'nx':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.NEGATIVE_X);
+                Matrix4.rotateY(planeMatrix, planeMatrix, -Math.PI / 2);
+                break;
+            case 'py':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.POSITIVE_Y);
+                Matrix4.rotateX(planeMatrix, planeMatrix, -Math.PI / 2);
+                break;
+            case 'ny':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.NEGATIVE_Y);
+                Matrix4.rotateX(planeMatrix, planeMatrix, Math.PI / 2);
+                break;
+            case 'pz':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.POSITIVE_Z);
+                break;
+            case 'nz':
+                Matrix4.translate(planeMatrix, planeMatrix, Vector3.NEGATIVE_Z);
+                Matrix4.rotateY(planeMatrix, planeMatrix, Math.PI);
+                break;
+        }
+        plane.applyTransform(planeMatrix);
+        return plane;
+    }
+
+    module.exports = Cube;
 
 
 /***/ }),
-/* 57 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Light = __webpack_require__(8);
-    var vendor = __webpack_require__(11);
+    var StaticGeometry = __webpack_require__(11);
+    var glMatrix = __webpack_require__(0);
+    var vec3 = glMatrix.vec3;
+    var vec2 = glMatrix.vec2;
+    var BoundingBox = __webpack_require__(4);
+
+    /**
+     * @constructor qtek.geometry.Sphere
+     * @extends qtek.StaticGeometry
+     * @param {Object} [opt]
+     * @param {number} [widthSegments]
+     * @param {number} [heightSegments]
+     * @param {number} [phiStart]
+     * @param {number} [phiLength]
+     * @param {number} [thetaStart]
+     * @param {number} [thetaLength]
+     * @param {number} [radius]
+     */
+    var Sphere = StaticGeometry.extend(
+    /** @lends qtek.geometry.Sphere# */
+    {
+        /**
+         * @type {number}
+         */
+        widthSegments: 20,
+        /**
+         * @type {number}
+         */
+        heightSegments: 20,
+
+        /**
+         * @type {number}
+         */
+        phiStart: 0,
+        /**
+         * @type {number}
+         */
+        phiLength: Math.PI * 2,
+
+        /**
+         * @type {number}
+         */
+        thetaStart: 0,
+        /**
+         * @type {number}
+         */
+        thetaLength: Math.PI,
+
+        /**
+         * @type {number}
+         */
+        radius: 1
+
+    }, function() {
+        this.build();
+    },
+    /** @lends qtek.geometry.Sphere.prototype */
+    {
+        /**
+         * Build sphere geometry
+         */
+        build: function() {
+            var heightSegments = this.heightSegments;
+            var widthSegments = this.widthSegments;
+
+            var positionAttr = this.attributes.position;
+            var texcoordAttr = this.attributes.texcoord0;
+            var normalAttr = this.attributes.normal;
+
+            var vertexCount = (widthSegments + 1) * (heightSegments + 1);
+            positionAttr.init(vertexCount);
+            texcoordAttr.init(vertexCount);
+            normalAttr.init(vertexCount);
+
+            var IndicesCtor = vertexCount > 0xffff ? Uint32Array : Uint16Array;
+            var indices = this.indices = new IndicesCtor(widthSegments * heightSegments * 6);
+
+            var x, y, z,
+                u, v,
+                i, j;
+
+            var radius = this.radius;
+            var phiStart = this.phiStart;
+            var phiLength = this.phiLength;
+            var thetaStart = this.thetaStart;
+            var thetaLength = this.thetaLength;
+            var radius = this.radius;
+
+            var pos = [];
+            var uv = [];
+            var offset = 0;
+            var divider = 1 / radius;
+            for (j = 0; j <= heightSegments; j ++) {
+                for (i = 0; i <= widthSegments; i ++) {
+                    u = i / widthSegments;
+                    v = j / heightSegments;
+
+                    // X axis is inverted so texture can be mapped from left to right
+                    x = -radius * Math.cos(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
+                    y = radius * Math.cos(thetaStart + v * thetaLength);
+                    z = radius * Math.sin(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
+
+                    pos[0] = x; pos[1] = y; pos[2] = z;
+                    uv[0] = u; uv[1] = v;
+                    positionAttr.set(offset, pos);
+                    texcoordAttr.set(offset, uv);
+                    pos[0] *= divider;
+                    pos[1] *= divider;
+                    pos[2] *= divider;
+                    normalAttr.set(offset, pos);
+                    offset++;
+                }
+            }
+
+            var i1, i2, i3, i4;
+
+            var len = widthSegments + 1;
+
+            var n = 0;
+            for (j = 0; j < heightSegments; j ++) {
+                for (i = 0; i < widthSegments; i ++) {
+                    i2 = j * len + i;
+                    i1 = (j * len + i + 1);
+                    i4 = (j + 1) * len + i + 1;
+                    i3 = (j + 1) * len + i;
+
+                    indices[n++] = i1;
+                    indices[n++] = i2;
+                    indices[n++] = i4;
+
+                    indices[n++] = i2;
+                    indices[n++] = i3;
+                    indices[n++] = i4;
+                }
+            }
+
+            this.boundingBox = new BoundingBox();
+            this.boundingBox.max.set(radius, radius, radius);
+            this.boundingBox.min.set(-radius, -radius, -radius);
+        }
+    });
+
+    module.exports = Sphere;
+
+
+/***/ }),
+/* 61 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Light = __webpack_require__(9);
+    var vendor = __webpack_require__(8);
 
     /**
      * Spherical Harmonic Ambient Light
@@ -21331,7 +21897,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 58 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21345,26 +21911,26 @@ module.exports = OrbitControl;
 
 
     var Base = __webpack_require__(1);
-    var request = __webpack_require__(55);
-    var util = __webpack_require__(10);
-    var vendor = __webpack_require__(11);
+    var request = __webpack_require__(58);
+    var util = __webpack_require__(13);
+    var vendor = __webpack_require__(8);
 
     var Scene = __webpack_require__(28);
-    var Shader = __webpack_require__(7);
-    var Material = __webpack_require__(12);
+    var Shader = __webpack_require__(5);
+    var Material = __webpack_require__(10);
     var StandardMaterial = __webpack_require__(29);
-    var Mesh = __webpack_require__(13);
-    var Node = __webpack_require__(6);
-    var Texture = __webpack_require__(9);
+    var Mesh = __webpack_require__(14);
+    var Node = __webpack_require__(7);
+    var Texture = __webpack_require__(12);
     var Texture2D = __webpack_require__(19);
     var TextureCube = __webpack_require__(20);
-    var shaderLibrary = __webpack_require__(17);
-    var Skeleton = __webpack_require__(45);
+    var shaderLibrary = __webpack_require__(18);
+    var Skeleton = __webpack_require__(48);
     var Joint = __webpack_require__(26);
     var PerspectiveCamera = __webpack_require__(22);
     var OrthographicCamera = __webpack_require__(21);
-    var PointLight = __webpack_require__(31);
-    var SpotLight = __webpack_require__(32);
+    var PointLight = __webpack_require__(32);
+    var SpotLight = __webpack_require__(33);
     var DirectionalLight = __webpack_require__(23);
     var glenum = __webpack_require__(2);
 
@@ -21372,16 +21938,16 @@ module.exports = OrbitControl;
     var Quaternion = __webpack_require__(24);
     var BoundingBox = __webpack_require__(4);
 
-    var SamplerClip = __webpack_require__(48);
-    var SkinningClip = __webpack_require__(49);
+    var SamplerClip = __webpack_require__(51);
+    var SkinningClip = __webpack_require__(52);
 
-    var StaticGeometry = __webpack_require__(18);
+    var StaticGeometry = __webpack_require__(11);
 
     var glMatrix = __webpack_require__(0);
     var quat = glMatrix.quat;
 
     // Import builtin shader
-    __webpack_require__(62);
+    __webpack_require__(67);
 
     var semanticAttributeMap = {
         'NORMAL': 'normal',
@@ -21572,6 +22138,7 @@ module.exports = OrbitControl;
 
                         for (var name in lib.skeletons) {
                             lib.skeletons[name].addClip(skinningClip);
+                            lib.skeletons[name].relativeRootNode = rootNode;
                         }
                     }
                 }
@@ -22330,7 +22897,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 59 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22508,7 +23075,7 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 60 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22838,7 +23405,735 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 61 */
+/* 65 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var glMatrix = __webpack_require__(0);
+    var vec4 = glMatrix.vec4;
+
+    /**
+     * @constructor
+     * @alias qtek.math.Vector4
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} w
+     */
+    var Vector4 = function(x, y, z, w) {
+
+        x = x || 0;
+        y = y || 0;
+        z = z || 0;
+        w = w || 0;
+
+        /**
+         * Storage of Vector4, read and write of x, y, z, w will change the values in _array
+         * All methods also operate on the _array instead of x, y, z, w components
+         * @name _array
+         * @type {Float32Array}
+         */
+        this._array = vec4.fromValues(x, y, z, w);
+
+        /**
+         * Dirty flag is used by the Node to determine
+         * if the matrix is updated to latest
+         * @name _dirty
+         * @type {boolean}
+         */
+        this._dirty = true;
+    };
+
+    Vector4.prototype = {
+
+        constructor: Vector4,
+
+        /**
+         * Add b to self
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        add: function(b) {
+            vec4.add(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Set x, y and z components
+         * @param  {number}  x
+         * @param  {number}  y
+         * @param  {number}  z
+         * @param  {number}  w
+         * @return {qtek.math.Vector4}
+         */
+        set: function(x, y, z, w) {
+            this._array[0] = x;
+            this._array[1] = y;
+            this._array[2] = z;
+            this._array[3] = w;
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Set x, y, z and w components from array
+         * @param  {Float32Array|number[]} arr
+         * @return {qtek.math.Vector4}
+         */
+        setArray: function(arr) {
+            this._array[0] = arr[0];
+            this._array[1] = arr[1];
+            this._array[2] = arr[2];
+            this._array[3] = arr[3];
+
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Clone a new Vector4
+         * @return {qtek.math.Vector4}
+         */
+        clone: function() {
+            return new Vector4(this.x, this.y, this.z, this.w);
+        },
+
+        /**
+         * Copy from b
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        copy: function(b) {
+            vec4.copy(this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Alias for distance
+         * @param  {qtek.math.Vector4} b
+         * @return {number}
+         */
+        dist: function(b) {
+            return vec4.dist(this._array, b._array);
+        },
+
+        /**
+         * Distance between self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {number}
+         */
+        distance: function(b) {
+            return vec4.distance(this._array, b._array);
+        },
+
+        /**
+         * Alias for divide
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        div: function(b) {
+            vec4.div(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Divide self by b
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        divide: function(b) {
+            vec4.divide(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Dot product of self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {number}
+         */
+        dot: function(b) {
+            return vec4.dot(this._array, b._array);
+        },
+
+        /**
+         * Alias of length
+         * @return {number}
+         */
+        len: function() {
+            return vec4.len(this._array);
+        },
+
+        /**
+         * Calculate the length
+         * @return {number}
+         */
+        length: function() {
+            return vec4.length(this._array);
+        },
+        /**
+         * Linear interpolation between a and b
+         * @param  {qtek.math.Vector4} a
+         * @param  {qtek.math.Vector4} b
+         * @param  {number}  t
+         * @return {qtek.math.Vector4}
+         */
+        lerp: function(a, b, t) {
+            vec4.lerp(this._array, a._array, b._array, t);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Minimum of self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        min: function(b) {
+            vec4.min(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Maximum of self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        max: function(b) {
+            vec4.max(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Alias for multiply
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        mul: function(b) {
+            vec4.mul(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Mutiply self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        multiply: function(b) {
+            vec4.multiply(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Negate self
+         * @return {qtek.math.Vector4}
+         */
+        negate: function() {
+            vec4.negate(this._array, this._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Normalize self
+         * @return {qtek.math.Vector4}
+         */
+        normalize: function() {
+            vec4.normalize(this._array, this._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Generate random x, y, z, w components with a given scale
+         * @param  {number} scale
+         * @return {qtek.math.Vector4}
+         */
+        random: function(scale) {
+            vec4.random(this._array, scale);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Scale self
+         * @param  {number}  scale
+         * @return {qtek.math.Vector4}
+         */
+        scale: function(s) {
+            vec4.scale(this._array, this._array, s);
+            this._dirty = true;
+            return this;
+        },
+        /**
+         * Scale b and add to self
+         * @param  {qtek.math.Vector4} b
+         * @param  {number}  scale
+         * @return {qtek.math.Vector4}
+         */
+        scaleAndAdd: function(b, s) {
+            vec4.scaleAndAdd(this._array, this._array, b._array, s);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Alias for squaredDistance
+         * @param  {qtek.math.Vector4} b
+         * @return {number}
+         */
+        sqrDist: function(b) {
+            return vec4.sqrDist(this._array, b._array);
+        },
+
+        /**
+         * Squared distance between self and b
+         * @param  {qtek.math.Vector4} b
+         * @return {number}
+         */
+        squaredDistance: function(b) {
+            return vec4.squaredDistance(this._array, b._array);
+        },
+
+        /**
+         * Alias for squaredLength
+         * @return {number}
+         */
+        sqrLen: function() {
+            return vec4.sqrLen(this._array);
+        },
+
+        /**
+         * Squared length of self
+         * @return {number}
+         */
+        squaredLength: function() {
+            return vec4.squaredLength(this._array);
+        },
+
+        /**
+         * Alias for subtract
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        sub: function(b) {
+            vec4.sub(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Subtract b from self
+         * @param  {qtek.math.Vector4} b
+         * @return {qtek.math.Vector4}
+         */
+        subtract: function(b) {
+            vec4.subtract(this._array, this._array, b._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Transform self with a Matrix4 m
+         * @param  {qtek.math.Matrix4} m
+         * @return {qtek.math.Vector4}
+         */
+        transformMat4: function(m) {
+            vec4.transformMat4(this._array, this._array, m._array);
+            this._dirty = true;
+            return this;
+        },
+
+        /**
+         * Transform self with a Quaternion q
+         * @param  {qtek.math.Quaternion} q
+         * @return {qtek.math.Vector4}
+         */
+        transformQuat: function(q) {
+            vec4.transformQuat(this._array, this._array, q._array);
+            this._dirty = true;
+            return this;
+        },
+
+        toString: function() {
+            return '[' + Array.prototype.join.call(this._array, ',') + ']';
+        },
+
+        toArray: function () {
+            return Array.prototype.slice.call(this._array);
+        }
+    };
+
+    var defineProperty = Object.defineProperty;
+    // Getter and Setter
+    if (defineProperty) {
+
+        var proto = Vector4.prototype;
+        /**
+         * @name x
+         * @type {number}
+         * @memberOf qtek.math.Vector4
+         * @instance
+         */
+        defineProperty(proto, 'x', {
+            get: function () {
+                return this._array[0];
+            },
+            set: function (value) {
+                this._array[0] = value;
+                this._dirty = true;
+            }
+        });
+
+        /**
+         * @name y
+         * @type {number}
+         * @memberOf qtek.math.Vector4
+         * @instance
+         */
+        defineProperty(proto, 'y', {
+            get: function () {
+                return this._array[1];
+            },
+            set: function (value) {
+                this._array[1] = value;
+                this._dirty = true;
+            }
+        });
+
+        /**
+         * @name z
+         * @type {number}
+         * @memberOf qtek.math.Vector4
+         * @instance
+         */
+        defineProperty(proto, 'z', {
+            get: function () {
+                return this._array[2];
+            },
+            set: function (value) {
+                this._array[2] = value;
+                this._dirty = true;
+            }
+        });
+
+        /**
+         * @name w
+         * @type {number}
+         * @memberOf qtek.math.Vector4
+         * @instance
+         */
+        defineProperty(proto, 'w', {
+            get: function () {
+                return this._array[3];
+            },
+            set: function (value) {
+                this._array[3] = value;
+                this._dirty = true;
+            }
+        });
+    }
+
+    // Supply methods that are not in place
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.add = function(out, a, b) {
+        vec4.add(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {number}  x
+     * @param  {number}  y
+     * @param  {number}  z
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.set = function(out, x, y, z, w) {
+        vec4.set(out._array, x, y, z, w);
+        out._dirty = true;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.copy = function(out, b) {
+        vec4.copy(out._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {number}
+     */
+    Vector4.dist = function(a, b) {
+        return vec4.distance(a._array, b._array);
+    };
+
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {number}
+     */
+    Vector4.distance = Vector4.dist;
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.div = function(out, a, b) {
+        vec4.divide(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.divide = Vector4.div;
+
+    /**
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {number}
+     */
+    Vector4.dot = function(a, b) {
+        return vec4.dot(a._array, b._array);
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} a
+     * @return {number}
+     */
+    Vector4.len = function(b) {
+        return vec4.length(b._array);
+    };
+
+    // Vector4.length = Vector4.len;
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @param  {number}  t
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.lerp = function(out, a, b, t) {
+        vec4.lerp(out._array, a._array, b._array, t);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.min = function(out, a, b) {
+        vec4.min(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.max = function(out, a, b) {
+        vec4.max(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.mul = function(out, a, b) {
+        vec4.multiply(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.multiply = Vector4.mul;
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.negate = function(out, a) {
+        vec4.negate(out._array, a._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.normalize = function(out, a) {
+        vec4.normalize(out._array, a._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {number}  scale
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.random = function(out, scale) {
+        vec4.random(out._array, scale);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {number}  scale
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.scale = function(out, a, scale) {
+        vec4.scale(out._array, a._array, scale);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @param  {number}  scale
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.scaleAndAdd = function(out, a, b, scale) {
+        vec4.scaleAndAdd(out._array, a._array, b._array, scale);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {number}
+     */
+    Vector4.sqrDist = function(a, b) {
+        return vec4.sqrDist(a._array, b._array);
+    };
+
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {number}
+     */
+    Vector4.squaredDistance = Vector4.sqrDist;
+
+    /**
+     * @param  {qtek.math.Vector4} a
+     * @return {number}
+     */
+    Vector4.sqrLen = function(a) {
+        return vec4.sqrLen(a._array);
+    };
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} a
+     * @return {number}
+     */
+    Vector4.squaredLength = Vector4.sqrLen;
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.sub = function(out, a, b) {
+        vec4.subtract(out._array, a._array, b._array);
+        out._dirty = true;
+        return out;
+    };
+    /**
+     * @method
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Vector4} b
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.subtract = Vector4.sub;
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Matrix4} m
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.transformMat4 = function(out, a, m) {
+        vec4.transformMat4(out._array, a._array, m._array);
+        out._dirty = true;
+        return out;
+    };
+
+    /**
+     * @param  {qtek.math.Vector4} out
+     * @param  {qtek.math.Vector4} a
+     * @param  {qtek.math.Quaternion} q
+     * @return {qtek.math.Vector4}
+     */
+    Vector4.transformQuat = function(out, a, q) {
+        vec4.transformQuat(out._array, a._array, q._array);
+        out._dirty = true;
+        return out;
+    };
+
+    module.exports = Vector4;
+
+
+/***/ }),
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -22847,26 +24142,26 @@ module.exports = OrbitControl;
     var glenum = __webpack_require__(2);
     var Vector3 = __webpack_require__(3);
     var BoundingBox = __webpack_require__(4);
-    var Frustum = __webpack_require__(33);
-    var Matrix4 = __webpack_require__(16);
+    var Frustum = __webpack_require__(34);
+    var Matrix4 = __webpack_require__(15);
     var Renderer = __webpack_require__(27);
-    var Shader = __webpack_require__(7);
-    var Light = __webpack_require__(8);
-    var Mesh = __webpack_require__(13);
-    var SpotLight = __webpack_require__(32);
+    var Shader = __webpack_require__(5);
+    var Light = __webpack_require__(9);
+    var Mesh = __webpack_require__(14);
+    var SpotLight = __webpack_require__(33);
     var DirectionalLight = __webpack_require__(23);
-    var PointLight = __webpack_require__(31);
-    var shaderLibrary = __webpack_require__(17);
-    var Material = __webpack_require__(12);
-    var FrameBuffer = __webpack_require__(42);
-    var Texture = __webpack_require__(9);
+    var PointLight = __webpack_require__(32);
+    var shaderLibrary = __webpack_require__(18);
+    var Material = __webpack_require__(10);
+    var FrameBuffer = __webpack_require__(45);
+    var Texture = __webpack_require__(12);
     var Texture2D = __webpack_require__(19);
     var TextureCube = __webpack_require__(20);
     var PerspectiveCamera = __webpack_require__(22);
     var OrthoCamera = __webpack_require__(21);
 
-    var Pass = __webpack_require__(51);
-    var TexturePool = __webpack_require__(52);
+    var Pass = __webpack_require__(54);
+    var TexturePool = __webpack_require__(55);
 
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
@@ -22874,7 +24169,7 @@ module.exports = OrbitControl;
 
     var targets = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
-    Shader['import'](__webpack_require__(83));
+    Shader['import'](__webpack_require__(88));
 
     /**
      * Pass rendering shadow map.
@@ -23719,24 +25014,24 @@ module.exports = OrbitControl;
 
 
 /***/ }),
-/* 62 */
+/* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
 
-    var library = __webpack_require__(17);
-    var Shader = __webpack_require__(7);
+    var library = __webpack_require__(18);
+    var Shader = __webpack_require__(5);
 
 
-    Shader['import'](__webpack_require__(85));
+    Shader['import'](__webpack_require__(90));
 
     // Some build in shaders
-    Shader['import'](__webpack_require__(63));
-    Shader['import'](__webpack_require__(82));
+    Shader['import'](__webpack_require__(68));
+    Shader['import'](__webpack_require__(87));
+    Shader['import'](__webpack_require__(38));
+    Shader['import'](__webpack_require__(91));
+    Shader['import'](__webpack_require__(89));
     Shader['import'](__webpack_require__(37));
-    Shader['import'](__webpack_require__(86));
-    Shader['import'](__webpack_require__(84));
-    Shader['import'](__webpack_require__(36));
 
     library.template('qtek.basic', Shader.source('qtek.basic.vertex'), Shader.source('qtek.basic.fragment'));
     library.template('qtek.lambert', Shader.source('qtek.lambert.vertex'), Shader.source('qtek.lambert.fragment'));
@@ -23746,63 +25041,23 @@ module.exports = OrbitControl;
     library.template('qtek.standard', Shader.source('qtek.standard.vertex'), Shader.source('qtek.standard.fragment'));
 
     // Some build in shaders
-    Shader['import'](__webpack_require__(67));
-    Shader['import'](__webpack_require__(65));
-    Shader['import'](__webpack_require__(74));
-    Shader['import'](__webpack_require__(75));
-    Shader['import'](__webpack_require__(79));
-    Shader['import'](__webpack_require__(76));
-    Shader['import'](__webpack_require__(66));
-    Shader['import'](__webpack_require__(69));
-    Shader['import'](__webpack_require__(77));
     Shader['import'](__webpack_require__(72));
-    Shader['import'](__webpack_require__(68));
-    Shader['import'](__webpack_require__(73));
-    Shader['import'](__webpack_require__(64));
-
     Shader['import'](__webpack_require__(70));
+    Shader['import'](__webpack_require__(79));
+    Shader['import'](__webpack_require__(80));
+    Shader['import'](__webpack_require__(84));
+    Shader['import'](__webpack_require__(81));
     Shader['import'](__webpack_require__(71));
+    Shader['import'](__webpack_require__(74));
+    Shader['import'](__webpack_require__(82));
+    Shader['import'](__webpack_require__(77));
+    Shader['import'](__webpack_require__(73));
+    Shader['import'](__webpack_require__(78));
+    Shader['import'](__webpack_require__(69));
 
+    Shader['import'](__webpack_require__(75));
+    Shader['import'](__webpack_require__(76));
 
-
-/***/ }),
-/* 63 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.basic.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\n\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\n\nattribute vec3 barycentric;\n\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\n#endif\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\n\nvoid main()\n{\n vec3 skinnedPosition = position;\n\n#ifdef SKINNING\n @import qtek.chunk.skin_matrix\n\n skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n\n v_Texcoord = texcoord * uvRepeat + uvOffset;\n v_Barycentric = barycentric;\n\n gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n\n@end\n\n\n\n\n@export qtek.basic.fragment\n\n#define ALPHA_TEST_THRESHOLD 0.5\n\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n\n@import qtek.util.edge_factor\n\n@import qtek.util.rgbm\n\n@import qtek.util.srgb\n\nvoid main()\n{\n\n#ifdef RENDER_TEXCOORD\n gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n return;\n#endif\n\n gl_FragColor = vec4(color, alpha);\n\n#ifdef DIFFUSEMAP_ENABLED\n vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n\n#ifdef SRGB_DECODE\n tex = sRGBToLinear(tex);\n#endif\n\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n gl_FragColor.a = tex.a;\n#endif\n\n gl_FragColor.rgb *= tex.rgb;\n#endif\n\n gl_FragColor.rgb += emission;\n if( lineWidth > 0.01)\n {\n gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n }\n\n#ifdef GAMMA_ENCODE\n gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n\n#ifdef ALPHA_TEST\n if (gl_FragColor.a < ALPHA_TEST_THRESHOLD) {\n discard;\n }\n#endif\n\n gl_FragColor = encodeHDR(gl_FragColor);\n\n}\n\n@end";
-
-
-/***/ }),
-/* 64 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.compositor.blend\n#ifdef TEXTURE1_ENABLED\nuniform sampler2D texture1;\nuniform float weight1 : 1.0;\n#endif\n#ifdef TEXTURE2_ENABLED\nuniform sampler2D texture2;\nuniform float weight2 : 1.0;\n#endif\n#ifdef TEXTURE3_ENABLED\nuniform sampler2D texture3;\nuniform float weight3 : 1.0;\n#endif\n#ifdef TEXTURE4_ENABLED\nuniform sampler2D texture4;\nuniform float weight4 : 1.0;\n#endif\n#ifdef TEXTURE5_ENABLED\nuniform sampler2D texture5;\nuniform float weight5 : 1.0;\n#endif\n#ifdef TEXTURE6_ENABLED\nuniform sampler2D texture6;\nuniform float weight6 : 1.0;\n#endif\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = vec4(0.0);\n#ifdef TEXTURE1_ENABLED\n tex += decodeHDR(texture2D(texture1, v_Texcoord)) * weight1;\n#endif\n#ifdef TEXTURE2_ENABLED\n tex += decodeHDR(texture2D(texture2, v_Texcoord)) * weight2;\n#endif\n#ifdef TEXTURE3_ENABLED\n tex += decodeHDR(texture2D(texture3, v_Texcoord)) * weight3;\n#endif\n#ifdef TEXTURE4_ENABLED\n tex += decodeHDR(texture2D(texture4, v_Texcoord)) * weight4;\n#endif\n#ifdef TEXTURE5_ENABLED\n tex += decodeHDR(texture2D(texture5, v_Texcoord)) * weight5;\n#endif\n#ifdef TEXTURE6_ENABLED\n tex += decodeHDR(texture2D(texture6, v_Texcoord)) * weight6;\n#endif\n\n gl_FragColor = encodeHDR(tex);\n}\n@end";
-
-
-/***/ }),
-/* 65 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.compositor.kernel.gaussian_9\nfloat gaussianKernel[9];\ngaussianKernel[0] = 0.07;\ngaussianKernel[1] = 0.09;\ngaussianKernel[2] = 0.12;\ngaussianKernel[3] = 0.14;\ngaussianKernel[4] = 0.16;\ngaussianKernel[5] = 0.14;\ngaussianKernel[6] = 0.12;\ngaussianKernel[7] = 0.09;\ngaussianKernel[8] = 0.07;\n@end\n\n@export qtek.compositor.kernel.gaussian_13\n\nfloat gaussianKernel[13];\n\ngaussianKernel[0] = 0.02;\ngaussianKernel[1] = 0.03;\ngaussianKernel[2] = 0.06;\ngaussianKernel[3] = 0.08;\ngaussianKernel[4] = 0.11;\ngaussianKernel[5] = 0.13;\ngaussianKernel[6] = 0.14;\ngaussianKernel[7] = 0.13;\ngaussianKernel[8] = 0.11;\ngaussianKernel[9] = 0.08;\ngaussianKernel[10] = 0.06;\ngaussianKernel[11] = 0.03;\ngaussianKernel[12] = 0.02;\n\n@end\n\n\n@export qtek.compositor.gaussian_blur\n\nuniform sampler2D texture; varying vec2 v_Texcoord;\n\nuniform float blurSize : 2.0;\nuniform vec2 textureSize : [512.0, 512.0];\nuniform float blurDir : 0.0;\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main (void)\n{\n @import qtek.compositor.kernel.gaussian_9\n\n vec2 off = blurSize / textureSize;\n off *= vec2(1.0 - blurDir, blurDir);\n\n vec4 sum = vec4(0.0);\n float weightAll = 0.0;\n\n for (int i = 0; i < 9; i++) {\n float w = gaussianKernel[i];\n vec4 texel = decodeHDR(clampSample(texture, v_Texcoord + float(i - 4) * off));\n sum += texel * w;\n weightAll += w;\n }\n gl_FragColor = encodeHDR(sum / max(weightAll, 0.01));\n}\n\n@end\n";
-
-
-/***/ }),
-/* 66 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.compositor.bright\n\nuniform sampler2D texture;\n\nuniform float threshold : 1;\nuniform float scale : 1.0;\n\nuniform vec2 textureSize: [512, 512];\n\nvarying vec2 v_Texcoord;\n\nconst vec3 lumWeight = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\n\nvec4 median(vec4 a, vec4 b, vec4 c)\n{\n return a + b + c - min(min(a, b), c) - max(max(a, b), c);\n}\n\nvoid main()\n{\n vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n#ifdef ANTI_FLICKER\n vec3 d = 1.0 / textureSize.xyx * vec3(1.0, 1.0, 0.0);\n\n vec4 s1 = decodeHDR(texture2D(texture, v_Texcoord - d.xz));\n vec4 s2 = decodeHDR(texture2D(texture, v_Texcoord + d.xz));\n vec4 s3 = decodeHDR(texture2D(texture, v_Texcoord - d.zy));\n vec4 s4 = decodeHDR(texture2D(texture, v_Texcoord + d.zy));\n texel = median(median(texel, s1, s2), s3, s4);\n\n#endif\n\n float lum = dot(texel.rgb , lumWeight);\n vec4 color;\n if (lum > threshold && texel.a > 0.0)\n {\n color = vec4(texel.rgb * scale, texel.a * scale);\n }\n else\n {\n color = vec4(0.0);\n }\n\n gl_FragColor = encodeHDR(color);\n}\n@end\n";
-
-
-/***/ }),
-/* 67 */
-/***/ (function(module, exports) {
-
-
-module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float exposure : 0.0;\nuniform float gamma : 1.0;\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n\n vec3 color = clamp(tex.rgb + vec3(brightness), 0.0, 1.0);\n color = clamp( (color-vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n color = clamp( color * pow(2.0, exposure), 0.0, 1.0);\n color = clamp( pow(color, vec3(gamma)), 0.0, 1.0);\n float luminance = dot( color, w );\n color = mix(vec3(luminance), color, saturation);\n\n gl_FragColor = vec4(color, tex.a);\n}\n\n@end\n\n@export qtek.compositor.brightness\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n vec3 color = tex.rgb + vec3(brightness);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.contrast\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float contrast : 1.0;\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n vec3 color = (tex.rgb-vec3(0.5))*contrast+vec3(0.5);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.exposure\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float exposure : 0.0;\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = tex.rgb * pow(2.0, exposure);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.gamma\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float gamma : 1.0;\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = pow(tex.rgb, vec3(gamma));\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.saturation\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = tex.rgb;\n float luminance = dot(color, w);\n color = mix(vec3(luminance), color, saturation);\n gl_FragColor = vec4(color, tex.a);\n}\n@end";
 
 
 /***/ }),
@@ -23810,7 +25065,7 @@ module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDist: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n float aperture = focalLength / fstop;\n\n float coc;\n\n float uppper = focalDist + focalRange;\n float lower = focalDist - focalRange;\n if (dist <= uppper && dist >= lower) {\n coc = 0.5;\n }\n else {\n float focalAdjusted = dist > uppper ? uppper : lower;\n\n coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n coc = clamp(coc, 0.0, 0.4) / 0.4000001;\n\n if (dist < lower) {\n coc = -coc;\n }\n coc = coc * 0.5 + 0.5;\n }\n\n gl_FragColor = encodeFloat(coc);\n}\n\n@end\n\n@export qtek.compositor.dof.premultiply\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nvoid main() {\n float fCoc = max(abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0), 0.1);\n gl_FragColor = encodeHDR(\n vec4(decodeHDR(texture2D(texture, v_Texcoord)).rgb * fCoc, 1.0)\n );\n}\n@end\n\n\n@export qtek.compositor.dof.min_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n@export qtek.compositor.dof.max_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n\n\n@export qtek.compositor.dof.coc_upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.float\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n float s;\n s = decodeFloat(texture2D(coc, v_Texcoord - d.xy));\n s += decodeFloat(texture2D(coc, v_Texcoord - d.wy)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord - d.zy));\n\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zw)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord )) * 4.0;\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xw)) * 2.0;\n\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.wy)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n\n gl_FragColor = encodeFloat(s / 16.0);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n float s;\n s = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xw));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zw));\n\n gl_FragColor = encodeFloat(s / 4.0);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color, float baseWeight) {\n float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * baseWeight;\n color += decodeHDR(texture2D(texture, uv)) * weight;\n return weight;\n}\n\nvoid main()\n{\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n vec4 color = vec4(0.0);\n float baseWeight = 1.0 / 16.0;\n float w = tap(v_Texcoord - d.xy, color, baseWeight);\n w += tap(v_Texcoord - d.wy, color, baseWeight * 2.0);\n w += tap(v_Texcoord - d.zy, color, baseWeight);\n\n w += tap(v_Texcoord + d.zw, color, baseWeight * 2.0);\n w += tap(v_Texcoord , color, baseWeight * 4.0);\n w += tap(v_Texcoord + d.xw, color, baseWeight * 2.0);\n\n w += tap(v_Texcoord + d.zy, color, baseWeight);\n w += tap(v_Texcoord + d.wy, color, baseWeight * 2.0);\n w += tap(v_Texcoord + d.xy, color, baseWeight);\n\n gl_FragColor = encodeHDR(color / w);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n vec4 color = vec4(0.0);\n float baseWeight = 1.0 / 4.0;\n float w = tap(v_Texcoord + d.xy, color, baseWeight);\n w += tap(v_Texcoord + d.zy, color, baseWeight);\n w += tap(v_Texcoord + d.xw, color, baseWeight);\n w += tap(v_Texcoord + d.zw, color, baseWeight);\n\n gl_FragColor = encodeHDR(color / w);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.downsample\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color) {\n float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * 0.25;\n color += decodeHDR(texture2D(texture, uv)) * weight;\n return weight;\n}\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n vec4 color = vec4(0.0);\n float weight = tap(v_Texcoord + d.xy, color);\n weight += tap(v_Texcoord + d.zy, color);\n weight += tap(v_Texcoord + d.xw, color);\n weight += tap(v_Texcoord + d.zw, color);\n color /= weight;\n\n gl_FragColor = encodeHDR(color);\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.hexagonal_blur_frag\n\n@import qtek.util.float\n\n\nvec4 doBlur(sampler2D targetTexture, vec2 offset) {\n#ifdef BLUR_COC\n float cocSum = 0.0;\n#else\n vec4 color = vec4(0.0);\n#endif\n\n float weightSum = 0.0;\n float kernelWeight = 1.0 / float(KERNEL_SIZE);\n\n for (int i = 0; i < KERNEL_SIZE; i++) {\n vec2 coord = v_Texcoord + offset * float(i);\n\n float w = kernelWeight;\n#ifdef BLUR_COC\n float fCoc = decodeFloat(texture2D(targetTexture, coord)) * 2.0 - 1.0;\n cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n float fCoc = decodeFloat(texture2D(coc, coord)) * 2.0 - 1.0;\n vec4 texel = texture2D(targetTexture, coord);\n #if !defined(BLUR_NEARFIELD)\n w *= abs(fCoc);\n #endif\n color += decodeHDR(texel) * w;\n#endif\n\n weightSum += w;\n }\n#ifdef BLUR_COC\n return encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n return color / weightSum;\n#endif\n}\n\n@end\n\n\n@export qtek.compositor.dof.hexagonal_blur_1\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n gl_FragColor = doBlur(texture, vec2(0.0, offset.y));\n#if !defined(BLUR_COC)\n gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_2\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n offset.y /= 2.0;\n\n gl_FragColor = doBlur(texture, -offset);\n#if !defined(BLUR_COC)\n gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_3\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture1;\nuniform sampler2D texture2;\nuniform sampler2D coc;\n\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n offset.y /= 2.0;\n vec2 vDownRight = vec2(offset.x, -offset.y);\n\n vec4 texel1 = doBlur(texture1, -offset);\n vec4 texel2 = doBlur(texture1, vDownRight);\n vec4 texel3 = doBlur(texture2, vDownRight);\n\n#ifdef BLUR_COC\n float coc1 = decodeFloat(texel1) * 2.0 - 1.0;\n float coc2 = decodeFloat(texel2) * 2.0 - 1.0;\n float coc3 = decodeFloat(texel3) * 2.0 - 1.0;\n gl_FragColor = encodeFloat(\n ((coc1 + coc2 + coc3) / 3.0) * 0.5 + 0.5\n );\n\n#else\n vec4 color = (texel1 + texel2 + texel3) / 3.0;\n gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n fCoc = abs(fCoc * 2.0 - 1.0);\n\n float weight = smoothstep(0.0, 1.0, fCoc);\n \n#ifdef NEARFIELD_ENABLED\n vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n gl_FragColor = encodeHDR(\n mix(\n nearfieldColor, mix(originalColor, blurredColor, weight),\n pow(1.0 - fNearCoc, 4.0)\n )\n );\n#else\n gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n#if DEBUG == 1\n gl_FragColor = vec4(vec3(fCoc), 1.0);\n#elif DEBUG == 2\n gl_FragColor = vec4(vec3(fNearCoc), 1.0);\n#elif DEBUG == 3\n gl_FragColor = encodeHDR(blurredColor);\n#elif DEBUG == 4\n gl_FragColor = encodeHDR(nearfieldColor);\n#endif\n}\n\n@end";
+module.exports = "@export qtek.basic.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\n\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\n\nattribute vec3 barycentric;\n\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\n#endif\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\n\nvoid main()\n{\n vec3 skinnedPosition = position;\n\n#ifdef SKINNING\n @import qtek.chunk.skin_matrix\n\n skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n\n v_Texcoord = texcoord * uvRepeat + uvOffset;\n v_Barycentric = barycentric;\n\n gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n\n@end\n\n\n\n\n@export qtek.basic.fragment\n\n#define ALPHA_TEST_THRESHOLD 0.5\n\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n\n@import qtek.util.edge_factor\n\n@import qtek.util.rgbm\n\n@import qtek.util.srgb\n\nvoid main()\n{\n\n#ifdef RENDER_TEXCOORD\n gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n return;\n#endif\n\n gl_FragColor = vec4(color, alpha);\n\n#ifdef DIFFUSEMAP_ENABLED\n vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n\n#ifdef SRGB_DECODE\n tex = sRGBToLinear(tex);\n#endif\n\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n gl_FragColor.a = tex.a;\n#endif\n\n gl_FragColor.rgb *= tex.rgb;\n#endif\n\n gl_FragColor.rgb += emission;\n if( lineWidth > 0.01)\n {\n gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n }\n\n#ifdef GAMMA_ENCODE\n gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n\n#ifdef ALPHA_TEST\n if (gl_FragColor.a < ALPHA_TEST_THRESHOLD) {\n discard;\n }\n#endif\n\n gl_FragColor = encodeHDR(gl_FragColor);\n\n}\n\n@end";
 
 
 /***/ }),
@@ -23818,7 +25073,7 @@ module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\nfloat brightness(vec3 c)\n{\n return max(max(c.r, c.g), c.b);\n}\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n#ifdef ANTI_FLICKER\n vec3 s1 = decodeHDR(clampSample(texture, v_Texcoord + d.xy)).rgb;\n vec3 s2 = decodeHDR(clampSample(texture, v_Texcoord + d.zy)).rgb;\n vec3 s3 = decodeHDR(clampSample(texture, v_Texcoord + d.xw)).rgb;\n vec3 s4 = decodeHDR(clampSample(texture, v_Texcoord + d.zw)).rgb;\n\n float s1w = 1.0 / (brightness(s1) + 1.0);\n float s2w = 1.0 / (brightness(s2) + 1.0);\n float s3w = 1.0 / (brightness(s3) + 1.0);\n float s4w = 1.0 / (brightness(s4) + 1.0);\n float oneDivideSum = 1.0 / (s1w + s2w + s3w + s4w);\n\n vec4 color = vec4(\n (s1 * s1w + s2 * s2w + s3 * s3w + s4 * s4w) * oneDivideSum,\n 1.0\n );\n#else\n vec4 color = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n color *= 0.25;\n#endif\n\n gl_FragColor = encodeHDR(color);\n}\n\n@end";
+module.exports = "@export qtek.compositor.blend\n#ifdef TEXTURE1_ENABLED\nuniform sampler2D texture1;\nuniform float weight1 : 1.0;\n#endif\n#ifdef TEXTURE2_ENABLED\nuniform sampler2D texture2;\nuniform float weight2 : 1.0;\n#endif\n#ifdef TEXTURE3_ENABLED\nuniform sampler2D texture3;\nuniform float weight3 : 1.0;\n#endif\n#ifdef TEXTURE4_ENABLED\nuniform sampler2D texture4;\nuniform float weight4 : 1.0;\n#endif\n#ifdef TEXTURE5_ENABLED\nuniform sampler2D texture5;\nuniform float weight5 : 1.0;\n#endif\n#ifdef TEXTURE6_ENABLED\nuniform sampler2D texture6;\nuniform float weight6 : 1.0;\n#endif\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = vec4(0.0);\n#ifdef TEXTURE1_ENABLED\n tex += decodeHDR(texture2D(texture1, v_Texcoord)) * weight1;\n#endif\n#ifdef TEXTURE2_ENABLED\n tex += decodeHDR(texture2D(texture2, v_Texcoord)) * weight2;\n#endif\n#ifdef TEXTURE3_ENABLED\n tex += decodeHDR(texture2D(texture3, v_Texcoord)) * weight3;\n#endif\n#ifdef TEXTURE4_ENABLED\n tex += decodeHDR(texture2D(texture4, v_Texcoord)) * weight4;\n#endif\n#ifdef TEXTURE5_ENABLED\n tex += decodeHDR(texture2D(texture5, v_Texcoord)) * weight5;\n#endif\n#ifdef TEXTURE6_ENABLED\n tex += decodeHDR(texture2D(texture6, v_Texcoord)) * weight6;\n#endif\n\n gl_FragColor = encodeHDR(tex);\n}\n@end";
 
 
 /***/ }),
@@ -23826,7 +25081,7 @@ module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D textur
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nvarying vec2 v_Texcoord;\n\n#define FXAA_REDUCE_MIN (1.0/128.0)\n#define FXAA_REDUCE_MUL (1.0/8.0)\n#define FXAA_SPAN_MAX 8.0\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec2 resolution = 1.0 / viewport.zw;\n vec3 rgbNW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, -1.0 ) ) * resolution ) ).xyz;\n vec3 rgbNE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, -1.0 ) ) * resolution ) ).xyz;\n vec3 rgbSW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, 1.0 ) ) * resolution ) ).xyz;\n vec3 rgbSE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, 1.0 ) ) * resolution ) ).xyz;\n vec4 rgbaM = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution ) );\n vec3 rgbM = rgbaM.xyz;\n float opacity = rgbaM.w;\n\n vec3 luma = vec3( 0.299, 0.587, 0.114 );\n\n float lumaNW = dot( rgbNW, luma );\n float lumaNE = dot( rgbNE, luma );\n float lumaSW = dot( rgbSW, luma );\n float lumaSE = dot( rgbSE, luma );\n float lumaM = dot( rgbM, luma );\n float lumaMin = min( lumaM, min( min( lumaNW, lumaNE ), min( lumaSW, lumaSE ) ) );\n float lumaMax = max( lumaM, max( max( lumaNW, lumaNE) , max( lumaSW, lumaSE ) ) );\n\n vec2 dir;\n dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n\n float dirReduce = max( ( lumaNW + lumaNE + lumaSW + lumaSE ) * ( 0.25 * FXAA_REDUCE_MUL ), FXAA_REDUCE_MIN );\n\n float rcpDirMin = 1.0 / ( min( abs( dir.x ), abs( dir.y ) ) + dirReduce );\n dir = min( vec2( FXAA_SPAN_MAX, FXAA_SPAN_MAX),\n max( vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),\n dir * rcpDirMin)) * resolution;\n\n vec3 rgbA = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * ( 1.0 / 3.0 - 0.5 ) ) ).xyz;\n rgbA += decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * ( 2.0 / 3.0 - 0.5 ) ) ).xyz;\n rgbA *= 0.5;\n\n vec3 rgbB = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * -0.5 ) ).xyz;\n rgbB += decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * 0.5 ) ).xyz;\n rgbB *= 0.25;\n rgbB += rgbA * 0.5;\n\n float lumaB = dot( rgbB, luma );\n\n if ( ( lumaB < lumaMin ) || ( lumaB > lumaMax ) )\n {\n gl_FragColor = vec4( rgbA, opacity );\n\n }\n else {\n\n gl_FragColor = vec4( rgbB, opacity );\n\n }\n}\n\n@end";
+module.exports = "@export qtek.compositor.kernel.gaussian_9\nfloat gaussianKernel[9];\ngaussianKernel[0] = 0.07;\ngaussianKernel[1] = 0.09;\ngaussianKernel[2] = 0.12;\ngaussianKernel[3] = 0.14;\ngaussianKernel[4] = 0.16;\ngaussianKernel[5] = 0.14;\ngaussianKernel[6] = 0.12;\ngaussianKernel[7] = 0.09;\ngaussianKernel[8] = 0.07;\n@end\n\n@export qtek.compositor.kernel.gaussian_13\n\nfloat gaussianKernel[13];\n\ngaussianKernel[0] = 0.02;\ngaussianKernel[1] = 0.03;\ngaussianKernel[2] = 0.06;\ngaussianKernel[3] = 0.08;\ngaussianKernel[4] = 0.11;\ngaussianKernel[5] = 0.13;\ngaussianKernel[6] = 0.14;\ngaussianKernel[7] = 0.13;\ngaussianKernel[8] = 0.11;\ngaussianKernel[9] = 0.08;\ngaussianKernel[10] = 0.06;\ngaussianKernel[11] = 0.03;\ngaussianKernel[12] = 0.02;\n\n@end\n\n\n@export qtek.compositor.gaussian_blur\n\nuniform sampler2D texture; varying vec2 v_Texcoord;\n\nuniform float blurSize : 2.0;\nuniform vec2 textureSize : [512.0, 512.0];\nuniform float blurDir : 0.0;\n\n@import qtek.util.rgbm\n@import qtek.util.clamp_sample\n\nvoid main (void)\n{\n @import qtek.compositor.kernel.gaussian_9\n\n vec2 off = blurSize / textureSize;\n off *= vec2(1.0 - blurDir, blurDir);\n\n vec4 sum = vec4(0.0);\n float weightAll = 0.0;\n\n for (int i = 0; i < 9; i++) {\n float w = gaussianKernel[i];\n vec4 texel = decodeHDR(clampSample(texture, v_Texcoord + float(i - 4) * off));\n sum += texel * w;\n weightAll += w;\n }\n gl_FragColor = encodeHDR(sum / max(weightAll, 0.01));\n}\n\n@end\n";
 
 
 /***/ }),
@@ -23834,7 +25089,7 @@ module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nun
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nuniform float subpixel: 0.75;\nuniform float edgeThreshold: 0.125;\nuniform float edgeThresholdMin: 0.0625;\n\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nfloat FxaaLuma(vec4 rgba) { return rgba.y; }\nvec4 FxaaPixelShader(\n vec2 pos\n ,sampler2D tex\n ,vec2 fxaaQualityRcpFrame\n ,float fxaaQualitySubpix\n ,float fxaaQualityEdgeThreshold\n ,float fxaaQualityEdgeThresholdMin\n) {\n vec2 posM;\n posM.x = pos.x;\n posM.y = pos.y;\n vec4 rgbyM = decodeHDR(texture2D(texture, posM, 0.0));\n float lumaS = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaN = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n float maxSM = max(lumaS, rgbyM.y);\n float minSM = min(lumaS, rgbyM.y);\n float maxESM = max(lumaE, maxSM);\n float minESM = min(lumaE, minSM);\n float maxWN = max(lumaN, lumaW);\n float minWN = min(lumaN, lumaW);\n float rangeMax = max(maxWN, maxESM);\n float rangeMin = min(minWN, minESM);\n float rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;\n float range = rangeMax - rangeMin;\n float rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);\n bool earlyExit = range < rangeMaxClamped;\n if(earlyExit) return rgbyM;\n float lumaNW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaSE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaNE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaSW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n float lumaNS = lumaN + lumaS;\n float lumaWE = lumaW + lumaE;\n float subpixRcpRange = 1.0/range;\n float subpixNSWE = lumaNS + lumaWE;\n float edgeHorz1 = (-2.0 * rgbyM.y) + lumaNS;\n float edgeVert1 = (-2.0 * rgbyM.y) + lumaWE;\n float lumaNESE = lumaNE + lumaSE;\n float lumaNWNE = lumaNW + lumaNE;\n float edgeHorz2 = (-2.0 * lumaE) + lumaNESE;\n float edgeVert2 = (-2.0 * lumaN) + lumaNWNE;\n float lumaNWSW = lumaNW + lumaSW;\n float lumaSWSE = lumaSW + lumaSE;\n float edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);\n float edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);\n float edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;\n float edgeVert3 = (-2.0 * lumaS) + lumaSWSE;\n float edgeHorz = abs(edgeHorz3) + edgeHorz4;\n float edgeVert = abs(edgeVert3) + edgeVert4;\n float subpixNWSWNESE = lumaNWSW + lumaNESE;\n float lengthSign = fxaaQualityRcpFrame.x;\n bool horzSpan = edgeHorz >= edgeVert;\n float subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;\n if(!horzSpan) lumaN = lumaW;\n if(!horzSpan) lumaS = lumaE;\n if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;\n float subpixB = (subpixA * (1.0/12.0)) - rgbyM.y;\n float gradientN = lumaN - rgbyM.y;\n float gradientS = lumaS - rgbyM.y;\n float lumaNN = lumaN + rgbyM.y;\n float lumaSS = lumaS + rgbyM.y;\n bool pairN = abs(gradientN) >= abs(gradientS);\n float gradient = max(abs(gradientN), abs(gradientS));\n if(pairN) lengthSign = -lengthSign;\n float subpixC = clamp(abs(subpixB) * subpixRcpRange, 0.0, 1.0);\n vec2 posB;\n posB.x = posM.x;\n posB.y = posM.y;\n vec2 offNP;\n offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;\n offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;\n if(!horzSpan) posB.x += lengthSign * 0.5;\n if( horzSpan) posB.y += lengthSign * 0.5;\n vec2 posN;\n posN.x = posB.x - offNP.x * 1.0;\n posN.y = posB.y - offNP.y * 1.0;\n vec2 posP;\n posP.x = posB.x + offNP.x * 1.0;\n posP.y = posB.y + offNP.y * 1.0;\n float subpixD = ((-2.0)*subpixC) + 3.0;\n float lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN, 0.0)));\n float subpixE = subpixC * subpixC;\n float lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP, 0.0)));\n if(!pairN) lumaNN = lumaSS;\n float gradientScaled = gradient * 1.0/4.0;\n float lumaMM = rgbyM.y - lumaNN * 0.5;\n float subpixF = subpixD * subpixE;\n bool lumaMLTZero = lumaMM < 0.0;\n lumaEndN -= lumaNN * 0.5;\n lumaEndP -= lumaNN * 0.5;\n bool doneN = abs(lumaEndN) >= gradientScaled;\n bool doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 1.5;\n if(!doneN) posN.y -= offNP.y * 1.5;\n bool doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 1.5;\n if(!doneP) posP.y += offNP.y * 1.5;\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 2.0;\n if(!doneN) posN.y -= offNP.y * 2.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 2.0;\n if(!doneP) posP.y += offNP.y * 2.0;\n\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 4.0;\n if(!doneN) posN.y -= offNP.y * 4.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 4.0;\n if(!doneP) posP.y += offNP.y * 4.0;\n\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 12.0;\n if(!doneN) posN.y -= offNP.y * 12.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 12.0;\n if(!doneP) posP.y += offNP.y * 12.0;\n }\n }\n }\n float dstN = posM.x - posN.x;\n float dstP = posP.x - posM.x;\n if(!horzSpan) dstN = posM.y - posN.y;\n if(!horzSpan) dstP = posP.y - posM.y;\n bool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;\n float spanLength = (dstP + dstN);\n bool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;\n float spanLengthRcp = 1.0/spanLength;\n bool directionN = dstN < dstP;\n float dst = min(dstN, dstP);\n bool goodSpan = directionN ? goodSpanN : goodSpanP;\n float subpixG = subpixF * subpixF;\n float pixelOffset = (dst * (-spanLengthRcp)) + 0.5;\n float subpixH = subpixG * fxaaQualitySubpix;\n float pixelOffsetGood = goodSpan ? pixelOffset : 0.0;\n float pixelOffsetSubpix = max(pixelOffsetGood, subpixH);\n if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;\n if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;\n return vec4(decodeHDR(texture2D(texture, posM, 0.0)).xyz, rgbyM.y);\n\n}\n\nvoid main()\n{\n vec4 color = FxaaPixelShader(\n v_Texcoord,\n texture,\n vec2(1.0) / viewport.zw,\n subpixel,\n edgeThreshold,\n edgeThresholdMin\n );\n gl_FragColor = vec4(color.rgb, 1.0);\n}\n@end";
+module.exports = "@export qtek.compositor.bright\n\nuniform sampler2D texture;\n\nuniform float threshold : 1;\nuniform float scale : 1.0;\n\nuniform vec2 textureSize: [512, 512];\n\nvarying vec2 v_Texcoord;\n\nconst vec3 lumWeight = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\n\nvec4 median(vec4 a, vec4 b, vec4 c)\n{\n return a + b + c - min(min(a, b), c) - max(max(a, b), c);\n}\n\nvoid main()\n{\n vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n#ifdef ANTI_FLICKER\n vec3 d = 1.0 / textureSize.xyx * vec3(1.0, 1.0, 0.0);\n\n vec4 s1 = decodeHDR(texture2D(texture, v_Texcoord - d.xz));\n vec4 s2 = decodeHDR(texture2D(texture, v_Texcoord + d.xz));\n vec4 s3 = decodeHDR(texture2D(texture, v_Texcoord - d.zy));\n vec4 s4 = decodeHDR(texture2D(texture, v_Texcoord + d.zy));\n texel = median(median(texel, s1, s2), s3, s4);\n\n#endif\n\n float lum = dot(texel.rgb , lumWeight);\n vec4 color;\n if (lum > threshold && texel.a > 0.0)\n {\n color = vec4(texel.rgb * scale, texel.a * scale);\n }\n else\n {\n color = vec4(0.0);\n }\n\n gl_FragColor = encodeHDR(color);\n}\n@end\n";
 
 
 /***/ }),
@@ -23842,7 +25097,7 @@ module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nu
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.hdr.composite\n\nuniform sampler2D texture;\n#ifdef BLOOM_ENABLED\nuniform sampler2D bloom;\n#endif\n#ifdef LENSFLARE_ENABLED\nuniform sampler2D lensflare;\nuniform sampler2D lensdirt;\n#endif\n\n#ifdef LUM_ENABLED\nuniform sampler2D lum;\n#endif\n\n#ifdef LUT_ENABLED\nuniform sampler2D lut;\n#endif\n\n#ifdef COLOR_CORRECTION\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float saturation : 1.0;\n#endif\n\n#ifdef VIGNETTE\nuniform float vignetteDarkness: 1.0;\nuniform float vignetteOffset: 1.0;\n#endif\n\nuniform float exposure : 1.0;\nuniform float bloomIntensity : 0.25;\nuniform float lensflareIntensity : 1;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.srgb\n\n\n\n\nvec3 ACESToneMapping(vec3 color)\n{\n const float A = 2.51;\n const float B = 0.03;\n const float C = 2.43;\n const float D = 0.59;\n const float E = 0.14;\n return (color * (A * color + B)) / (color * (C * color + D) + E);\n}\n\nfloat eyeAdaption(float fLum)\n{\n return mix(0.2, fLum, 0.5);\n}\n\n#ifdef LUT_ENABLED\nvec3 lutTransform(vec3 color) {\n float blueColor = color.b * 63.0;\n\n vec2 quad1;\n quad1.y = floor(floor(blueColor) / 8.0);\n quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n vec2 quad2;\n quad2.y = floor(ceil(blueColor) / 8.0);\n quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n vec2 texPos1;\n texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n vec2 texPos2;\n texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n vec4 newColor1 = texture2D(lut, texPos1);\n vec4 newColor2 = texture2D(lut, texPos2);\n\n vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n return newColor.rgb;\n}\n#endif\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 texel = vec4(0.0);\n vec4 originalTexel = vec4(0.0);\n#ifdef TEXTURE_ENABLED\n texel = decodeHDR(texture2D(texture, v_Texcoord));\n originalTexel = texel;\n#endif\n\n#ifdef BLOOM_ENABLED\n vec4 bloomTexel = decodeHDR(texture2D(bloom, v_Texcoord));\n texel.rgb += bloomTexel.rgb * bloomIntensity;\n texel.a += bloomTexel.a * bloomIntensity;\n#endif\n\n#ifdef LENSFLARE_ENABLED\n texel += decodeHDR(texture2D(lensflare, v_Texcoord)) * texture2D(lensdirt, v_Texcoord) * lensflareIntensity;\n#endif\n\n texel.a = min(texel.a, 1.0);\n\n#ifdef LUM_ENABLED\n float fLum = texture2D(lum, vec2(0.5, 0.5)).r;\n float adaptedLumDest = 3.0 / (max(0.1, 1.0 + 10.0*eyeAdaption(fLum)));\n float exposureBias = adaptedLumDest * exposure;\n#else\n float exposureBias = exposure;\n#endif\n texel.rgb *= exposureBias;\n\n texel.rgb = ACESToneMapping(texel.rgb);\n texel = linearTosRGB(texel);\n\n#ifdef LUT_ENABLED\n texel.rgb = lutTransform(clamp(texel.rgb,vec3(0.0),vec3(1.0)));\n#endif\n\n#ifdef COLOR_CORRECTION\n texel.rgb = clamp(texel.rgb + vec3(brightness), 0.0, 1.0);\n texel.rgb = clamp((texel.rgb - vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n float lum = dot(texel.rgb, vec3(0.2125, 0.7154, 0.0721));\n texel.rgb = mix(vec3(lum), texel.rgb, saturation);\n#endif\n\n#ifdef VIGNETTE\n vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(vignetteOffset);\n texel.rgb = mix(texel.rgb, vec3(1.0 - vignetteDarkness), dot(uv, uv));\n#endif\n\n gl_FragColor = encodeHDR(texel);\n\n#ifdef DEBUG\n #if DEBUG == 1\n gl_FragColor = encodeHDR(decodeHDR(texture2D(texture, v_Texcoord)));\n #elif DEBUG == 2\n gl_FragColor = encodeHDR(decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity);\n #elif DEBUG == 3\n gl_FragColor = encodeHDR(decodeHDR(texture2D(lensflare, v_Texcoord) * lensflareIntensity));\n #endif\n#endif\n\n if (originalTexel.a <= 0.01) {\n gl_FragColor.a = dot(gl_FragColor.rgb, vec3(0.2125, 0.7154, 0.0721));\n }\n #ifdef PREMULTIPLY_ALPHA\n gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.coloradjust\n\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float exposure : 0.0;\nuniform float gamma : 1.0;\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n\n vec3 color = clamp(tex.rgb + vec3(brightness), 0.0, 1.0);\n color = clamp( (color-vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n color = clamp( color * pow(2.0, exposure), 0.0, 1.0);\n color = clamp( pow(color, vec3(gamma)), 0.0, 1.0);\n float luminance = dot( color, w );\n color = mix(vec3(luminance), color, saturation);\n\n gl_FragColor = vec4(color, tex.a);\n}\n\n@end\n\n@export qtek.compositor.brightness\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float brightness : 0.0;\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n vec3 color = tex.rgb + vec3(brightness);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.contrast\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float contrast : 1.0;\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord);\n vec3 color = (tex.rgb-vec3(0.5))*contrast+vec3(0.5);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.exposure\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float exposure : 0.0;\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = tex.rgb * pow(2.0, exposure);\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.gamma\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float gamma : 1.0;\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = pow(tex.rgb, vec3(gamma));\n gl_FragColor = vec4(color, tex.a);\n}\n@end\n\n@export qtek.compositor.saturation\nvarying vec2 v_Texcoord;\nuniform sampler2D texture;\n\nuniform float saturation : 1.0;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D(texture, v_Texcoord);\n vec3 color = tex.rgb;\n float luminance = dot(color, w);\n color = mix(vec3(luminance), color, saturation);\n gl_FragColor = vec4(color, tex.a);\n}\n@end";
 
 
 /***/ }),
@@ -23850,7 +25105,7 @@ module.exports = "@export qtek.compositor.hdr.composite\n\nuniform sampler2D tex
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n\nuniform sampler2D texture;\nuniform sampler2D lenscolor;\n\nuniform vec2 textureSize : [512, 512];\n\nuniform float dispersal : 0.3;\nuniform float haloWidth : 0.4;\nuniform float distortion : 1.0;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvec4 textureDistorted(\n in vec2 texcoord,\n in vec2 direction,\n in vec3 distortion\n) {\n return vec4(\n decodeHDR(texture2D(texture, texcoord + direction * distortion.r)).r,\n decodeHDR(texture2D(texture, texcoord + direction * distortion.g)).g,\n decodeHDR(texture2D(texture, texcoord + direction * distortion.b)).b,\n 1.0\n );\n}\n\nvoid main()\n{\n vec2 texcoord = -v_Texcoord + vec2(1.0); vec2 textureOffset = 1.0 / textureSize;\n\n vec2 ghostVec = (vec2(0.5) - texcoord) * dispersal;\n vec2 haloVec = normalize(ghostVec) * haloWidth;\n\n vec3 distortion = vec3(-textureOffset.x * distortion, 0.0, textureOffset.x * distortion);\n vec4 result = vec4(0.0);\n for (int i = 0; i < SAMPLE_NUMBER; i++)\n {\n vec2 offset = fract(texcoord + ghostVec * float(i));\n\n float weight = length(vec2(0.5) - offset) / length(vec2(0.5));\n weight = pow(1.0 - weight, 10.0);\n\n result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n }\n\n result *= texture2D(lenscolor, vec2(length(vec2(0.5) - texcoord)) / length(vec2(0.5)));\n float weight = length(vec2(0.5) - fract(texcoord + haloVec)) / length(vec2(0.5));\n weight = pow(1.0 - weight, 10.0);\n vec2 offset = fract(texcoord + haloVec);\n result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n\n gl_FragColor = result;\n}\n@end";
+module.exports = "@export qtek.compositor.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDist: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n float aperture = focalLength / fstop;\n\n float coc;\n\n float uppper = focalDist + focalRange;\n float lower = focalDist - focalRange;\n if (dist <= uppper && dist >= lower) {\n coc = 0.5;\n }\n else {\n float focalAdjusted = dist > uppper ? uppper : lower;\n\n coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n coc = clamp(coc, 0.0, 0.4) / 0.4000001;\n\n if (dist < lower) {\n coc = -coc;\n }\n coc = coc * 0.5 + 0.5;\n }\n\n gl_FragColor = encodeFloat(coc);\n}\n\n@end\n\n@export qtek.compositor.dof.premultiply\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nvoid main() {\n float fCoc = max(abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0), 0.1);\n gl_FragColor = encodeHDR(\n vec4(decodeHDR(texture2D(texture, v_Texcoord)).rgb * fCoc, 1.0)\n );\n}\n@end\n\n\n@export qtek.compositor.dof.min_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n fCoc = min(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n@export qtek.compositor.dof.max_coc\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.float\n\nvoid main()\n{\n\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zy)));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.xw)));\n fCoc = max(fCoc, decodeFloat(texture2D(coc, v_Texcoord + d.zw)));\n\n gl_FragColor = encodeFloat(fCoc);\n}\n\n@end\n\n\n\n\n@export qtek.compositor.dof.coc_upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.float\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n float s;\n s = decodeFloat(texture2D(coc, v_Texcoord - d.xy));\n s += decodeFloat(texture2D(coc, v_Texcoord - d.wy)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord - d.zy));\n\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zw)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord )) * 4.0;\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xw)) * 2.0;\n\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.wy)) * 2.0;\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n\n gl_FragColor = encodeFloat(s / 16.0);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n float s;\n s = decodeFloat(texture2D(coc, v_Texcoord + d.xy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zy));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.xw));\n s += decodeFloat(texture2D(coc, v_Texcoord + d.zw));\n\n gl_FragColor = encodeFloat(s / 4.0);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D coc;\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color, float baseWeight) {\n float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * baseWeight;\n color += decodeHDR(texture2D(texture, uv)) * weight;\n return weight;\n}\n\nvoid main()\n{\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n vec4 color = vec4(0.0);\n float baseWeight = 1.0 / 16.0;\n float w = tap(v_Texcoord - d.xy, color, baseWeight);\n w += tap(v_Texcoord - d.wy, color, baseWeight * 2.0);\n w += tap(v_Texcoord - d.zy, color, baseWeight);\n\n w += tap(v_Texcoord + d.zw, color, baseWeight * 2.0);\n w += tap(v_Texcoord , color, baseWeight * 4.0);\n w += tap(v_Texcoord + d.xw, color, baseWeight * 2.0);\n\n w += tap(v_Texcoord + d.zy, color, baseWeight);\n w += tap(v_Texcoord + d.wy, color, baseWeight * 2.0);\n w += tap(v_Texcoord + d.xy, color, baseWeight);\n\n gl_FragColor = encodeHDR(color / w);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n vec4 color = vec4(0.0);\n float baseWeight = 1.0 / 4.0;\n float w = tap(v_Texcoord + d.xy, color, baseWeight);\n w += tap(v_Texcoord + d.zy, color, baseWeight);\n w += tap(v_Texcoord + d.xw, color, baseWeight);\n w += tap(v_Texcoord + d.zw, color, baseWeight);\n\n gl_FragColor = encodeHDR(color / w);\n#endif\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.downsample\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.decode_float\n\nfloat tap(vec2 uv, inout vec4 color) {\n float weight = abs(decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0) * 0.25;\n color += decodeHDR(texture2D(texture, uv)) * weight;\n return weight;\n}\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n vec4 color = vec4(0.0);\n float weight = tap(v_Texcoord + d.xy, color);\n weight += tap(v_Texcoord + d.zy, color);\n weight += tap(v_Texcoord + d.xw, color);\n weight += tap(v_Texcoord + d.zw, color);\n color /= weight;\n\n gl_FragColor = encodeHDR(color);\n}\n\n@end\n\n\n\n@export qtek.compositor.dof.hexagonal_blur_frag\n\n@import qtek.util.float\n\n\nvec4 doBlur(sampler2D targetTexture, vec2 offset) {\n#ifdef BLUR_COC\n float cocSum = 0.0;\n#else\n vec4 color = vec4(0.0);\n#endif\n\n float weightSum = 0.0;\n float kernelWeight = 1.0 / float(KERNEL_SIZE);\n\n for (int i = 0; i < KERNEL_SIZE; i++) {\n vec2 coord = v_Texcoord + offset * float(i);\n\n float w = kernelWeight;\n#ifdef BLUR_COC\n float fCoc = decodeFloat(texture2D(targetTexture, coord)) * 2.0 - 1.0;\n cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n float fCoc = decodeFloat(texture2D(coc, coord)) * 2.0 - 1.0;\n vec4 texel = texture2D(targetTexture, coord);\n #if !defined(BLUR_NEARFIELD)\n w *= abs(fCoc);\n #endif\n color += decodeHDR(texel) * w;\n#endif\n\n weightSum += w;\n }\n#ifdef BLUR_COC\n return encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n return color / weightSum;\n#endif\n}\n\n@end\n\n\n@export qtek.compositor.dof.hexagonal_blur_1\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n gl_FragColor = doBlur(texture, vec2(0.0, offset.y));\n#if !defined(BLUR_COC)\n gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_2\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n offset.y /= 2.0;\n\n gl_FragColor = doBlur(texture, -offset);\n#if !defined(BLUR_COC)\n gl_FragColor = encodeHDR(gl_FragColor);\n#endif\n}\n@end\n\n@export qtek.compositor.dof.hexagonal_blur_3\n\n#define KERNEL_SIZE 5\n\nuniform sampler2D texture1;\nuniform sampler2D texture2;\nuniform sampler2D coc;\n\nvarying vec2 v_Texcoord;\n\nuniform float blurSize : 1.0;\n\nuniform vec2 textureSize : [512.0, 512.0];\n\n@import qtek.util.rgbm\n\n@import qtek.compositor.dof.hexagonal_blur_frag\n\nvoid main()\n{\n vec2 offset = blurSize / textureSize;\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n offset.y /= 2.0;\n vec2 vDownRight = vec2(offset.x, -offset.y);\n\n vec4 texel1 = doBlur(texture1, -offset);\n vec4 texel2 = doBlur(texture1, vDownRight);\n vec4 texel3 = doBlur(texture2, vDownRight);\n\n#ifdef BLUR_COC\n float coc1 = decodeFloat(texel1) * 2.0 - 1.0;\n float coc2 = decodeFloat(texel2) * 2.0 - 1.0;\n float coc3 = decodeFloat(texel3) * 2.0 - 1.0;\n gl_FragColor = encodeFloat(\n ((coc1 + coc2 + coc3) / 3.0) * 0.5 + 0.5\n );\n\n#else\n vec4 color = (texel1 + texel2 + texel3) / 3.0;\n gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end\n\n@export qtek.compositor.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n fCoc = abs(fCoc * 2.0 - 1.0);\n\n float weight = smoothstep(0.0, 1.0, fCoc);\n \n#ifdef NEARFIELD_ENABLED\n vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n gl_FragColor = encodeHDR(\n mix(\n nearfieldColor, mix(originalColor, blurredColor, weight),\n pow(1.0 - fNearCoc, 4.0)\n )\n );\n#else\n gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n#if DEBUG == 1\n gl_FragColor = vec4(vec3(fCoc), 1.0);\n#elif DEBUG == 2\n gl_FragColor = vec4(vec3(fNearCoc), 1.0);\n#elif DEBUG == 3\n gl_FragColor = encodeHDR(blurredColor);\n#elif DEBUG == 4\n gl_FragColor = encodeHDR(nearfieldColor);\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23858,7 +25113,7 @@ module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n float luminance = dot(tex.rgb, w);\n luminance = log(luminance + 0.001);\n\n gl_FragColor = encodeHDR(vec4(vec3(luminance), 1.0));\n}\n\n@end\n\n@export qtek.compositor.hdr.lum_adaption\nvarying vec2 v_Texcoord;\n\nuniform sampler2D adaptedLum;\nuniform sampler2D currentLum;\n\nuniform float frameTime : 0.02;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n float fAdaptedLum = decodeHDR(texture2D(adaptedLum, vec2(0.5, 0.5))).r;\n float fCurrentLum = exp(encodeHDR(texture2D(currentLum, vec2(0.5, 0.5))).r);\n\n fAdaptedLum += (fCurrentLum - fAdaptedLum) * (1.0 - pow(0.98, 30.0 * frameTime));\n gl_FragColor = encodeHDR(vec4(vec3(fAdaptedLum), 1.0));\n}\n@end\n\n@export qtek.compositor.lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord );\n float luminance = dot(tex.rgb, w);\n\n gl_FragColor = vec4(vec3(luminance), 1.0);\n}\n\n@end";
+module.exports = "@export qtek.compositor.downsample\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\nfloat brightness(vec3 c)\n{\n return max(max(c.r, c.g), c.b);\n}\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n vec4 d = vec4(-1.0, -1.0, 1.0, 1.0) / textureSize.xyxy;\n\n#ifdef ANTI_FLICKER\n vec3 s1 = decodeHDR(clampSample(texture, v_Texcoord + d.xy)).rgb;\n vec3 s2 = decodeHDR(clampSample(texture, v_Texcoord + d.zy)).rgb;\n vec3 s3 = decodeHDR(clampSample(texture, v_Texcoord + d.xw)).rgb;\n vec3 s4 = decodeHDR(clampSample(texture, v_Texcoord + d.zw)).rgb;\n\n float s1w = 1.0 / (brightness(s1) + 1.0);\n float s2w = 1.0 / (brightness(s2) + 1.0);\n float s3w = 1.0 / (brightness(s3) + 1.0);\n float s4w = 1.0 / (brightness(s4) + 1.0);\n float oneDivideSum = 1.0 / (s1w + s2w + s3w + s4w);\n\n vec4 color = vec4(\n (s1 * s1w + s2 * s2w + s3 * s3w + s4 * s4w) * oneDivideSum,\n 1.0\n );\n#else\n vec4 color = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n color += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n color *= 0.25;\n#endif\n\n gl_FragColor = encodeHDR(color);\n}\n\n@end";
 
 
 /***/ }),
@@ -23866,7 +25121,7 @@ module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\nuniform sampler2D lookup;\n\nvoid main()\n{\n\n vec4 tex = texture2D(texture, v_Texcoord);\n\n float blueColor = tex.b * 63.0;\n\n vec2 quad1;\n quad1.y = floor(floor(blueColor) / 8.0);\n quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n vec2 quad2;\n quad2.y = floor(ceil(blueColor) / 8.0);\n quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n vec2 texPos1;\n texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n vec2 texPos2;\n texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n vec4 newColor1 = texture2D(lookup, texPos1);\n vec4 newColor2 = texture2D(lookup, texPos2);\n\n vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n gl_FragColor = vec4(newColor.rgb, tex.w);\n}\n\n@end";
+module.exports = "@export qtek.compositor.fxaa\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nvarying vec2 v_Texcoord;\n\n#define FXAA_REDUCE_MIN (1.0/128.0)\n#define FXAA_REDUCE_MUL (1.0/8.0)\n#define FXAA_SPAN_MAX 8.0\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec2 resolution = 1.0 / viewport.zw;\n vec3 rgbNW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, -1.0 ) ) * resolution ) ).xyz;\n vec3 rgbNE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, -1.0 ) ) * resolution ) ).xyz;\n vec3 rgbSW = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( -1.0, 1.0 ) ) * resolution ) ).xyz;\n vec3 rgbSE = decodeHDR( texture2D( texture, ( gl_FragCoord.xy + vec2( 1.0, 1.0 ) ) * resolution ) ).xyz;\n vec4 rgbaM = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution ) );\n vec3 rgbM = rgbaM.xyz;\n float opacity = rgbaM.w;\n\n vec3 luma = vec3( 0.299, 0.587, 0.114 );\n\n float lumaNW = dot( rgbNW, luma );\n float lumaNE = dot( rgbNE, luma );\n float lumaSW = dot( rgbSW, luma );\n float lumaSE = dot( rgbSE, luma );\n float lumaM = dot( rgbM, luma );\n float lumaMin = min( lumaM, min( min( lumaNW, lumaNE ), min( lumaSW, lumaSE ) ) );\n float lumaMax = max( lumaM, max( max( lumaNW, lumaNE) , max( lumaSW, lumaSE ) ) );\n\n vec2 dir;\n dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n\n float dirReduce = max( ( lumaNW + lumaNE + lumaSW + lumaSE ) * ( 0.25 * FXAA_REDUCE_MUL ), FXAA_REDUCE_MIN );\n\n float rcpDirMin = 1.0 / ( min( abs( dir.x ), abs( dir.y ) ) + dirReduce );\n dir = min( vec2( FXAA_SPAN_MAX, FXAA_SPAN_MAX),\n max( vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),\n dir * rcpDirMin)) * resolution;\n\n vec3 rgbA = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * ( 1.0 / 3.0 - 0.5 ) ) ).xyz;\n rgbA += decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * ( 2.0 / 3.0 - 0.5 ) ) ).xyz;\n rgbA *= 0.5;\n\n vec3 rgbB = decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * -0.5 ) ).xyz;\n rgbB += decodeHDR( texture2D( texture, gl_FragCoord.xy * resolution + dir * 0.5 ) ).xyz;\n rgbB *= 0.25;\n rgbB += rgbA * 0.5;\n\n float lumaB = dot( rgbB, luma );\n\n if ( ( lumaB < lumaMin ) || ( lumaB > lumaMax ) )\n {\n gl_FragColor = vec4( rgbA, opacity );\n\n }\n else {\n\n gl_FragColor = vec4( rgbB, opacity );\n\n }\n}\n\n@end";
 
 
 /***/ }),
@@ -23874,7 +25129,7 @@ module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nu
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n\n gl_FragColor.rgb = tex.rgb;\n\n#ifdef OUTPUT_ALPHA\n gl_FragColor.a = tex.a;\n#else\n gl_FragColor.a = 1.0;\n#endif\n\n gl_FragColor = encodeHDR(gl_FragColor);\n\n #ifdef PREMULTIPLY_ALPHA\n gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.fxaa3\n\nuniform sampler2D texture;\nuniform vec4 viewport : VIEWPORT;\n\nuniform float subpixel: 0.75;\nuniform float edgeThreshold: 0.125;\nuniform float edgeThresholdMin: 0.0625;\n\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nfloat FxaaLuma(vec4 rgba) { return rgba.y; }\nvec4 FxaaPixelShader(\n vec2 pos\n ,sampler2D tex\n ,vec2 fxaaQualityRcpFrame\n ,float fxaaQualitySubpix\n ,float fxaaQualityEdgeThreshold\n ,float fxaaQualityEdgeThresholdMin\n) {\n vec2 posM;\n posM.x = pos.x;\n posM.y = pos.y;\n vec4 rgbyM = decodeHDR(texture2D(texture, posM, 0.0));\n float lumaS = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaN = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 0.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 0.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n float maxSM = max(lumaS, rgbyM.y);\n float minSM = min(lumaS, rgbyM.y);\n float maxESM = max(lumaE, maxSM);\n float minESM = min(lumaE, minSM);\n float maxWN = max(lumaN, lumaW);\n float minWN = min(lumaN, lumaW);\n float rangeMax = max(maxWN, maxESM);\n float rangeMin = min(minWN, minESM);\n float rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;\n float range = rangeMax - rangeMin;\n float rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);\n bool earlyExit = range < rangeMaxClamped;\n if(earlyExit) return rgbyM;\n float lumaNW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaSE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaNE = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2( 1.0,-1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n float lumaSW = FxaaLuma(decodeHDR(texture2D(texture, posM + (vec2(-1.0, 1.0) * fxaaQualityRcpFrame.xy), 0.0)));\n\n float lumaNS = lumaN + lumaS;\n float lumaWE = lumaW + lumaE;\n float subpixRcpRange = 1.0/range;\n float subpixNSWE = lumaNS + lumaWE;\n float edgeHorz1 = (-2.0 * rgbyM.y) + lumaNS;\n float edgeVert1 = (-2.0 * rgbyM.y) + lumaWE;\n float lumaNESE = lumaNE + lumaSE;\n float lumaNWNE = lumaNW + lumaNE;\n float edgeHorz2 = (-2.0 * lumaE) + lumaNESE;\n float edgeVert2 = (-2.0 * lumaN) + lumaNWNE;\n float lumaNWSW = lumaNW + lumaSW;\n float lumaSWSE = lumaSW + lumaSE;\n float edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);\n float edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);\n float edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;\n float edgeVert3 = (-2.0 * lumaS) + lumaSWSE;\n float edgeHorz = abs(edgeHorz3) + edgeHorz4;\n float edgeVert = abs(edgeVert3) + edgeVert4;\n float subpixNWSWNESE = lumaNWSW + lumaNESE;\n float lengthSign = fxaaQualityRcpFrame.x;\n bool horzSpan = edgeHorz >= edgeVert;\n float subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;\n if(!horzSpan) lumaN = lumaW;\n if(!horzSpan) lumaS = lumaE;\n if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;\n float subpixB = (subpixA * (1.0/12.0)) - rgbyM.y;\n float gradientN = lumaN - rgbyM.y;\n float gradientS = lumaS - rgbyM.y;\n float lumaNN = lumaN + rgbyM.y;\n float lumaSS = lumaS + rgbyM.y;\n bool pairN = abs(gradientN) >= abs(gradientS);\n float gradient = max(abs(gradientN), abs(gradientS));\n if(pairN) lengthSign = -lengthSign;\n float subpixC = clamp(abs(subpixB) * subpixRcpRange, 0.0, 1.0);\n vec2 posB;\n posB.x = posM.x;\n posB.y = posM.y;\n vec2 offNP;\n offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;\n offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;\n if(!horzSpan) posB.x += lengthSign * 0.5;\n if( horzSpan) posB.y += lengthSign * 0.5;\n vec2 posN;\n posN.x = posB.x - offNP.x * 1.0;\n posN.y = posB.y - offNP.y * 1.0;\n vec2 posP;\n posP.x = posB.x + offNP.x * 1.0;\n posP.y = posB.y + offNP.y * 1.0;\n float subpixD = ((-2.0)*subpixC) + 3.0;\n float lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN, 0.0)));\n float subpixE = subpixC * subpixC;\n float lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP, 0.0)));\n if(!pairN) lumaNN = lumaSS;\n float gradientScaled = gradient * 1.0/4.0;\n float lumaMM = rgbyM.y - lumaNN * 0.5;\n float subpixF = subpixD * subpixE;\n bool lumaMLTZero = lumaMM < 0.0;\n lumaEndN -= lumaNN * 0.5;\n lumaEndP -= lumaNN * 0.5;\n bool doneN = abs(lumaEndN) >= gradientScaled;\n bool doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 1.5;\n if(!doneN) posN.y -= offNP.y * 1.5;\n bool doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 1.5;\n if(!doneP) posP.y += offNP.y * 1.5;\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 2.0;\n if(!doneN) posN.y -= offNP.y * 2.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 2.0;\n if(!doneP) posP.y += offNP.y * 2.0;\n\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 4.0;\n if(!doneN) posN.y -= offNP.y * 4.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 4.0;\n if(!doneP) posP.y += offNP.y * 4.0;\n\n if(doneNP) {\n if(!doneN) lumaEndN = FxaaLuma(decodeHDR(texture2D(texture, posN.xy, 0.0)));\n if(!doneP) lumaEndP = FxaaLuma(decodeHDR(texture2D(texture, posP.xy, 0.0)));\n if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;\n if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;\n doneN = abs(lumaEndN) >= gradientScaled;\n doneP = abs(lumaEndP) >= gradientScaled;\n if(!doneN) posN.x -= offNP.x * 12.0;\n if(!doneN) posN.y -= offNP.y * 12.0;\n doneNP = (!doneN) || (!doneP);\n if(!doneP) posP.x += offNP.x * 12.0;\n if(!doneP) posP.y += offNP.y * 12.0;\n }\n }\n }\n float dstN = posM.x - posN.x;\n float dstP = posP.x - posM.x;\n if(!horzSpan) dstN = posM.y - posN.y;\n if(!horzSpan) dstP = posP.y - posM.y;\n bool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;\n float spanLength = (dstP + dstN);\n bool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;\n float spanLengthRcp = 1.0/spanLength;\n bool directionN = dstN < dstP;\n float dst = min(dstN, dstP);\n bool goodSpan = directionN ? goodSpanN : goodSpanP;\n float subpixG = subpixF * subpixF;\n float pixelOffset = (dst * (-spanLengthRcp)) + 0.5;\n float subpixH = subpixG * fxaaQualitySubpix;\n float pixelOffsetGood = goodSpan ? pixelOffset : 0.0;\n float pixelOffsetSubpix = max(pixelOffsetGood, subpixH);\n if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;\n if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;\n return vec4(decodeHDR(texture2D(texture, posM, 0.0)).xyz, rgbyM.y);\n\n}\n\nvoid main()\n{\n vec4 color = FxaaPixelShader(\n v_Texcoord,\n texture,\n vec2(1.0) / viewport.zw,\n subpixel,\n edgeThreshold,\n edgeThresholdMin\n );\n gl_FragColor = vec4(color.rgb, 1.0);\n}\n@end";
 
 
 /***/ }),
@@ -23882,7 +25137,7 @@ module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvary
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n vec4 s;\n s = decodeHDR(clampSample(texture, v_Texcoord - d.xy));\n s += decodeHDR(clampSample(texture, v_Texcoord - d.wy)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord - d.zy));\n\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zw)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord )) * 4.0;\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xw)) * 2.0;\n\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.wy)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n\n gl_FragColor = encodeHDR(s / 16.0);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n vec4 s;\n s = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n\n gl_FragColor = encodeHDR(s / 4.0);\n#endif\n}\n\n@end";
+module.exports = "@export qtek.compositor.hdr.composite\n\nuniform sampler2D texture;\n#ifdef BLOOM_ENABLED\nuniform sampler2D bloom;\n#endif\n#ifdef LENSFLARE_ENABLED\nuniform sampler2D lensflare;\nuniform sampler2D lensdirt;\n#endif\n\n#ifdef LUM_ENABLED\nuniform sampler2D lum;\n#endif\n\n#ifdef LUT_ENABLED\nuniform sampler2D lut;\n#endif\n\n#ifdef COLOR_CORRECTION\nuniform float brightness : 0.0;\nuniform float contrast : 1.0;\nuniform float saturation : 1.0;\n#endif\n\n#ifdef VIGNETTE\nuniform float vignetteDarkness: 1.0;\nuniform float vignetteOffset: 1.0;\n#endif\n\nuniform float exposure : 1.0;\nuniform float bloomIntensity : 0.25;\nuniform float lensflareIntensity : 1;\n\nvarying vec2 v_Texcoord;\n\n\n@import qtek.util.srgb\n\n\n\n\nvec3 ACESToneMapping(vec3 color)\n{\n const float A = 2.51;\n const float B = 0.03;\n const float C = 2.43;\n const float D = 0.59;\n const float E = 0.14;\n return (color * (A * color + B)) / (color * (C * color + D) + E);\n}\n\nfloat eyeAdaption(float fLum)\n{\n return mix(0.2, fLum, 0.5);\n}\n\n#ifdef LUT_ENABLED\nvec3 lutTransform(vec3 color) {\n float blueColor = color.b * 63.0;\n\n vec2 quad1;\n quad1.y = floor(floor(blueColor) / 8.0);\n quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n vec2 quad2;\n quad2.y = floor(ceil(blueColor) / 8.0);\n quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n vec2 texPos1;\n texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n vec2 texPos2;\n texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.r);\n texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * color.g);\n\n vec4 newColor1 = texture2D(lut, texPos1);\n vec4 newColor2 = texture2D(lut, texPos2);\n\n vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n return newColor.rgb;\n}\n#endif\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 texel = vec4(0.0);\n vec4 originalTexel = vec4(0.0);\n#ifdef TEXTURE_ENABLED\n texel = decodeHDR(texture2D(texture, v_Texcoord));\n originalTexel = texel;\n#endif\n\n#ifdef BLOOM_ENABLED\n vec4 bloomTexel = decodeHDR(texture2D(bloom, v_Texcoord));\n texel.rgb += bloomTexel.rgb * bloomIntensity;\n texel.a += bloomTexel.a * bloomIntensity;\n#endif\n\n#ifdef LENSFLARE_ENABLED\n texel += decodeHDR(texture2D(lensflare, v_Texcoord)) * texture2D(lensdirt, v_Texcoord) * lensflareIntensity;\n#endif\n\n texel.a = min(texel.a, 1.0);\n\n#ifdef LUM_ENABLED\n float fLum = texture2D(lum, vec2(0.5, 0.5)).r;\n float adaptedLumDest = 3.0 / (max(0.1, 1.0 + 10.0*eyeAdaption(fLum)));\n float exposureBias = adaptedLumDest * exposure;\n#else\n float exposureBias = exposure;\n#endif\n texel.rgb *= exposureBias;\n\n texel.rgb = ACESToneMapping(texel.rgb);\n texel = linearTosRGB(texel);\n\n#ifdef LUT_ENABLED\n texel.rgb = lutTransform(clamp(texel.rgb,vec3(0.0),vec3(1.0)));\n#endif\n\n#ifdef COLOR_CORRECTION\n texel.rgb = clamp(texel.rgb + vec3(brightness), 0.0, 1.0);\n texel.rgb = clamp((texel.rgb - vec3(0.5))*contrast+vec3(0.5), 0.0, 1.0);\n float lum = dot(texel.rgb, vec3(0.2125, 0.7154, 0.0721));\n texel.rgb = mix(vec3(lum), texel.rgb, saturation);\n#endif\n\n#ifdef VIGNETTE\n vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(vignetteOffset);\n texel.rgb = mix(texel.rgb, vec3(1.0 - vignetteDarkness), dot(uv, uv));\n#endif\n\n gl_FragColor = encodeHDR(texel);\n\n#ifdef DEBUG\n #if DEBUG == 1\n gl_FragColor = encodeHDR(decodeHDR(texture2D(texture, v_Texcoord)));\n #elif DEBUG == 2\n gl_FragColor = encodeHDR(decodeHDR(texture2D(bloom, v_Texcoord)) * bloomIntensity);\n #elif DEBUG == 3\n gl_FragColor = encodeHDR(decodeHDR(texture2D(lensflare, v_Texcoord) * lensflareIntensity));\n #endif\n#endif\n\n if (originalTexel.a <= 0.01) {\n gl_FragColor.a = dot(gl_FragColor.rgb, vec3(0.2125, 0.7154, 0.0721));\n }\n #ifdef PREMULTIPLY_ALPHA\n gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
 
 
 /***/ }),
@@ -23890,7 +25145,7 @@ module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\n
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\nvarying vec2 v_Texcoord;\n\nvoid main()\n{\n v_Texcoord = texcoord;\n gl_Position = worldViewProjection * vec4(position, 1.0);\n}\n\n@end";
+module.exports = "@export qtek.compositor.lensflare\n\n#define SAMPLE_NUMBER 8\n\nuniform sampler2D texture;\nuniform sampler2D lenscolor;\n\nuniform vec2 textureSize : [512, 512];\n\nuniform float dispersal : 0.3;\nuniform float haloWidth : 0.4;\nuniform float distortion : 1.0;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\nvec4 textureDistorted(\n in vec2 texcoord,\n in vec2 direction,\n in vec3 distortion\n) {\n return vec4(\n decodeHDR(texture2D(texture, texcoord + direction * distortion.r)).r,\n decodeHDR(texture2D(texture, texcoord + direction * distortion.g)).g,\n decodeHDR(texture2D(texture, texcoord + direction * distortion.b)).b,\n 1.0\n );\n}\n\nvoid main()\n{\n vec2 texcoord = -v_Texcoord + vec2(1.0); vec2 textureOffset = 1.0 / textureSize;\n\n vec2 ghostVec = (vec2(0.5) - texcoord) * dispersal;\n vec2 haloVec = normalize(ghostVec) * haloWidth;\n\n vec3 distortion = vec3(-textureOffset.x * distortion, 0.0, textureOffset.x * distortion);\n vec4 result = vec4(0.0);\n for (int i = 0; i < SAMPLE_NUMBER; i++)\n {\n vec2 offset = fract(texcoord + ghostVec * float(i));\n\n float weight = length(vec2(0.5) - offset) / length(vec2(0.5));\n weight = pow(1.0 - weight, 10.0);\n\n result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n }\n\n result *= texture2D(lenscolor, vec2(length(vec2(0.5) - texcoord)) / length(vec2(0.5)));\n float weight = length(vec2(0.5) - fract(texcoord + haloVec)) / length(vec2(0.5));\n weight = pow(1.0 - weight, 10.0);\n vec2 offset = fract(texcoord + haloVec);\n result += textureDistorted(offset, normalize(ghostVec), distortion) * weight;\n\n gl_FragColor = result;\n}\n@end";
 
 
 /***/ }),
@@ -23898,7 +25153,7 @@ module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProj
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nuniform float darkness: 1;\nuniform float offset: 1;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n gl_FragColor.rgb = texel.rgb;\n\n vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(offset);\n\n gl_FragColor = encodeHDR(vec4(mix(texel.rgb, vec3(1.0 - darkness), dot(uv, uv)), texel.a));\n}\n\n@end";
+module.exports = "@export qtek.compositor.hdr.log_lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n float luminance = dot(tex.rgb, w);\n luminance = log(luminance + 0.001);\n\n gl_FragColor = encodeHDR(vec4(vec3(luminance), 1.0));\n}\n\n@end\n\n@export qtek.compositor.hdr.lum_adaption\nvarying vec2 v_Texcoord;\n\nuniform sampler2D adaptedLum;\nuniform sampler2D currentLum;\n\nuniform float frameTime : 0.02;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n float fAdaptedLum = decodeHDR(texture2D(adaptedLum, vec2(0.5, 0.5))).r;\n float fCurrentLum = exp(encodeHDR(texture2D(currentLum, vec2(0.5, 0.5))).r);\n\n fAdaptedLum += (fCurrentLum - fAdaptedLum) * (1.0 - pow(0.98, 30.0 * frameTime));\n gl_FragColor = encodeHDR(vec4(vec3(fAdaptedLum), 1.0));\n}\n@end\n\n@export qtek.compositor.lum\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nconst vec3 w = vec3(0.2125, 0.7154, 0.0721);\n\nvoid main()\n{\n vec4 tex = texture2D( texture, v_Texcoord );\n float luminance = dot(tex.rgb, w);\n\n gl_FragColor = vec4(vec3(luminance), 1.0);\n}\n\n@end";
 
 
 /***/ }),
@@ -23906,11 +25161,51 @@ module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nva
 /***/ (function(module, exports) {
 
 
-module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n int offset = 9 * idx;\n\n return ambientSHLightCoefficients[0]\n + ambientSHLightCoefficients[1] * N.x\n + ambientSHLightCoefficients[2] * N.y\n + ambientSHLightCoefficients[3] * N.z\n + ambientSHLightCoefficients[4] * N.x * N.z\n + ambientSHLightCoefficients[5] * N.z * N.y\n + ambientSHLightCoefficients[6] * N.y * N.x\n + ambientSHLightCoefficients[7] * (3.0 * N.z * N.z - 1.0)\n + ambientSHLightCoefficients[8] * (N.x * N.x - N.y * N.y);\n}";
+module.exports = "\n@export qtek.compositor.lut\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\nuniform sampler2D lookup;\n\nvoid main()\n{\n\n vec4 tex = texture2D(texture, v_Texcoord);\n\n float blueColor = tex.b * 63.0;\n\n vec2 quad1;\n quad1.y = floor(floor(blueColor) / 8.0);\n quad1.x = floor(blueColor) - (quad1.y * 8.0);\n\n vec2 quad2;\n quad2.y = floor(ceil(blueColor) / 8.0);\n quad2.x = ceil(blueColor) - (quad2.y * 8.0);\n\n vec2 texPos1;\n texPos1.x = (quad1.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n texPos1.y = (quad1.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n vec2 texPos2;\n texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.r);\n texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * tex.g);\n\n vec4 newColor1 = texture2D(lookup, texPos1);\n vec4 newColor2 = texture2D(lookup, texPos2);\n\n vec4 newColor = mix(newColor1, newColor2, fract(blueColor));\n gl_FragColor = vec4(newColor.rgb, tex.w);\n}\n\n@end";
 
 
 /***/ }),
 /* 81 */
+/***/ (function(module, exports) {
+
+
+module.exports = "@export qtek.compositor.output\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 tex = decodeHDR(texture2D(texture, v_Texcoord));\n\n gl_FragColor.rgb = tex.rgb;\n\n#ifdef OUTPUT_ALPHA\n gl_FragColor.a = tex.a;\n#else\n gl_FragColor.a = 1.0;\n#endif\n\n gl_FragColor = encodeHDR(gl_FragColor);\n\n #ifdef PREMULTIPLY_ALPHA\n gl_FragColor.rgb *= gl_FragColor.a;\n#endif\n}\n\n@end";
+
+
+/***/ }),
+/* 82 */
+/***/ (function(module, exports) {
+
+
+module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\nuniform sampler2D texture;\nuniform vec2 textureSize : [512, 512];\n\nuniform float sampleScale: 0.5;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n\n@import qtek.util.clamp_sample\n\nvoid main()\n{\n\n#ifdef HIGH_QUALITY\n vec4 d = vec4(1.0, 1.0, -1.0, 0.0) / textureSize.xyxy * sampleScale;\n\n vec4 s;\n s = decodeHDR(clampSample(texture, v_Texcoord - d.xy));\n s += decodeHDR(clampSample(texture, v_Texcoord - d.wy)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord - d.zy));\n\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zw)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord )) * 4.0;\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xw)) * 2.0;\n\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.wy)) * 2.0;\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n\n gl_FragColor = encodeHDR(s / 16.0);\n#else\n vec4 d = vec4(-1.0, -1.0, +1.0, +1.0) / textureSize.xyxy;\n\n vec4 s;\n s = decodeHDR(clampSample(texture, v_Texcoord + d.xy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zy));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.xw));\n s += decodeHDR(clampSample(texture, v_Texcoord + d.zw));\n\n gl_FragColor = encodeHDR(s / 4.0);\n#endif\n}\n\n@end";
+
+
+/***/ }),
+/* 83 */
+/***/ (function(module, exports) {
+
+
+module.exports = "\n@export qtek.compositor.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\nvarying vec2 v_Texcoord;\n\nvoid main()\n{\n v_Texcoord = texcoord;\n gl_Position = worldViewProjection * vec4(position, 1.0);\n}\n\n@end";
+
+
+/***/ }),
+/* 84 */
+/***/ (function(module, exports) {
+
+
+module.exports = "@export qtek.compositor.vignette\n\n#define OUTPUT_ALPHA\n\nvarying vec2 v_Texcoord;\n\nuniform sampler2D texture;\n\nuniform float darkness: 1;\nuniform float offset: 1;\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 texel = decodeHDR(texture2D(texture, v_Texcoord));\n\n gl_FragColor.rgb = texel.rgb;\n\n vec2 uv = (v_Texcoord - vec2(0.5)) * vec2(offset);\n\n gl_FragColor = encodeHDR(vec4(mix(texel.rgb, vec3(1.0 - darkness), dot(uv, uv)), texel.a));\n}\n\n@end";
+
+
+/***/ }),
+/* 85 */
+/***/ (function(module, exports) {
+
+
+module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n int offset = 9 * idx;\n\n return ambientSHLightCoefficients[0]\n + ambientSHLightCoefficients[1] * N.x\n + ambientSHLightCoefficients[2] * N.y\n + ambientSHLightCoefficients[3] * N.z\n + ambientSHLightCoefficients[4] * N.x * N.z\n + ambientSHLightCoefficients[5] * N.z * N.y\n + ambientSHLightCoefficients[6] * N.y * N.x\n + ambientSHLightCoefficients[7] * (3.0 * N.z * N.z - 1.0)\n + ambientSHLightCoefficients[8] * (N.x * N.x - N.y * N.y);\n}";
+
+
+/***/ }),
+/* 86 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -23932,7 +25227,7 @@ module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n int offset = 9 * 
         exportHeaderPrefix + 'ambient_sh_light',
         uniformVec3Prefix + 'ambientSHLightColor[AMBIENT_SH_LIGHT_COUNT]' + unconfigurable,
         uniformVec3Prefix + 'ambientSHLightCoefficients[AMBIENT_SH_LIGHT_COUNT * 9]' + unconfigurable,
-        __webpack_require__(80),
+        __webpack_require__(85),
         exportEnd,
 
         exportHeaderPrefix + 'ambient_cubemap_light',
@@ -23960,7 +25255,7 @@ module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n int offset = 9 * 
 
 
 /***/ }),
-/* 82 */
+/* 87 */
 /***/ (function(module, exports) {
 
 
@@ -23968,7 +25263,7 @@ module.exports = "/**\n * http: */\n\n@export qtek.lambert.vertex\n\nuniform mat
 
 
 /***/ }),
-/* 83 */
+/* 88 */
 /***/ (function(module, exports) {
 
 
@@ -23976,7 +25271,7 @@ module.exports = "@export qtek.sm.depth.vertex\n\nuniform mat4 worldViewProjecti
 
 
 /***/ }),
-/* 84 */
+/* 89 */
 /***/ (function(module, exports) {
 
 
@@ -23984,7 +25279,7 @@ module.exports = "@export qtek.skybox.vertex\n\nuniform mat4 world : WORLD;\nuni
 
 
 /***/ }),
-/* 85 */
+/* 90 */
 /***/ (function(module, exports) {
 
 
@@ -23992,7 +25287,7 @@ module.exports = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n const 
 
 
 /***/ }),
-/* 86 */
+/* 91 */
 /***/ (function(module, exports) {
 
 
@@ -24000,7 +25295,7 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
 
 
 /***/ }),
-/* 87 */
+/* 92 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -24008,9 +25303,9 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
 
 
     // TODO test
-    var StaticGeometry = __webpack_require__(18);
-    var Mesh = __webpack_require__(13);
-    var Node = __webpack_require__(6);
+    var StaticGeometry = __webpack_require__(11);
+    var Mesh = __webpack_require__(14);
+    var Node = __webpack_require__(7);
     var StandardMaterial = __webpack_require__(29);
     var BoundingBox = __webpack_require__(4);
     var glMatrix = __webpack_require__(0);
@@ -24361,159 +25656,6 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
     };
 
     module.exports = meshUtil;
-
-
-/***/ }),
-/* 88 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var StaticGeometry = __webpack_require__(18);
-    var glMatrix = __webpack_require__(0);
-    var vec3 = glMatrix.vec3;
-    var vec2 = glMatrix.vec2;
-    var BoundingBox = __webpack_require__(4);
-
-    /**
-     * @constructor qtek.geometry.Sphere
-     * @extends qtek.StaticGeometry
-     * @param {Object} [opt]
-     * @param {number} [widthSegments]
-     * @param {number} [heightSegments]
-     * @param {number} [phiStart]
-     * @param {number} [phiLength]
-     * @param {number} [thetaStart]
-     * @param {number} [thetaLength]
-     * @param {number} [radius]
-     */
-    var Sphere = StaticGeometry.extend(
-    /** @lends qtek.geometry.Sphere# */
-    {
-        /**
-         * @type {number}
-         */
-        widthSegments: 20,
-        /**
-         * @type {number}
-         */
-        heightSegments: 20,
-
-        /**
-         * @type {number}
-         */
-        phiStart: 0,
-        /**
-         * @type {number}
-         */
-        phiLength: Math.PI * 2,
-
-        /**
-         * @type {number}
-         */
-        thetaStart: 0,
-        /**
-         * @type {number}
-         */
-        thetaLength: Math.PI,
-
-        /**
-         * @type {number}
-         */
-        radius: 1
-
-    }, function() {
-        this.build();
-    },
-    /** @lends qtek.geometry.Sphere.prototype */
-    {
-        /**
-         * Build sphere geometry
-         */
-        build: function() {
-            var heightSegments = this.heightSegments;
-            var widthSegments = this.widthSegments;
-
-            var positionAttr = this.attributes.position;
-            var texcoordAttr = this.attributes.texcoord0;
-            var normalAttr = this.attributes.normal;
-
-            var vertexCount = (widthSegments + 1) * (heightSegments + 1);
-            positionAttr.init(vertexCount);
-            texcoordAttr.init(vertexCount);
-            normalAttr.init(vertexCount);
-
-            var IndicesCtor = vertexCount > 0xffff ? Uint32Array : Uint16Array;
-            var indices = this.indices = new IndicesCtor(widthSegments * heightSegments * 6);
-
-            var x, y, z,
-                u, v,
-                i, j;
-
-            var radius = this.radius;
-            var phiStart = this.phiStart;
-            var phiLength = this.phiLength;
-            var thetaStart = this.thetaStart;
-            var thetaLength = this.thetaLength;
-            var radius = this.radius;
-
-            var pos = [];
-            var uv = [];
-            var offset = 0;
-            var divider = 1 / radius;
-            for (j = 0; j <= heightSegments; j ++) {
-                for (i = 0; i <= widthSegments; i ++) {
-                    u = i / widthSegments;
-                    v = j / heightSegments;
-
-                    // X axis is inverted so texture can be mapped from left to right
-                    x = -radius * Math.cos(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
-                    y = radius * Math.cos(thetaStart + v * thetaLength);
-                    z = radius * Math.sin(phiStart + u * phiLength) * Math.sin(thetaStart + v * thetaLength);
-
-                    pos[0] = x; pos[1] = y; pos[2] = z;
-                    uv[0] = u; uv[1] = v;
-                    positionAttr.set(offset, pos);
-                    texcoordAttr.set(offset, uv);
-                    pos[0] *= divider;
-                    pos[1] *= divider;
-                    pos[2] *= divider;
-                    normalAttr.set(offset, pos);
-                    offset++;
-                }
-            }
-
-            var i1, i2, i3, i4;
-
-            var len = widthSegments + 1;
-
-            var n = 0;
-            for (j = 0; j < heightSegments; j ++) {
-                for (i = 0; i < widthSegments; i ++) {
-                    i2 = j * len + i;
-                    i1 = (j * len + i + 1);
-                    i4 = (j + 1) * len + i + 1;
-                    i3 = (j + 1) * len + i;
-
-                    indices[n++] = i1;
-                    indices[n++] = i2;
-                    indices[n++] = i4;
-
-                    indices[n++] = i2;
-                    indices[n++] = i3;
-                    indices[n++] = i4;
-                }
-            }
-
-            this.boundingBox = new BoundingBox();
-            this.boundingBox.max.set(radius, radius, radius);
-            this.boundingBox.min.set(-radius, -radius, -radius);
-        }
-    });
-
-    module.exports = Sphere;
 
 
 /***/ })
