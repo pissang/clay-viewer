@@ -31,6 +31,10 @@ var OrbitControl = Base.extend(function () {
         animation: null,
 
         /**
+         * @type {HTMLDomElement}
+         */
+        root: null,
+        /**
          * @type {qtek.math.Vector3}
          */
         _center: new Vector3(),
@@ -40,14 +44,14 @@ var OrbitControl = Base.extend(function () {
          * @type {number}
          * @default 0.5
          */
-        minDistance: 0.5,
+        minDistance: 2,
 
         /**
          * Maximum distance to the center
          * @type {number}
          * @default 2
          */
-        maxDistance: 1.5,
+        maxDistance: 100,
 
         /**
          * Minimum alpha rotation
@@ -72,6 +76,16 @@ var OrbitControl = Base.extend(function () {
          * Start auto rotating after still for the given time
          */
         autoRotateAfterStill: 0,
+
+        /**
+         * Direction of autoRotate. cw or ccw when looking top down.
+         */
+        autoRotateDirection: 'cw',
+
+        /**
+         * Degree per second
+         */
+        autoRotateSpeed: 60,
 
         /**
          * Pan or rotate
@@ -99,6 +113,7 @@ var OrbitControl = Base.extend(function () {
          */
         panSensitivity: 1,
 
+
         /**
          * @type {qtek.Camera}
          */
@@ -120,7 +135,7 @@ var OrbitControl = Base.extend(function () {
 
         _panVelocity: new Vector2(),
 
-        _distance: 500,
+        _distance: 20,
 
         _zoomSpeed: 0,
 
@@ -144,7 +159,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event binding
      */
     init: function () {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
 
         dom.addEventListener('touchstart', this._mouseDownHandler);
 
@@ -159,7 +174,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event unbinding
      */
     dispose: function () {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
 
         dom.removeEventListener('touchstart', this._mouseDownHandler);
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
@@ -271,6 +286,7 @@ var OrbitControl = Base.extend(function () {
         opts = opts || {};
 
         ['autoRotate', 'autoRotateAfterStill',
+            'autoRotateDirection', 'autoRotateSpeed',
             'damping',
             'minDistance', 'maxDistance',
             'minAlpha', 'maxAlpha', 'minBeta', 'maxBeta',
@@ -368,7 +384,9 @@ var OrbitControl = Base.extend(function () {
     _update: function (deltaTime) {
 
         if (this._rotating) {
-            this._phi -= deltaTime * 1e-4;
+            var radian = (this.autoRotateDirection === 'cw' ? 1 : -1)
+                 * this.autoRotateSpeed / 180 * Math.PI;
+            this._phi -= radian * deltaTime / 1000;
             this._needsUpdate = true;
         }
         else if (this._rotateVelocity.len() > 0) {
@@ -513,7 +531,7 @@ var OrbitControl = Base.extend(function () {
             this._processGesture(e, 'start');
         }
 
-        var dom = this.renderer.canvas;
+        var dom = this.root;
         dom.addEventListener('touchmove', this._mouseMoveHandler);
         dom.addEventListener('touchend', this._mouseUpHandler);
 
@@ -611,7 +629,7 @@ var OrbitControl = Base.extend(function () {
     },
 
     _mouseUpHandler: function (event) {
-        var dom = this.renderer.canvas;
+        var dom = this.root;
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
         dom.removeEventListener('touchend', this._mouseUpHandler);
         dom.removeEventListener('mousemove', this._mouseMoveHandler);
@@ -641,7 +659,7 @@ var OrbitControl = Base.extend(function () {
         var gestureInfo = gestureMgr.recognize(
             event,
             null,
-            this.renderer.canvas
+            this.root
         );
 
         stage === 'end' && gestureMgr.clear();

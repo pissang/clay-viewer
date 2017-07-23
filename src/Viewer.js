@@ -18,6 +18,7 @@ var StaticGeometry = require('qtek/lib/StaticGeometry');
 
 var getBundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var OrbitControl = require('./OrbitControl');
+var HotspotManager = require('./HotspotManager');
 
 function createSkeletonDebugScene(skeleton) {
     var scene = new Scene();
@@ -115,6 +116,7 @@ Viewer.prototype.init = function (dom, opts) {
 
     var renderer = new Renderer();
     dom.appendChild(renderer.canvas);
+    renderer.canvas.style.cssText = 'position:absolute;left:0;top:0';
 
     /**
      * @private
@@ -135,10 +137,17 @@ Viewer.prototype.init = function (dom, opts) {
 
     this._cameraControl = new OrbitControl({
         renderer: renderer,
-        animation: this._animation
+        animation: this._animation,
+        root: dom
     });
     this._cameraControl.setCamera(this._camera);
     this._cameraControl.init();
+
+    this._hotspotManager = new HotspotManager({
+        root: dom,
+        renderer: renderer,
+        camera: this._camera
+    });
 
     /**
      * List of skeletons
@@ -346,6 +355,13 @@ Viewer.prototype.stop = function () {
     this._animation.off('frame', this._loop);
 };
 
+/**
+ * Add html tip
+ */
+Viewer.prototype.addHotspot = function (position, tipHTML) {
+    return this._hotspotManager.add(position, tipHTML);
+};
+
 
 Viewer.prototype._loop = function (deltaTime) {
     this._scene.update();
@@ -366,6 +382,8 @@ Viewer.prototype._loop = function (deltaTime) {
     });
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
+
+    this._hotspotManager.update();
 
     if (this._renderDebugSkeleton) {
         this._renderer.saveClear();
