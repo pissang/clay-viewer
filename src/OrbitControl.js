@@ -33,7 +33,7 @@ var OrbitControl = Base.extend(function () {
         /**
          * @type {HTMLDomElement}
          */
-        root: null,
+        dom: null,
         /**
          * @type {qtek.math.Vector3}
          */
@@ -159,7 +159,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event binding
      */
     init: function () {
-        var dom = this.root;
+        var dom = this.dom;
 
         dom.addEventListener('touchstart', this._mouseDownHandler);
 
@@ -174,7 +174,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event unbinding
      */
     dispose: function () {
-        var dom = this.root;
+        var dom = this.dom;
 
         dom.removeEventListener('touchstart', this._mouseDownHandler);
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
@@ -531,7 +531,7 @@ var OrbitControl = Base.extend(function () {
             this._processGesture(e, 'start');
         }
 
-        var dom = this.root;
+        var dom = this.dom;
         dom.addEventListener('touchmove', this._mouseMoveHandler);
         dom.addEventListener('touchend', this._mouseUpHandler);
 
@@ -629,7 +629,7 @@ var OrbitControl = Base.extend(function () {
     },
 
     _mouseUpHandler: function (event) {
-        var dom = this.root;
+        var dom = this.dom;
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
         dom.removeEventListener('touchend', this._mouseUpHandler);
         dom.removeEventListener('mousemove', this._mouseMoveHandler);
@@ -659,7 +659,7 @@ var OrbitControl = Base.extend(function () {
         var gestureInfo = gestureMgr.recognize(
             event,
             null,
-            this.root
+            this.dom
         );
 
         stage === 'end' && gestureMgr.clear();

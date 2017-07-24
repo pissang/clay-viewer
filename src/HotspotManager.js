@@ -1,5 +1,9 @@
 var Base = require('qtek/lib/core/Base');
 var Vector4 = require('qtek/lib/math/Vector4');
+var BoundingBox = require('qtek/lib/math/BoundingBox');
+
+var DEFAULT_FAR_ALPHA = 0.1;
+var DEFAULT_NEAR_ALPHA = 1.0;
 
 var HotspotManger = Base.extend(function () {
 
@@ -8,7 +12,7 @@ var HotspotManger = Base.extend(function () {
         /**
          * @type {HTMLDomElement}
          */
-        root: null,
+        dom: null,
 
         /**
          * @type {qtek.Renderer}
@@ -20,6 +24,8 @@ var HotspotManger = Base.extend(function () {
          */
         camera: null,
 
+        _boundingBox: new BoundingBox(),
+
         /**
          * @type {HTMLDomElement}
          * @private
@@ -29,14 +35,20 @@ var HotspotManger = Base.extend(function () {
         _hotspots: []
     };
 }, function () {
-    if (!this.root || !this.renderer || !this.camera) {
+    if (!this.dom || !this.renderer || !this.camera) {
         throw new Error('Tip manager needs `root`,  `camera`, `renderer`');
     }
 
     var tipRoot = this._hotspotRoot = document.createElement('div');
     tipRoot.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;';
-    this.root.appendChild(tipRoot);
+    this.dom.appendChild(tipRoot);
 }, {
+
+    setBoundingBox: function (min, max) {
+        this._boundingBox.min.setArray(min);
+        this._boundingBox.max.setArray(max);
+    },
+
     add: function (position, tipDom) {
 
         if (typeof tipDom === 'string') {
@@ -74,10 +86,15 @@ var HotspotManger = Base.extend(function () {
 
     update: function () {
         var pos = new Vector4();
+        var tmpBBox = new BoundingBox();
         this._hotspots.forEach(function (hotspot) {
+
+            // Update position
             var p = hotspot.position;
             pos.set(p[0], p[1], p[2], 1);
             pos.transformMat4(this.camera.viewMatrix);
+            var linearDepth = pos.z;
+
             pos.transformMat4(this.camera.projectionMatrix);
             pos.scale(1 / pos.w);
 
@@ -86,6 +103,17 @@ var HotspotManger = Base.extend(function () {
 
             hotspot.dom.style.left = x + 'px';
             hotspot.dom.style.top = this.renderer.getHeight() - y + 'px';
+
+            // Upadte alpha
+            var farAlpha = hotspot.farAlpha == null ? DEFAULT_FAR_ALPHA : hotspot.farAlpha;
+            var nearAlpha = hotspot.nearAlpha == null ? DEFAULT_NEAR_ALPHA : hotspot.nearAlpha;
+
+            tmpBBox.copy(this._boundingBox);
+            tmpBBox.applyTransform(this.camera.viewMatrix);
+            var percent = (linearDepth - tmpBBox.max.z) / (tmpBBox.min.z - tmpBBox.max.z);
+            var alpha = Math.max(Math.min(percent, 1.0), 0.0) * (farAlpha - nearAlpha) + nearAlpha;
+
+            hotspot.dom.style.opacity = alpha;
 
             hotspot.onupdate && hotspot.onupdate(x, y);
         }, this);

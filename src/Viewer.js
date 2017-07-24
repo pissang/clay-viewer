@@ -138,13 +138,13 @@ Viewer.prototype.init = function (dom, opts) {
     this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
-        root: dom
+        dom: dom
     });
     this._cameraControl.setCamera(this._camera);
     this._cameraControl.init();
 
     this._hotspotManager = new HotspotManager({
-        root: dom,
+        dom: dom,
         renderer: renderer,
         camera: this._camera
     });
@@ -248,6 +248,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         this._mainLight.position.set(1, 3, 1);
         this._mainLight.lookAt(Vector3.ZERO);
+
+        this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
 
         // Debug
         // var mesh = new Mesh({
