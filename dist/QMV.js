@@ -4915,6 +4915,314 @@ module.exports = {
 
 
 
+    var Vector3 = __webpack_require__(4);
+    var glMatrix = __webpack_require__(0);
+    var vec3 = glMatrix.vec3;
+
+    var vec3Copy = vec3.copy;
+    var vec3Set = vec3.set;
+
+    /**
+     * Axis aligned bounding box
+     * @constructor
+     * @alias qtek.math.BoundingBox
+     * @param {qtek.math.Vector3} [min]
+     * @param {qtek.math.Vector3} [max]
+     */
+    var BoundingBox = function (min, max) {
+
+        /**
+         * Minimum coords of bounding box
+         * @type {qtek.math.Vector3}
+         */
+        this.min = min || new Vector3(Infinity, Infinity, Infinity);
+
+        /**
+         * Maximum coords of bounding box
+         * @type {qtek.math.Vector3}
+         */
+        this.max = max || new Vector3(-Infinity, -Infinity, -Infinity);
+    };
+
+    BoundingBox.prototype = {
+
+        constructor: BoundingBox,
+        /**
+         * Update min and max coords from a vertices array
+         * @param  {array} vertices
+         */
+        updateFromVertices: function (vertices) {
+            if (vertices.length > 0) {
+                var min = this.min;
+                var max = this.max;
+                var minArr = min._array;
+                var maxArr = max._array;
+                vec3Copy(minArr, vertices[0]);
+                vec3Copy(maxArr, vertices[0]);
+                for (var i = 1; i < vertices.length; i++) {
+                    var vertex = vertices[i];
+
+                    if (vertex[0] < minArr[0]) { minArr[0] = vertex[0]; }
+                    if (vertex[1] < minArr[1]) { minArr[1] = vertex[1]; }
+                    if (vertex[2] < minArr[2]) { minArr[2] = vertex[2]; }
+
+                    if (vertex[0] > maxArr[0]) { maxArr[0] = vertex[0]; }
+                    if (vertex[1] > maxArr[1]) { maxArr[1] = vertex[1]; }
+                    if (vertex[2] > maxArr[2]) { maxArr[2] = vertex[2]; }
+                }
+                min._dirty = true;
+                max._dirty = true;
+            }
+        },
+
+        /**
+         * Union operation with another bounding box
+         * @param  {qtek.math.BoundingBox} bbox
+         */
+        union: function (bbox) {
+            var min = this.min;
+            var max = this.max;
+            vec3.min(min._array, min._array, bbox.min._array);
+            vec3.max(max._array, max._array, bbox.max._array);
+            min._dirty = true;
+            max._dirty = true;
+            return this;
+        },
+
+        /**
+         * Intersection operation with another bounding box
+         * @param  {qtek.math.BoundingBox} bbox
+         */
+        intersection: function (bbox) {
+            var min = this.min;
+            var max = this.max;
+            vec3.max(min._array, min._array, bbox.min._array);
+            vec3.min(max._array, max._array, bbox.max._array);
+            min._dirty = true;
+            max._dirty = true;
+            return this;
+        },
+
+        /**
+         * If intersect with another bounding box
+         * @param  {qtek.math.BoundingBox} bbox
+         * @return {boolean}
+         */
+        intersectBoundingBox: function (bbox) {
+            var _min = this.min._array;
+            var _max = this.max._array;
+
+            var _min2 = bbox.min._array;
+            var _max2 = bbox.max._array;
+
+            return ! (_min[0] > _max2[0] || _min[1] > _max2[1] || _min[2] > _max2[2]
+                || _max[0] < _min2[0] || _max[1] < _min2[1] || _max[2] < _min2[2]);
+        },
+
+        /**
+         * If contain another bounding box entirely
+         * @param  {qtek.math.BoundingBox} bbox
+         * @return {boolean}
+         */
+        containBoundingBox: function (bbox) {
+
+            var _min = this.min._array;
+            var _max = this.max._array;
+
+            var _min2 = bbox.min._array;
+            var _max2 = bbox.max._array;
+
+            return _min[0] <= _min2[0] && _min[1] <= _min2[1] && _min[2] <= _min2[2]
+                && _max[0] >= _max2[0] && _max[1] >= _max2[1] && _max[2] >= _max2[2];
+        },
+
+        /**
+         * If contain point entirely
+         * @param  {qtek.math.Vector3} point
+         * @return {boolean}
+         */
+        containPoint: function (p) {
+            var _min = this.min._array;
+            var _max = this.max._array;
+
+            var _p = p._array;
+
+            return _min[0] <= _p[0] && _min[1] <= _p[1] && _min[2] <= _p[2]
+                && _max[0] >= _p[0] && _max[1] >= _p[1] && _max[2] >= _p[2];
+        },
+
+        /**
+         * If bounding box is finite
+         */
+        isFinite: function () {
+            var _min = this.min._array;
+            var _max = this.max._array;
+            return isFinite(_min[0]) && isFinite(_min[1]) && isFinite(_min[2])
+                && isFinite(_max[0]) && isFinite(_max[1]) && isFinite(_max[2]);
+        },
+
+        /**
+         * Apply an affine transform matrix to the bounding box
+         * @param  {qtek.math.Matrix4} matrix
+         */
+        applyTransform: (function () {
+            // http://dev.theomader.com/transform-bounding-boxes/
+            var xa = vec3.create();
+            var xb = vec3.create();
+            var ya = vec3.create();
+            var yb = vec3.create();
+            var za = vec3.create();
+            var zb = vec3.create();
+
+            return function (matrix) {
+                var min = this.min._array;
+                var max = this.max._array;
+
+                var m = matrix._array;
+
+                xa[0] = m[0] * min[0]; xa[1] = m[1] * min[0]; xa[2] = m[2] * min[0];
+                xb[0] = m[0] * max[0]; xb[1] = m[1] * max[0]; xb[2] = m[2] * max[0];
+
+                ya[0] = m[4] * min[1]; ya[1] = m[5] * min[1]; ya[2] = m[6] * min[1];
+                yb[0] = m[4] * max[1]; yb[1] = m[5] * max[1]; yb[2] = m[6] * max[1];
+
+                za[0] = m[8] * min[2]; za[1] = m[9] * min[2]; za[2] = m[10] * min[2];
+                zb[0] = m[8] * max[2]; zb[1] = m[9] * max[2]; zb[2] = m[10] * max[2];
+
+                min[0] = Math.min(xa[0], xb[0]) + Math.min(ya[0], yb[0]) + Math.min(za[0], zb[0]) + m[12];
+                min[1] = Math.min(xa[1], xb[1]) + Math.min(ya[1], yb[1]) + Math.min(za[1], zb[1]) + m[13];
+                min[2] = Math.min(xa[2], xb[2]) + Math.min(ya[2], yb[2]) + Math.min(za[2], zb[2]) + m[14];
+
+                max[0] = Math.max(xa[0], xb[0]) + Math.max(ya[0], yb[0]) + Math.max(za[0], zb[0]) + m[12];
+                max[1] = Math.max(xa[1], xb[1]) + Math.max(ya[1], yb[1]) + Math.max(za[1], zb[1]) + m[13];
+                max[2] = Math.max(xa[2], xb[2]) + Math.max(ya[2], yb[2]) + Math.max(za[2], zb[2]) + m[14];
+
+                this.min._dirty = true;
+                this.max._dirty = true;
+
+                return this;
+            };
+        })(),
+
+        /**
+         * Apply a projection matrix to the bounding box
+         * @param  {qtek.math.Matrix4} matrix
+         */
+        applyProjection: function (matrix) {
+            var min = this.min._array;
+            var max = this.max._array;
+
+            var m = matrix._array;
+            // min in min z
+            var v10 = min[0];
+            var v11 = min[1];
+            var v12 = min[2];
+            // max in min z
+            var v20 = max[0];
+            var v21 = max[1];
+            var v22 = min[2];
+            // max in max z
+            var v30 = max[0];
+            var v31 = max[1];
+            var v32 = max[2];
+
+            if (m[15] === 1) {  // Orthographic projection
+                min[0] = m[0] * v10 + m[12];
+                min[1] = m[5] * v11 + m[13];
+                max[2] = m[10] * v12 + m[14];
+
+                max[0] = m[0] * v30 + m[12];
+                max[1] = m[5] * v31 + m[13];
+                min[2] = m[10] * v32 + m[14];
+            }
+            else {
+                var w = -1 / v12;
+                min[0] = m[0] * v10 * w;
+                min[1] = m[5] * v11 * w;
+                max[2] = (m[10] * v12 + m[14]) * w;
+
+                w = -1 / v22;
+                max[0] = m[0] * v20 * w;
+                max[1] = m[5] * v21 * w;
+
+                w = -1 / v32;
+                min[2] = (m[10] * v32 + m[14]) * w;
+            }
+            this.min._dirty = true;
+            this.max._dirty = true;
+
+            return this;
+        },
+
+        updateVertices: function () {
+            var vertices = this.vertices;
+            if (!vertices) {
+                // Cube vertices
+                var vertices = [];
+                for (var i = 0; i < 8; i++) {
+                    vertices[i] = vec3.fromValues(0, 0, 0);
+                }
+
+                /**
+                 * Eight coords of bounding box
+                 * @type {Float32Array[]}
+                 */
+                this.vertices = vertices;
+            }
+            var min = this.min._array;
+            var max = this.max._array;
+            //--- min z
+            // min x
+            vec3Set(vertices[0], min[0], min[1], min[2]);
+            vec3Set(vertices[1], min[0], max[1], min[2]);
+            // max x
+            vec3Set(vertices[2], max[0], min[1], min[2]);
+            vec3Set(vertices[3], max[0], max[1], min[2]);
+
+            //-- max z
+            vec3Set(vertices[4], min[0], min[1], max[2]);
+            vec3Set(vertices[5], min[0], max[1], max[2]);
+            vec3Set(vertices[6], max[0], min[1], max[2]);
+            vec3Set(vertices[7], max[0], max[1], max[2]);
+
+            return this;
+        },
+        /**
+         * Copy values from another bounding box
+         * @param  {qtek.math.BoundingBox} bbox
+         */
+        copy: function (bbox) {
+            var min = this.min;
+            var max = this.max;
+            vec3Copy(min._array, bbox.min._array);
+            vec3Copy(max._array, bbox.max._array);
+            min._dirty = true;
+            max._dirty = true;
+            return this;
+        },
+
+        /**
+         * Clone a new bounding box
+         * @return {qtek.math.BoundingBox}
+         */
+        clone: function () {
+            var boundingBox = new BoundingBox();
+            boundingBox.copy(this);
+            return boundingBox;
+        }
+    };
+
+    module.exports = BoundingBox;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
 
@@ -5865,314 +6173,6 @@ module.exports = {
     Vector3.ZERO = new Vector3(0, 0, 0);
 
     module.exports = Vector3;
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Vector3 = __webpack_require__(3);
-    var glMatrix = __webpack_require__(0);
-    var vec3 = glMatrix.vec3;
-
-    var vec3Copy = vec3.copy;
-    var vec3Set = vec3.set;
-
-    /**
-     * Axis aligned bounding box
-     * @constructor
-     * @alias qtek.math.BoundingBox
-     * @param {qtek.math.Vector3} [min]
-     * @param {qtek.math.Vector3} [max]
-     */
-    var BoundingBox = function (min, max) {
-
-        /**
-         * Minimum coords of bounding box
-         * @type {qtek.math.Vector3}
-         */
-        this.min = min || new Vector3(Infinity, Infinity, Infinity);
-
-        /**
-         * Maximum coords of bounding box
-         * @type {qtek.math.Vector3}
-         */
-        this.max = max || new Vector3(-Infinity, -Infinity, -Infinity);
-    };
-
-    BoundingBox.prototype = {
-
-        constructor: BoundingBox,
-        /**
-         * Update min and max coords from a vertices array
-         * @param  {array} vertices
-         */
-        updateFromVertices: function (vertices) {
-            if (vertices.length > 0) {
-                var min = this.min;
-                var max = this.max;
-                var minArr = min._array;
-                var maxArr = max._array;
-                vec3Copy(minArr, vertices[0]);
-                vec3Copy(maxArr, vertices[0]);
-                for (var i = 1; i < vertices.length; i++) {
-                    var vertex = vertices[i];
-
-                    if (vertex[0] < minArr[0]) { minArr[0] = vertex[0]; }
-                    if (vertex[1] < minArr[1]) { minArr[1] = vertex[1]; }
-                    if (vertex[2] < minArr[2]) { minArr[2] = vertex[2]; }
-
-                    if (vertex[0] > maxArr[0]) { maxArr[0] = vertex[0]; }
-                    if (vertex[1] > maxArr[1]) { maxArr[1] = vertex[1]; }
-                    if (vertex[2] > maxArr[2]) { maxArr[2] = vertex[2]; }
-                }
-                min._dirty = true;
-                max._dirty = true;
-            }
-        },
-
-        /**
-         * Union operation with another bounding box
-         * @param  {qtek.math.BoundingBox} bbox
-         */
-        union: function (bbox) {
-            var min = this.min;
-            var max = this.max;
-            vec3.min(min._array, min._array, bbox.min._array);
-            vec3.max(max._array, max._array, bbox.max._array);
-            min._dirty = true;
-            max._dirty = true;
-            return this;
-        },
-
-        /**
-         * Intersection operation with another bounding box
-         * @param  {qtek.math.BoundingBox} bbox
-         */
-        intersection: function (bbox) {
-            var min = this.min;
-            var max = this.max;
-            vec3.max(min._array, min._array, bbox.min._array);
-            vec3.min(max._array, max._array, bbox.max._array);
-            min._dirty = true;
-            max._dirty = true;
-            return this;
-        },
-
-        /**
-         * If intersect with another bounding box
-         * @param  {qtek.math.BoundingBox} bbox
-         * @return {boolean}
-         */
-        intersectBoundingBox: function (bbox) {
-            var _min = this.min._array;
-            var _max = this.max._array;
-
-            var _min2 = bbox.min._array;
-            var _max2 = bbox.max._array;
-
-            return ! (_min[0] > _max2[0] || _min[1] > _max2[1] || _min[2] > _max2[2]
-                || _max[0] < _min2[0] || _max[1] < _min2[1] || _max[2] < _min2[2]);
-        },
-
-        /**
-         * If contain another bounding box entirely
-         * @param  {qtek.math.BoundingBox} bbox
-         * @return {boolean}
-         */
-        containBoundingBox: function (bbox) {
-
-            var _min = this.min._array;
-            var _max = this.max._array;
-
-            var _min2 = bbox.min._array;
-            var _max2 = bbox.max._array;
-
-            return _min[0] <= _min2[0] && _min[1] <= _min2[1] && _min[2] <= _min2[2]
-                && _max[0] >= _max2[0] && _max[1] >= _max2[1] && _max[2] >= _max2[2];
-        },
-
-        /**
-         * If contain point entirely
-         * @param  {qtek.math.Vector3} point
-         * @return {boolean}
-         */
-        containPoint: function (p) {
-            var _min = this.min._array;
-            var _max = this.max._array;
-
-            var _p = p._array;
-
-            return _min[0] <= _p[0] && _min[1] <= _p[1] && _min[2] <= _p[2]
-                && _max[0] >= _p[0] && _max[1] >= _p[1] && _max[2] >= _p[2];
-        },
-
-        /**
-         * If bounding box is finite
-         */
-        isFinite: function () {
-            var _min = this.min._array;
-            var _max = this.max._array;
-            return isFinite(_min[0]) && isFinite(_min[1]) && isFinite(_min[2])
-                && isFinite(_max[0]) && isFinite(_max[1]) && isFinite(_max[2]);
-        },
-
-        /**
-         * Apply an affine transform matrix to the bounding box
-         * @param  {qtek.math.Matrix4} matrix
-         */
-        applyTransform: (function () {
-            // http://dev.theomader.com/transform-bounding-boxes/
-            var xa = vec3.create();
-            var xb = vec3.create();
-            var ya = vec3.create();
-            var yb = vec3.create();
-            var za = vec3.create();
-            var zb = vec3.create();
-
-            return function (matrix) {
-                var min = this.min._array;
-                var max = this.max._array;
-
-                var m = matrix._array;
-
-                xa[0] = m[0] * min[0]; xa[1] = m[1] * min[0]; xa[2] = m[2] * min[0];
-                xb[0] = m[0] * max[0]; xb[1] = m[1] * max[0]; xb[2] = m[2] * max[0];
-
-                ya[0] = m[4] * min[1]; ya[1] = m[5] * min[1]; ya[2] = m[6] * min[1];
-                yb[0] = m[4] * max[1]; yb[1] = m[5] * max[1]; yb[2] = m[6] * max[1];
-
-                za[0] = m[8] * min[2]; za[1] = m[9] * min[2]; za[2] = m[10] * min[2];
-                zb[0] = m[8] * max[2]; zb[1] = m[9] * max[2]; zb[2] = m[10] * max[2];
-
-                min[0] = Math.min(xa[0], xb[0]) + Math.min(ya[0], yb[0]) + Math.min(za[0], zb[0]) + m[12];
-                min[1] = Math.min(xa[1], xb[1]) + Math.min(ya[1], yb[1]) + Math.min(za[1], zb[1]) + m[13];
-                min[2] = Math.min(xa[2], xb[2]) + Math.min(ya[2], yb[2]) + Math.min(za[2], zb[2]) + m[14];
-
-                max[0] = Math.max(xa[0], xb[0]) + Math.max(ya[0], yb[0]) + Math.max(za[0], zb[0]) + m[12];
-                max[1] = Math.max(xa[1], xb[1]) + Math.max(ya[1], yb[1]) + Math.max(za[1], zb[1]) + m[13];
-                max[2] = Math.max(xa[2], xb[2]) + Math.max(ya[2], yb[2]) + Math.max(za[2], zb[2]) + m[14];
-
-                this.min._dirty = true;
-                this.max._dirty = true;
-
-                return this;
-            };
-        })(),
-
-        /**
-         * Apply a projection matrix to the bounding box
-         * @param  {qtek.math.Matrix4} matrix
-         */
-        applyProjection: function (matrix) {
-            var min = this.min._array;
-            var max = this.max._array;
-
-            var m = matrix._array;
-            // min in min z
-            var v10 = min[0];
-            var v11 = min[1];
-            var v12 = min[2];
-            // max in min z
-            var v20 = max[0];
-            var v21 = max[1];
-            var v22 = min[2];
-            // max in max z
-            var v30 = max[0];
-            var v31 = max[1];
-            var v32 = max[2];
-
-            if (m[15] === 1) {  // Orthographic projection
-                min[0] = m[0] * v10 + m[12];
-                min[1] = m[5] * v11 + m[13];
-                max[2] = m[10] * v12 + m[14];
-
-                max[0] = m[0] * v30 + m[12];
-                max[1] = m[5] * v31 + m[13];
-                min[2] = m[10] * v32 + m[14];
-            }
-            else {
-                var w = -1 / v12;
-                min[0] = m[0] * v10 * w;
-                min[1] = m[5] * v11 * w;
-                max[2] = (m[10] * v12 + m[14]) * w;
-
-                w = -1 / v22;
-                max[0] = m[0] * v20 * w;
-                max[1] = m[5] * v21 * w;
-
-                w = -1 / v32;
-                min[2] = (m[10] * v32 + m[14]) * w;
-            }
-            this.min._dirty = true;
-            this.max._dirty = true;
-
-            return this;
-        },
-
-        updateVertices: function () {
-            var vertices = this.vertices;
-            if (!vertices) {
-                // Cube vertices
-                var vertices = [];
-                for (var i = 0; i < 8; i++) {
-                    vertices[i] = vec3.fromValues(0, 0, 0);
-                }
-
-                /**
-                 * Eight coords of bounding box
-                 * @type {Float32Array[]}
-                 */
-                this.vertices = vertices;
-            }
-            var min = this.min._array;
-            var max = this.max._array;
-            //--- min z
-            // min x
-            vec3Set(vertices[0], min[0], min[1], min[2]);
-            vec3Set(vertices[1], min[0], max[1], min[2]);
-            // max x
-            vec3Set(vertices[2], max[0], min[1], min[2]);
-            vec3Set(vertices[3], max[0], max[1], min[2]);
-
-            //-- max z
-            vec3Set(vertices[4], min[0], min[1], max[2]);
-            vec3Set(vertices[5], min[0], max[1], max[2]);
-            vec3Set(vertices[6], max[0], min[1], max[2]);
-            vec3Set(vertices[7], max[0], max[1], max[2]);
-
-            return this;
-        },
-        /**
-         * Copy values from another bounding box
-         * @param  {qtek.math.BoundingBox} bbox
-         */
-        copy: function (bbox) {
-            var min = this.min;
-            var max = this.max;
-            vec3Copy(min._array, bbox.min._array);
-            vec3Copy(max._array, bbox.max._array);
-            min._dirty = true;
-            max._dirty = true;
-            return this;
-        },
-
-        /**
-         * Clone a new bounding box
-         * @return {qtek.math.BoundingBox}
-         */
-        clone: function () {
-            var boundingBox = new BoundingBox();
-            boundingBox.copy(this);
-            return boundingBox;
-        }
-    };
-
-    module.exports = BoundingBox;
 
 
 /***/ }),
@@ -7589,11 +7589,11 @@ module.exports = {
 
 
     var Base = __webpack_require__(1);
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
     var Quaternion = __webpack_require__(24);
     var Matrix4 = __webpack_require__(15);
     var glMatrix = __webpack_require__(0);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var mat4 = glMatrix.mat4;
 
     var nameId = 0;
@@ -8742,7 +8742,7 @@ module.exports = {
 
 
     var Geometry = __webpack_require__(46);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var glMatrix = __webpack_require__(0);
     var vendor = __webpack_require__(8);
     var glenum = __webpack_require__(2);
@@ -9983,7 +9983,7 @@ module.exports = {
 
 
     var glMatrix = __webpack_require__(0);
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
     var mat4 = glMatrix.mat4;
     var vec3 = glMatrix.vec3;
     var mat3 = glMatrix.mat3;
@@ -11865,7 +11865,7 @@ module.exports = {
 
 
     var Light = __webpack_require__(9);
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
 
     /**
      * @constructor qtek.light.Directional
@@ -12922,7 +12922,7 @@ module.exports = {
     var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
     var vendor = __webpack_require__(8);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var Matrix4 = __webpack_require__(15);
     var shaderLibrary = __webpack_require__(18);
     var Material = __webpack_require__(10);
@@ -13921,7 +13921,7 @@ module.exports = {
 
     var Node = __webpack_require__(7);
     var Light = __webpack_require__(9);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
 
     /**
      * @constructor qtek.Scene
@@ -14985,7 +14985,7 @@ module.exports = {
 
 
     var StaticGeometry = __webpack_require__(11);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
 
     /**
      * @constructor qtek.geometry.Plane
@@ -15132,7 +15132,7 @@ module.exports = {
 
 
     var Light = __webpack_require__(9);
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
 
     /**
      * @constructor qtek.light.Spot
@@ -15244,8 +15244,8 @@ module.exports = {
 
 
 
-    var Vector3 = __webpack_require__(3);
-    var BoundingBox = __webpack_require__(4);
+    var Vector3 = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var Plane = __webpack_require__(63);
 
     var glMatrix = __webpack_require__(0);
@@ -16229,7 +16229,7 @@ var DirectionalLight = __webpack_require__(23);
 var AmbientSHLight = __webpack_require__(61);
 var Scene = __webpack_require__(28);
 var Node = __webpack_require__(7);
-var Vector3 = __webpack_require__(3);
+var Vector3 = __webpack_require__(4);
 var Animation = __webpack_require__(49);
 var meshUtil = __webpack_require__(92);
 var SphereGeo = __webpack_require__(60);
@@ -16361,13 +16361,13 @@ Viewer.prototype.init = function (dom, opts) {
     this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
-        root: dom
+        dom: dom
     });
     this._cameraControl.setCamera(this._camera);
     this._cameraControl.init();
 
     this._hotspotManager = new HotspotManager({
-        root: dom,
+        dom: dom,
         renderer: renderer,
         camera: this._camera
     });
@@ -16471,6 +16471,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         this._mainLight.position.set(1, 3, 1);
         this._mainLight.lookAt(Vector3.ZERO);
+
+        this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
 
         // Debug
         // var mesh = new Mesh({
@@ -16763,6 +16765,10 @@ module.exports = GestureMgr;
 
 var Base = __webpack_require__(1);
 var Vector4 = __webpack_require__(65);
+var BoundingBox = __webpack_require__(3);
+
+var DEFAULT_FAR_ALPHA = 0.1;
+var DEFAULT_NEAR_ALPHA = 1.0;
 
 var HotspotManger = Base.extend(function () {
 
@@ -16771,7 +16777,7 @@ var HotspotManger = Base.extend(function () {
         /**
          * @type {HTMLDomElement}
          */
-        root: null,
+        dom: null,
 
         /**
          * @type {qtek.Renderer}
@@ -16783,6 +16789,8 @@ var HotspotManger = Base.extend(function () {
          */
         camera: null,
 
+        _boundingBox: new BoundingBox(),
+
         /**
          * @type {HTMLDomElement}
          * @private
@@ -16792,14 +16800,20 @@ var HotspotManger = Base.extend(function () {
         _hotspots: []
     };
 }, function () {
-    if (!this.root || !this.renderer || !this.camera) {
+    if (!this.dom || !this.renderer || !this.camera) {
         throw new Error('Tip manager needs `root`,  `camera`, `renderer`');
     }
 
     var tipRoot = this._hotspotRoot = document.createElement('div');
     tipRoot.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;';
-    this.root.appendChild(tipRoot);
+    this.dom.appendChild(tipRoot);
 }, {
+
+    setBoundingBox: function (min, max) {
+        this._boundingBox.min.setArray(min);
+        this._boundingBox.max.setArray(max);
+    },
+
     add: function (position, tipDom) {
 
         if (typeof tipDom === 'string') {
@@ -16837,10 +16851,15 @@ var HotspotManger = Base.extend(function () {
 
     update: function () {
         var pos = new Vector4();
+        var tmpBBox = new BoundingBox();
         this._hotspots.forEach(function (hotspot) {
+
+            // Update position
             var p = hotspot.position;
             pos.set(p[0], p[1], p[2], 1);
             pos.transformMat4(this.camera.viewMatrix);
+            var linearDepth = pos.z;
+
             pos.transformMat4(this.camera.projectionMatrix);
             pos.scale(1 / pos.w);
 
@@ -16849,6 +16868,17 @@ var HotspotManger = Base.extend(function () {
 
             hotspot.dom.style.left = x + 'px';
             hotspot.dom.style.top = this.renderer.getHeight() - y + 'px';
+
+            // Upadte alpha
+            var farAlpha = hotspot.farAlpha == null ? DEFAULT_FAR_ALPHA : hotspot.farAlpha;
+            var nearAlpha = hotspot.nearAlpha == null ? DEFAULT_NEAR_ALPHA : hotspot.nearAlpha;
+
+            tmpBBox.copy(this._boundingBox);
+            tmpBBox.applyTransform(this.camera.viewMatrix);
+            var percent = (linearDepth - tmpBBox.max.z) / (tmpBBox.min.z - tmpBBox.max.z);
+            var alpha = Math.max(Math.min(percent, 1.0), 0.0) * (farAlpha - nearAlpha) + nearAlpha;
+
+            hotspot.dom.style.opacity = alpha;
 
             hotspot.onupdate && hotspot.onupdate(x, y);
         }, this);
@@ -16871,7 +16901,7 @@ module.exports = HotspotManger;
 // TODO Remove magic numbers on sensitivity
 var Base = __webpack_require__(1);
 var Vector2 = __webpack_require__(35);
-var Vector3 = __webpack_require__(3);
+var Vector3 = __webpack_require__(4);
 var Quaternion = __webpack_require__(24);
 var GestureMgr = __webpack_require__(41);
 
@@ -16896,7 +16926,7 @@ var OrbitControl = Base.extend(function () {
         /**
          * @type {HTMLDomElement}
          */
-        root: null,
+        dom: null,
         /**
          * @type {qtek.math.Vector3}
          */
@@ -17022,7 +17052,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event binding
      */
     init: function () {
-        var dom = this.root;
+        var dom = this.dom;
 
         dom.addEventListener('touchstart', this._mouseDownHandler);
 
@@ -17037,7 +17067,7 @@ var OrbitControl = Base.extend(function () {
      * Mouse event unbinding
      */
     dispose: function () {
-        var dom = this.root;
+        var dom = this.dom;
 
         dom.removeEventListener('touchstart', this._mouseDownHandler);
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
@@ -17394,7 +17424,7 @@ var OrbitControl = Base.extend(function () {
             this._processGesture(e, 'start');
         }
 
-        var dom = this.root;
+        var dom = this.dom;
         dom.addEventListener('touchmove', this._mouseMoveHandler);
         dom.addEventListener('touchend', this._mouseUpHandler);
 
@@ -17492,7 +17522,7 @@ var OrbitControl = Base.extend(function () {
     },
 
     _mouseUpHandler: function (event) {
-        var dom = this.root;
+        var dom = this.dom;
         dom.removeEventListener('touchmove', this._mouseMoveHandler);
         dom.removeEventListener('touchend', this._mouseUpHandler);
         dom.removeEventListener('mousemove', this._mouseMoveHandler);
@@ -17522,7 +17552,7 @@ var OrbitControl = Base.extend(function () {
         var gestureInfo = gestureMgr.recognize(
             event,
             null,
-            this.root
+            this.dom
         );
 
         stage === 'end' && gestureMgr.clear();
@@ -17561,7 +17591,7 @@ module.exports = OrbitControl;
 /* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var BoundingBox = __webpack_require__(4);
+var BoundingBox = __webpack_require__(3);
 var glmatrix = __webpack_require__(0);
 var vec3 = glmatrix.vec3;
 var mat4 = glmatrix.mat4;
@@ -21543,8 +21573,8 @@ module.exports = getBoundingBoxWithSkinning;
     var StaticGeometry = __webpack_require__(11);
     var Plane = __webpack_require__(31);
     var Matrix4 = __webpack_require__(15);
-    var Vector3 = __webpack_require__(3);
-    var BoundingBox = __webpack_require__(4);
+    var Vector3 = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var vendor = __webpack_require__(8);
 
     var planeMatrix = new Matrix4();
@@ -21690,7 +21720,7 @@ module.exports = getBoundingBoxWithSkinning;
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
     var vec2 = glMatrix.vec2;
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
 
     /**
      * @constructor qtek.geometry.Sphere
@@ -21934,9 +21964,9 @@ module.exports = getBoundingBoxWithSkinning;
     var DirectionalLight = __webpack_require__(23);
     var glenum = __webpack_require__(2);
 
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
     var Quaternion = __webpack_require__(24);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
 
     var SamplerClip = __webpack_require__(51);
     var SkinningClip = __webpack_require__(52);
@@ -22904,7 +22934,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
     var mat4 = glMatrix.mat4;
@@ -23082,7 +23112,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 
-    var Vector3 = __webpack_require__(3);
+    var Vector3 = __webpack_require__(4);
     var glMatrix = __webpack_require__(0);
     var vec3 = glMatrix.vec3;
 
@@ -24140,8 +24170,8 @@ module.exports = getBoundingBoxWithSkinning;
 
     var Base = __webpack_require__(1);
     var glenum = __webpack_require__(2);
-    var Vector3 = __webpack_require__(3);
-    var BoundingBox = __webpack_require__(4);
+    var Vector3 = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var Frustum = __webpack_require__(34);
     var Matrix4 = __webpack_require__(15);
     var Renderer = __webpack_require__(27);
@@ -25307,7 +25337,7 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
     var Mesh = __webpack_require__(14);
     var Node = __webpack_require__(7);
     var StandardMaterial = __webpack_require__(29);
-    var BoundingBox = __webpack_require__(4);
+    var BoundingBox = __webpack_require__(3);
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
     var vec3 = glMatrix.vec3;
