@@ -298,13 +298,16 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             }
         });
         meshNeedsSplit.forEach(function (mesh) {
-            // FIXME
             meshUtil.splitByJoints(mesh, 15, true);
         });
         res.rootNode.traverse(function (mesh) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
                 mesh.culling = false;
+            }
+            if (mesh.skeleton) {
+                // Avoid wrong culling when skinning matrices transforms alot.
+                mesh.frustumCulling = false;
             }
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
