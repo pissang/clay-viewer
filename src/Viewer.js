@@ -23,7 +23,7 @@ var HotspotManager = require('./HotspotManager');
 function createSkeletonDebugScene(skeleton) {
     var scene = new Scene();
     var sphereGeo = new SphereGeo({
-        radius: 0.1
+        radius: 0.04
     });
     var sphereMat = new Material({
         shader: new Shader({
@@ -290,9 +290,15 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
         res.rootNode.traverse(function (mesh) {
             if (mesh.skeleton && mesh.skeleton.getClip(0)) {
                 meshNeedsSplit.push(mesh);
+                // if (mesh.joints.length > 15) {
+                //     mesh.material.shader.define('vertex', 'USE_SKIN_MATRICES_TEXTURE');
+                //     mesh.useSkinMatricesTexture = true;
+                //     mesh.material.set('skinMatricesTexture', mesh.getSkinMatricesTexture());
+                // }
             }
         });
         meshNeedsSplit.forEach(function (mesh) {
+            // FIXME
             meshUtil.splitByJoints(mesh, 15, true);
         });
         res.rootNode.traverse(function (mesh) {
