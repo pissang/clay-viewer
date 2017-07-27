@@ -15,6 +15,9 @@ var Mesh = require('qtek/lib/Mesh');
 var Material = require('qtek/lib/Material');
 var Shader = require('qtek/lib/Shader');
 var StaticGeometry = require('qtek/lib/StaticGeometry');
+var Task = require('qtek/lib/async/Task');
+var TaskGroup = require('qtek/lib/async/TaskGroup');
+var util = require('qtek/lib/core/util');
 
 var getBundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var OrbitControl = require('./OrbitControl');
@@ -269,13 +272,14 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
 /**
  * Load glTF model resource
- * @param {string} url model url
- * @param {Function} callback
+ * @param {string} url Model url
  * @param {Object} [opts] 
  */
-Viewer.prototype.loadModel = function (url, cb, opts) {
-
+Viewer.prototype.loadModel = function (url, opts) {
     opts = opts || {};
+    if (!url) {
+        throw new Error('URL of model is not provided');
+    }
 
     var loader = new GLTFLoader({
         rootNode: new Node(),
@@ -285,16 +289,22 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
     });
     loader.load(url);
 
+    var task = new Task();
+
+    var vertexCount = 0;
+    var triangleCount = 0;
+    var nodeCount = 0;
+
     loader.success(function (res) {
         var meshNeedsSplit = [];
         res.rootNode.traverse(function (mesh) {
+            nodeCount++;
             if (mesh.skeleton && mesh.skeleton.getClip(0)) {
                 meshNeedsSplit.push(mesh);
-                // if (mesh.joints.length > 15) {
-                //     mesh.material.shader.define('vertex', 'USE_SKIN_MATRICES_TEXTURE');
-                //     mesh.useSkinMatricesTexture = true;
-                //     mesh.material.set('skinMatricesTexture', mesh.getSkinMatricesTexture());
-                // }
+            }
+            if (mesh.geometry) {
+                triangleCount += mesh.geometry.triangleCount;
+                vertexCount += mesh.geometry.vertexCount;
             }
         });
         meshNeedsSplit.forEach(function (mesh) {
@@ -327,8 +337,33 @@ Viewer.prototype.loadModel = function (url, cb, opts) {
             center: [0, 0, 0]
         });
 
-        cb && cb();
+        var stat = {
+            triangleCount: vertexCount,
+            vertexCount: triangleCount,
+            nodeCount: nodeCount,
+            meshCount: Object.keys(res.meshes).length,
+            materialCount: Object.keys(res.materials).length,
+            textureCount: Object.keys(res.textures).length
+        };
+
+        task.trigger('loadmodel', stat);
+        
+        var loadingTextures = [];
+        util.each(res.textures, function (texture) {
+            if (!texture.isRenderable()) {
+                loadingTextures.push(texture);
+            }
+        });
+        var taskGroup = new TaskGroup();
+        taskGroup.allSettled(loadingTextures).success(function () {
+            task.trigger('ready');
+        });
     }, this);
+    loader.error(function () {
+        task.trigger('error');
+    });
+
+    return task;
 };
 
 /**

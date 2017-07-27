@@ -1,0 +1,82 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="text/javascript" src="../dist/QMV.js?1123"></script>
+</head>
+<body>
+    <style>
+        body {
+            margin: 0;
+            background: url(bg.jpg);
+            background-size: 100% 100%;
+            /* background: #000; */
+        }
+        #main {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+        }
+        .tip {
+            width:20px;
+            height:20px;
+            border-radius:20px;
+            background-color:#000;
+            border: 2px solid #fff;
+            opacity: 0.8;
+            text-align:center;
+            line-height: 20px;
+            color: #fff;
+            cursor: pointer;
+        }
+    </style>
+    <div id="main"></div>
+
+    <script type="text/javascript">
+        var viewer = new QMV.Viewer(document.getElementById('main'), {
+            shadow: true,
+            shader: 'standard',
+            // renderDebugSkeleton: true
+        });
+
+        var modelUrl = location.search.slice(1);
+
+        viewer.loadModel('asset/' + (modelUrl || 'dragon/dragon.gltf'))
+            .on('loadmodel', function (modelStat) {
+                viewer.setCameraControl({
+                    alpha: 20,
+                    beta: 30,
+                    // autoRotate: true
+                    // distance: 5,
+                    // minDistance: 1
+                    // center: [0, 0, 0]
+                });
+                viewer.start();
+
+                var dom = viewer.addHotspot([5, 2, 0], `
+                    <div class="tip">1</div>
+                `);
+                dom.addEventListener('click', function () {
+                    alert('Do something');
+                });
+
+                console.log('Model loaded:');
+                console.log('三角面：', modelStat.triangleCount);
+                console.log('顶点：', modelStat.vertexCount);
+                console.log('场景节点：', modelStat.nodeCount);
+                console.log('Mesh：', modelStat.meshCount);
+                console.log('材质：', modelStat.materialCount);
+                console.log('纹理：', modelStat.textureCount);
+            })
+            .on('ready', function () {
+                console.log('all loaded');
+            })
+            .on('error', function () {
+                console.log('Model load error');
+            });
+
+    </script>
+</body>
+</html>
