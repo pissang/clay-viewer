@@ -48,18 +48,18 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
         // Set main light options.
         viewer.setMainLight({
             // Main light intensity
-            intensity: config.lightIntensity,
+            intensity: 1,
             // Main light color string
-            color: config.lightColor,
+            color: '#fff',
             // Alpha is rotation from bottom to up.
-            alpha: config.lightAlpha,
+            alpha: 45,
             // Beta is rotation from left to right.
-            beta: config.lightBeta
+            beta: 45
         });
         // Set ambient light options
         viewer.setAmbientLight({
             // Ambient light intensity
-            intensity: config.ambientIntensity
+            intensity: 0.8
         });
 
         viewer.start();
