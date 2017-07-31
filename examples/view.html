@@ -2,7 +2,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script type="text/javascript" src="../dist/QMV.js?1123"></script>
+    <script src="../dist/QMV.js"></script>
+    <script src="lib/dat.gui.js"></script>
 </head>
 <body>
     <style>
@@ -76,7 +77,32 @@
             .on('error', function () {
                 console.log('Model load error');
             });
+        
+        var config = {
+            lightIntensity: 1,
+            lightColor: '#fff',
+            lightAlpha: 45,
+            lightBeta: 45,
+            ambientIntensity: 0.8
+        }
+        var gui = new dat.GUI();
 
+        function updateLight() {
+            viewer.setMainLight({
+                intensity: config.lightIntensity,
+                color: config.lightColor,
+                alpha: config.lightAlpha,
+                beta: config.lightBeta
+            });
+            viewer.setAmbientLight({
+                intensity: config.ambientIntensity
+            });
+        }
+        gui.add(config, 'lightIntensity', 0, 4).onChange(updateLight);
+        gui.addColor(config, 'lightColor').onChange(updateLight);
+        gui.add(config, 'lightAlpha', -90, 90).onChange(updateLight);
+        gui.add(config, 'lightBeta', -180, 180).onChange(updateLight);
+        gui.add(config, 'ambientIntensity', 0, 4).onChange(updateLight);
     </script>
 </body>
 </html>

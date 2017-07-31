@@ -17,6 +17,7 @@ var viewer = new QMV.Viewer(document.getElementById('main'), {
 viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
     // Model loaded. not include textures.
     .on('loadmodel', function (modelStat) {
+        // Set camera options.
         viewer.setCameraControl({
             // Alpha is rotation from bottom to up.
             alpha: 10,
@@ -43,6 +44,24 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
             // Start auto rotating after still for the given time
             autoRotateAfterStill: 30
         });
+
+        // Set main light options.
+        viewer.setMainLight({
+            // Main light intensity
+            intensity: config.lightIntensity,
+            // Main light color string
+            color: config.lightColor,
+            // Alpha is rotation from bottom to up.
+            alpha: config.lightAlpha,
+            // Beta is rotation from left to right.
+            beta: config.lightBeta
+        });
+        // Set ambient light options
+        viewer.setAmbientLight({
+            // Ambient light intensity
+            intensity: config.ambientIntensity
+        });
+
         viewer.start();
         
         // Add a hotspot with HTML. CSS needs to be stylized by yourself
