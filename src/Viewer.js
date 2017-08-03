@@ -18,8 +18,10 @@ var StaticGeometry = require('qtek/lib/StaticGeometry');
 var Task = require('qtek/lib/async/Task');
 var TaskGroup = require('qtek/lib/async/TaskGroup');
 var util = require('qtek/lib/core/util');
+var colorUtil = require('zrender/lib/tool/color');
 
 var getBundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
+var directionFromAlphaBeta = require('./util/directionFromAlphaBeta');
 var OrbitControl = require('./OrbitControl');
 var HotspotManager = require('./HotspotManager');
 
@@ -164,6 +166,12 @@ Viewer.prototype.init = function (dom, opts) {
     this._initLights();
 
     this.resize();
+
+    /**
+     * Alpha and beta angle of main light.
+     */
+    this._mainLightAlpha = 45;
+    this._mainLightBeta = 45;
 };
 
 Viewer.prototype._initLights = function () {
@@ -172,15 +180,18 @@ Viewer.prototype._initLights = function () {
         shadowResolution: 1024,
         shadowBias: 0.05
     });
+    var ambientLight = new AmbientSHLight({
+        intensity : 0.8,
+        coefficients: [0.4901205003261566, 0.496532678604126, 0.7081291079521179, -0.0044515603221952915, 0.003780306549742818, 0.011885687708854675, -0.17520742118358612, -0.045615702867507935, 0.13985709846019745, 0.0018043766031041741, -0.005721535999327898, -0.00747253792360425, -0.013539238832890987, -0.009005839005112648, -0.0029368270188570023, -0.0036218082532286644, -0.0014644089387729764, 0.002722999081015587, 0.003975209314376116, -0.0012733691837638617, -0.006120394915342331, -0.010730908252298832, 0.02799658663570881, 0.05306524038314819, -0.0002291168348165229, 0.017803849652409554, 0.030858537182211876]
+    });
 
     this._mainLight = light;
 
+    this._ambientLight = ambientLight;
+
     this._scene.add(light);
 
-    this._scene.add(new AmbientSHLight({
-        intensity : 0.8,
-        coefficients: [0.4901205003261566, 0.496532678604126, 0.7081291079521179, -0.0044515603221952915, 0.003780306549742818, 0.011885687708854675, -0.17520742118358612, -0.045615702867507935, 0.13985709846019745, 0.0018043766031041741, -0.005721535999327898, -0.00747253792360425, -0.013539238832890987, -0.009005839005112648, -0.0029368270188570023, -0.0036218082532286644, -0.0014644089387729764, 0.002722999081015587, 0.003975209314376116, -0.0012733691837638617, -0.006120394915342331, -0.010730908252298832, 0.02799658663570881, 0.05306524038314819, -0.0002291168348165229, 0.017803849652409554, 0.030858537182211876]
-    }));
+    this._scene.add(ambientLight);
 };
 
 Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
@@ -232,6 +243,9 @@ Viewer.prototype.resize = function () {
     this._camera.aspect = renderer.canvas.width / renderer.canvas.height;
 };
 
+/**
+ * Scale model to auto fit the camera.
+ */
 Viewer.prototype.autoFitModel = function (fitSize) {
     fitSize = fitSize || 10;
     if (this._modelNode) {
@@ -253,20 +267,6 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         this._mainLight.lookAt(Vector3.ZERO);
 
         this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
-
-        // Debug
-        // var mesh = new Mesh({
-        //     geometry: new CubeGeo(),
-        //     material: new Material({
-        //         shader: new Shader({
-        //             vertex: Shader.source('qtek.standard.vertex'),
-        //             fragment: Shader.source('qtek.standard.fragment')
-        //         })
-        //     })
-        // });
-        // mesh.position.copy(center);
-        // mesh.scale.copy(size).scale(0.5);
-        // this._scene.add(mesh);
     }
 };
 
@@ -323,6 +323,8 @@ Viewer.prototype.loadModel = function (url, opts) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.95);
+
+                mesh.material.shader.precision = 'mediump';
             }
         });
 
@@ -383,6 +385,43 @@ Viewer.prototype.loadModel = function (url, opts) {
  */
 Viewer.prototype.setCameraControl = function (opts) {
     this._cameraControl.setOption(opts);
+};
+
+/**
+ * @param {Object} [opts]
+ * @param {number} [opts.intensity]
+ * @param {string} [opts.color]
+ * @param {number} [opts.alpha]
+ * @param {number} [opts.beta]
+ */
+Viewer.prototype.setMainLight = function (opts) {
+    if (opts.intensity != null) {
+        this._mainLight.intensity = opts.intensity;
+    }
+    if (opts.color != null) {
+        this._mainLight.color = (colorUtil.parse(opts.color) || [0, 0, 0]).slice(0, 3).map(function (chanel) {
+            return chanel / 255;
+        });
+    }
+    if (opts.alpha != null) {
+        this._mainLightAlpha = opts.alpha;
+    }
+    if (opts.beta != null) {
+        this._mainLightBeta = opts.beta;
+    }
+
+    this._mainLight.position.setArray(directionFromAlphaBeta(this._mainLightAlpha, this._mainLightBeta));
+    this._mainLight.lookAt(Vector3.ZERO);
+};
+
+/**
+ * @param {Object} [opts]
+ * @param {number} [opts.intensity]
+ */
+Viewer.prototype.setAmbientLight = function (opts) {
+    if (opts.intensity != null) {
+        this._ambientLight.intensity = opts.intensity;
+    }
 };
 
 /**
