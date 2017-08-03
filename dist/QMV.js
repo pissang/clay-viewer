@@ -16978,6 +16978,8 @@ Viewer.prototype.loadModel = function (url, opts) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.95);
+
+                mesh.material.shader.precision = 'mediump';
             }
         });
 
@@ -25613,7 +25615,8 @@ module.exports = getBoundingBoxWithSkinning;
                     if (!depthShader) {
                         depthShader = new Shader({
                             vertex: Shader.source('qtek.sm.depth.vertex'),
-                            fragment: Shader.source('qtek.sm.depth.fragment')
+                            fragment: Shader.source('qtek.sm.depth.fragment'),
+                            precision: 'mediump'
                         });
                         if (nJoints > 0) {
                             depthShader.define('vertex', 'SKINNING');
@@ -25665,7 +25668,8 @@ module.exports = getBoundingBoxWithSkinning;
                         distanceMaterial = new Material({
                             shader: new Shader({
                                 vertex: Shader.source('qtek.sm.distance.vertex'),
-                                fragment: Shader.source('qtek.sm.distance.fragment')
+                                fragment: Shader.source('qtek.sm.distance.fragment'),
+                                precision: 'mediump'
                             })
                         });
                         if (nJoints > 0) {
