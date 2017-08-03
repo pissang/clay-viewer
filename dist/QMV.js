@@ -10916,8 +10916,11 @@ module.exports = {
             _gl.bindTexture(_gl.TEXTURE_2D, null);
         },
 
-        load: function (src) {
+        load: function (src, crossOrigin) {
             var image = new Image();
+            if (crossOrigin) {
+                image.crossOrigin = crossOrigin;
+            }
             var self = this;
             image.onload = function() {
                 self.dirty();
@@ -11682,11 +11685,14 @@ module.exports = {
             }
         },
 
-        load: function (imageList) {
+        load: function (imageList, crossOrigin) {
             var loading = 0;
             var self = this;
             util.each(imageList, function (src, target){
                 var image = new Image();
+                if (crossOrigin) {
+                    image.crossOrigin = crossOrigin;
+                }
                 image.onload = function () {
                     loading --;
                     if (loading === 0){
@@ -16940,7 +16946,8 @@ Viewer.prototype.loadModel = function (url, opts) {
         rootNode: new Node(),
         shaderName: 'qtek.' + this._shaderName,
         textureRootPath: opts.textureRootPath,
-        bufferRootPath: opts.bufferRootPath
+        bufferRootPath: opts.bufferRootPath,
+        crossOrigin: 'Anonymous'
     });
     loader.load(url);
 
@@ -23291,6 +23298,10 @@ module.exports = getBoundingBoxWithSkinning;
         shaderName: 'qtek.standard',
 
         /**
+         * Cross origin setting
+         */
+
+        /**
          * @type {string}
          */
         useStandardMaterial: false,
@@ -23316,7 +23327,12 @@ module.exports = getBoundingBoxWithSkinning;
         /**
          * @type {boolean}
          */
-        includeTexture: true
+        includeTexture: true,
+
+        /**
+         * @type {string}
+         */
+        crossOrigin: ''
     },
     function () {
         this._shaderLib = shaderLibrary.createLibrary();
@@ -23660,7 +23676,7 @@ module.exports = getBoundingBoxWithSkinning;
                 if (target === glenum.TEXTURE_2D) {
                     var texture = new Texture2D(parameters);
                     var imageInfo = json.images[textureInfo.source];
-                    texture.load(util.relative2absolute(imageInfo.path, rootPath));
+                    texture.load(util.relative2absolute(imageInfo.path, rootPath), this.crossOrigin);
                     lib.textures[name] = texture;
                 }
                 else if(target === glenum.TEXTURE_CUBE_MAP) {

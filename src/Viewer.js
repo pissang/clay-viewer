@@ -285,7 +285,8 @@ Viewer.prototype.loadModel = function (url, opts) {
         rootNode: new Node(),
         shaderName: 'qtek.' + this._shaderName,
         textureRootPath: opts.textureRootPath,
-        bufferRootPath: opts.bufferRootPath
+        bufferRootPath: opts.bufferRootPath,
+        crossOrigin: 'Anonymous'
     });
     loader.load(url);
 
