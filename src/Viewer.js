@@ -380,6 +380,10 @@ Viewer.prototype.loadModel = function (url, opts) {
     return task;
 };
 
+/**
+ * Load animation glTF
+ * @param {string} url
+ */
 Viewer.prototype.loadAnimation = function (url) {
     var loader = new GLTFLoader({
         rootNode: new Node(),
@@ -392,6 +396,24 @@ Viewer.prototype.loadAnimation = function (url) {
     }, this);
 
     return loader;
+};
+
+/**
+ * Pause animation
+ */
+Viewer.prototype.pauseAnimation = function () {
+    this._clips.forEach(function (clip) {
+        clip.pause();
+    });
+};
+
+/**
+ * Resume animation
+ */
+Viewer.prototype.resumeAnimation = function () {
+    this._clips.forEach(function (clip) {
+        clip.resume();
+    });
 };
 
 /**
