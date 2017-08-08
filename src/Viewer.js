@@ -388,7 +388,7 @@ Viewer.prototype.loadAnimation = function (url) {
     loader.load(url);
     loader.success(function (res) {
         this._setAnimationClips(res.clips);
-        this.autoFitModel();
+        // this.autoFitModel();
     }, this);
 
     return loader;
@@ -499,9 +499,8 @@ Viewer.prototype._updateClipAndSkeletons = function () {
 };
 
 Viewer.prototype._loop = function (deltaTime) {
-    this._scene.update();
-
     this._updateClipAndSkeletons();
+    this._scene.update();
 
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
