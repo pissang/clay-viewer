@@ -27,34 +27,22 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
     var min = [Infinity, Infinity, Infinity];
     var max = [-Infinity, -Infinity, -Infinity];
 
-    var timeSamples = [0];
-    var clip = mesh.skeleton.getClip(0);
-    if (clip) {
-        timeSamples.push(clip.life);
-    }
-    for (var t = 0; t < timeSamples.length; t++) {
-        if (clip) {
-            clip.setTime(timeSamples[t]);
-            mesh.skeleton.setPose(0);
-            for (var i = 0; i < geometry.vertexCount; i++) {
-                positionAttr.get(i, pos);
-                weightAttr.get(i, weight);
-                jointAttr.get(i, joint);
-                weight[3] = 1 - weight[0] - weight[1] - weight[2];
+    for (var i = 0; i < geometry.vertexCount; i++) {
+        positionAttr.get(i, pos);
+        weightAttr.get(i, weight);
+        jointAttr.get(i, joint);
+        weight[3] = 1 - weight[0] - weight[1] - weight[2];
 
-                vec3.set(skinnedPos, 0, 0, 0);
-                for (var k = 0; k < 4; k++) {
-                    if (joint[k] >= 0) {
-                        vec3.transformMat4(tmp, pos, skinMatrices[joint[k]]);
-                        vec3.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
-                    }   
-                }
-
-                vec3.min(min, min, skinnedPos);
-                vec3.max(max, max, skinnedPos);
-
-            }
+        vec3.set(skinnedPos, 0, 0, 0);
+        for (var k = 0; k < 4; k++) {
+            if (joint[k] >= 0) {
+                vec3.transformMat4(tmp, pos, skinMatrices[joint[k]]);
+                vec3.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
+            }   
         }
+
+        vec3.min(min, min, skinnedPos);
+        vec3.max(max, max, skinnedPos);
     }
     out.min.setArray(min);
     out.max.setArray(max);
@@ -86,7 +74,7 @@ function getBoundingBoxWithSkinning(node, out) {
     }
 
     if (node.geometry) {
-        if (node.skeleton && node.joints && node.joints.length && node.skeleton.getClip(0)) {
+        if (node.skeleton && node.joints && node.joints.length) {
             getBoundingBoxOfSkinningMesh(node, tmpBBox);
             out.union(tmpBBox);
         }

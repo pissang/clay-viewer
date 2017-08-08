@@ -20,7 +20,7 @@ var TaskGroup = require('qtek/lib/async/TaskGroup');
 var util = require('qtek/lib/core/util');
 var colorUtil = require('zrender/lib/tool/color');
 
-var getBundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
+var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var directionFromAlphaBeta = require('./util/directionFromAlphaBeta');
 var OrbitControl = require('./OrbitControl');
 var HotspotManager = require('./HotspotManager');
@@ -207,23 +207,13 @@ Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
             this._renderer.disposeScene(skeleton.__debugScene);
         }
     }, this);
-    this._clips.forEach(function (clip) {
-        this._animation.removeClip(clips[id]);
-    }, this);
 
     this._scene.add(modelNode);
 
     var skeletonsList = [];
-    var clipsList = [];
     for (var id in skeletons) {
         var skeleton = skeletons[id];
 
-        for (var clipId in clips) {
-            clipsList.push(clips[clipId]);
-
-            this._animation.addClip(clips[clipId]);
-            clips[clipId].setLoop(true);
-        }
         skeletonsList.push(skeleton);
 
         if (this._renderDebugSkeleton) {
@@ -232,9 +222,30 @@ Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
     }
 
     this._skeletons = skeletonsList;
-    this._clips = clipsList;
-    
     this._modelNode = modelNode;
+
+    this._setAnimationClips(clips);
+};
+
+Viewer.prototype._setAnimationClips = function (clips) {
+    this._clips.forEach(function (clip) {
+        this._animation.removeClip(clips[id]);
+    }, this);
+
+    var clipsList = [];
+    for (var clipId in clips) {
+        var clip = clips[clipId];
+        if (!clip.target) {
+            clip.target = this._scene.getNode(clip.name);
+        }
+
+        clipsList.push(clip);
+
+        this._animation.addClip(clip);
+        clips[clipId].setLoop(true);
+    }
+
+    this._clips = clipsList;
 };
 
 Viewer.prototype.resize = function () {
@@ -249,8 +260,9 @@ Viewer.prototype.resize = function () {
 Viewer.prototype.autoFitModel = function (fitSize) {
     fitSize = fitSize || 10;
     if (this._modelNode) {
+        this._setPose(0);
         this._modelNode.update();
-        var bbox = getBundingBoxWithSkinning(this._modelNode);
+        var bbox = getBoundingBoxWithSkinning(this._modelNode);
 
         var size = new Vector3();
         size.copy(bbox.max).sub(bbox.min);
@@ -300,7 +312,7 @@ Viewer.prototype.loadModel = function (url, opts) {
         var meshNeedsSplit = [];
         res.rootNode.traverse(function (mesh) {
             nodeCount++;
-            if (mesh.skeleton && mesh.skeleton.getClip(0)) {
+            if (mesh.skeleton) {
                 meshNeedsSplit.push(mesh);
             }
             if (mesh.geometry) {
@@ -309,8 +321,8 @@ Viewer.prototype.loadModel = function (url, opts) {
             }
         });
         meshNeedsSplit.forEach(function (mesh) {
-            meshUtil.splitByJoints(mesh, 15, true);
-        });
+            meshUtil.splitByJoints(mesh, 15, true, loader.shaderLibrary, 'qtek.' + this._shaderName);
+        }, this);
         res.rootNode.traverse(function (mesh) {
             if (mesh.geometry) {
                 mesh.geometry.updateBoundingBox();
@@ -323,9 +335,8 @@ Viewer.prototype.loadModel = function (url, opts) {
             if (mesh.material) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
-                mesh.material.shader.define('fragment', 'ALPHA_TEST_THRESHOLD', 0.95);
-
                 mesh.material.shader.precision = 'mediump';
+                mesh.material.set('alphaCutoff', 0.95);
             }
         });
 
@@ -367,6 +378,20 @@ Viewer.prototype.loadModel = function (url, opts) {
     });
 
     return task;
+};
+
+Viewer.prototype.loadAnimation = function (url) {
+    var loader = new GLTFLoader({
+        rootNode: new Node(),
+        crossOrigin: 'Anonymous'
+    });
+    loader.load(url);
+    loader.success(function (res) {
+        this._setAnimationClips(res.clips);
+        this.autoFitModel();
+    }, this);
+
+    return loader;
 };
 
 /**
@@ -448,9 +473,14 @@ Viewer.prototype.addHotspot = function (position, tipHTML) {
     return this._hotspotManager.add(position, tipHTML);
 };
 
+Viewer.prototype._setPose = function (time) {
+    this._clips.forEach(function (clip) {
+        clip.setTime(time);
+    });
+    this._updateClipAndSkeletons();
+};
 
-Viewer.prototype._loop = function (deltaTime) {
-    this._scene.update();
+Viewer.prototype._updateClipAndSkeletons = function () {
     // Manually sync the transform for nodes not in skeleton
     this._clips.forEach(function (clip) {
         if (clip.channels.position) {
@@ -464,8 +494,15 @@ Viewer.prototype._loop = function (deltaTime) {
         }
     });
     this._skeletons.forEach(function (skeleton) {
-        skeleton.setPose(0);
+        skeleton.update();
     });
+};
+
+Viewer.prototype._loop = function (deltaTime) {
+    this._scene.update();
+
+    this._updateClipAndSkeletons();
+
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
     this._renderer.render(this._scene, this._camera);
 
