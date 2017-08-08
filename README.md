@@ -2,7 +2,7 @@
 
 Simple 3D model viewer based on [QTEK](https://github.com/pissang/qtek)
 
-## Basic Usage
+## Loader
 
 ```js
 var viewer = new QMV.Viewer(document.getElementById('main'), {
@@ -63,6 +63,16 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
         });
 
         viewer.start();
+
+        // Load extra animation glTF
+        viewer.loadAnimation('asset/xiniu/xiniu_stand_as.gltf')
+            .on('success', function () {
+                console.log('Changed animation')
+            });
+        // Animation pause and start
+        viewer.pauseAnimation();
+        viewer.resumeAnimation();
+
         
         // Add a hotspot with HTML. CSS needs to be stylized by yourself
         var dom = viewer.addHotspot([5, 2, 0], `
@@ -88,4 +98,64 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
         console.log('Model load error');
     });
 
+```
+
+## Converter
+
+qtek provide a python tool for converting FBX to glTF.
+
+https://github.com/pissang/qtek/blob/master/tools/fbx2gltf.py
+
+```
+usage: fbx2gltf.py [-h] [-e EXCLUDE] [-t TIMERANGE] [-o OUTPUT] [-f FRAMERATE]
+                   [-p POSE]
+                   file
+
+FBX to glTF converter
+
+positional arguments:
+  file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e EXCLUDE, --exclude EXCLUDE
+                        Data excluded. Can be: scene,animation
+  -t TIMERANGE, --timerange TIMERANGE
+                        Export animation time, in format
+                        'startSecond,endSecond'
+  -o OUTPUT, --output OUTPUT
+                        Ouput glTF file path
+  -f FRAMERATE, --framerate FRAMERATE
+                        Animation frame per sencond
+  -p POSE, --pose POSE  Static pose time
+
+```
+
+
+## Seperate scene and animation
+
+Export scene
+
+```bash
+# exclude animation
+fbx2gltf.py -e animation -p 0 xxx.fbx
+```
+
+Export animation
+
+```bash
+# exclude scene, 0 to 20 second, 20 framerate.
+fbx2gltf.py -e scene -t 0,20 -f 20 -o xxx_ani.gltf xxx.fbx
+```
+
+Load scene and animation asynchronously
+
+```js
+viewer.loadModel('asset/xiniu/xiniu.gltf')
+    // Model loaded. not include textures.
+    .on('loadmodel', function (modelStat) {
+        viewer.start();
+        // Load extra animation glTF
+        viewer.loadAnimation('asset/xiniu/xiniu_ani.gltf');
+    });
 ```

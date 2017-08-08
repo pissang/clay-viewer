@@ -32,10 +32,33 @@
             color: #fff;
             cursor: pointer;
         }
+        #status {
+            position: absolute;
+            bottom: 100px;
+            font-size: 30px;
+            color: #fff;
+            left: 50%;
+            width: 200px;
+            margin-left: -100px;
+            text-align: 'center';
+            z-index: 100;
+        }
+        #toolbar {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            z-index: 100;
+        }
     </style>
     <div id="main"></div>
+    <div id="status"></div>
+    <div id="toolbar">
+        <button id="pause">Pause</button>
+        <button id="resume">Resume</button>
+    </div>
 
     <script type="text/javascript">
+        var $status = document.getElementById('status');
         var viewer = new QMV.Viewer(document.getElementById('main'), {
             shadow: true,
             shader: 'standard',
@@ -43,12 +66,15 @@
         });
 
         var modelUrl = location.search.slice(1);
+        var baseUrl = 'asset/' + (modelUrl || 'dragon/dragon');
 
-        viewer.loadModel('asset/' + (modelUrl || 'dragon/dragon') + '.gltf')
+        $status.innerHTML = '加载模型中....';
+        viewer.loadModel(baseUrl + '.gltf')
             .on('loadmodel', function (modelStat) {
                 viewer.setCameraControl({
                     alpha: 20,
                     beta: 30,
+                    distance: 16
                     // autoRotate: true
                     // distance: 5,
                     // minDistance: 1
@@ -56,12 +82,13 @@
                 });
                 viewer.start();
 
-                var dom = viewer.addHotspot([5, 2, 0], `
-                    <div class="tip">1</div>
-                `);
-                dom.addEventListener('click', function () {
-                    alert('Do something');
-                });
+                $status.innerHTML = '加载动画中....';
+                // setTimeout(function () {
+                    viewer.loadAnimation(baseUrl + '_ani.gltf')
+                        .success(function () {
+                            $status.innerHTML = '';
+                        })
+                // }, 4000);
 
                 console.log('Model loaded:');
                 console.log('三角面：', modelStat.triangleCount);
@@ -77,32 +104,13 @@
             .on('error', function () {
                 console.log('Model load error');
             });
-        
-        var config = {
-            lightIntensity: 1,
-            lightColor: '#fff',
-            lightAlpha: 45,
-            lightBeta: 45,
-            ambientIntensity: 0.8
-        }
-        var gui = new dat.GUI();
 
-        function updateLight() {
-            viewer.setMainLight({
-                intensity: config.lightIntensity,
-                color: config.lightColor,
-                alpha: config.lightAlpha,
-                beta: config.lightBeta
-            });
-            viewer.setAmbientLight({
-                intensity: config.ambientIntensity
-            });
+        document.getElementById('pause').onclick = function () {
+            viewer.pauseAnimation();
         }
-        gui.add(config, 'lightIntensity', 0, 4).onChange(updateLight);
-        gui.addColor(config, 'lightColor').onChange(updateLight);
-        gui.add(config, 'lightAlpha', -90, 90).onChange(updateLight);
-        gui.add(config, 'lightBeta', -180, 180).onChange(updateLight);
-        gui.add(config, 'ambientIntensity', 0, 4).onChange(updateLight);
+        document.getElementById('resume').onclick = function () {
+            viewer.resumeAnimation();
+        }
     </script>
 </body>
 </html>
