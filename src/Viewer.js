@@ -229,7 +229,7 @@ Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
 
 Viewer.prototype._setAnimationClips = function (clips) {
     this._clips.forEach(function (clip) {
-        this._animation.removeClip(clips[id]);
+        this._animation.removeClip(clip);
     }, this);
 
     var clipsList = [];
@@ -352,8 +352,8 @@ Viewer.prototype.loadModel = function (url, opts) {
         });
 
         var stat = {
-            triangleCount: vertexCount,
-            vertexCount: triangleCount,
+            triangleCount: triangleCount,
+            vertexCount: vertexCount,
             nodeCount: nodeCount,
             meshCount: Object.keys(res.meshes).length,
             materialCount: Object.keys(res.materials).length,
@@ -553,3 +553,7 @@ Viewer.prototype.dispose = function () {
 };
 
 module.exports = Viewer;
+
+
+
+
