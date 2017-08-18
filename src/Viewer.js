@@ -260,7 +260,7 @@ Viewer.prototype.resize = function () {
 Viewer.prototype.autoFitModel = function (fitSize) {
     fitSize = fitSize || 10;
     if (this._modelNode) {
-        this._setPose(0);
+        this.setPose(0);
         this._modelNode.update();
         var bbox = getBoundingBoxWithSkinning(this._modelNode);
 
@@ -495,7 +495,7 @@ Viewer.prototype.addHotspot = function (position, tipHTML) {
     return this._hotspotManager.add(position, tipHTML);
 };
 
-Viewer.prototype._setPose = function (time) {
+Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
