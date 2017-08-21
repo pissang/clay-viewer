@@ -113,7 +113,7 @@ var HotspotManger = Base.extend(function () {
             var percent = (linearDepth - tmpBBox.max.z) / (tmpBBox.min.z - tmpBBox.max.z);
             var alpha = Math.max(Math.min(percent, 1.0), 0.0) * (farAlpha - nearAlpha) + nearAlpha;
 
-            hotspot.dom.style.opacity = alpha;
+            hotspot.dom.style.opacity = 1;
 
             hotspot.onupdate && hotspot.onupdate(x, y);
         }, this);

@@ -543,7 +543,9 @@ Viewer.prototype._loop = function (deltaTime) {
  * Dispose viewer.
  */
 Viewer.prototype.dispose = function () {
-    this._shadowMapPass.dispose(this._renderer);
+    if (this._shadowMapPass) {
+        this._shadowMapPass.dispose(this._renderer);
+    }
     this._renderer.disposeScene(this._scene);
     this._renderer.dispose();
     this._cameraControl.dispose();
