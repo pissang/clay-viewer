@@ -1,7 +1,7 @@
 var Renderer = require('qtek/lib/Renderer');
 var PerspectiveCamera = require('qtek/lib/camera/Perspective');
 var ShadowMapPass = require('qtek/lib/prePass/ShadowMap');
-var GLTFLoader = require('qtek/lib/loader/GLTF');
+var GLTF2Loader = require('qtek/lib/loader/GLTF2');
 var DirectionalLight = require('qtek/lib/light/Directional');
 var AmbientSHLight = require('qtek/lib/light/AmbientSH');
 var Scene = require('qtek/lib/Scene');
@@ -178,7 +178,7 @@ Viewer.prototype._initLights = function () {
     var light = new DirectionalLight({
         intensity: 1,
         shadowResolution: 1024,
-        shadowBias: 0.05
+        shadowBias: 0.01
     });
     var ambientLight = new AmbientSHLight({
         intensity : 0.8,
@@ -194,7 +194,7 @@ Viewer.prototype._initLights = function () {
     this._scene.add(ambientLight);
 };
 
-Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
+Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Remove previous loaded
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
@@ -210,42 +210,40 @@ Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
 
     this._scene.add(modelNode);
 
-    var skeletonsList = [];
-    for (var id in skeletons) {
-        var skeleton = skeletons[id];
-
-        skeletonsList.push(skeleton);
-
+    skeletons.forEach(function (skeleton) {
         if (this._renderDebugSkeleton) {
             skeleton.__debugScene = createSkeletonDebugScene(skeleton);
         }
-    }
+    });
 
-    this._skeletons = skeletonsList;
+    this._skeletons = skeletons.slice();
     this._modelNode = modelNode;
 
     this._setAnimationClips(clips);
+
+    // Not save if glTF has only animation info
+    if (nodes && nodes.length) {
+        this._nodes = nodes;
+    }
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
+
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
     }, this);
 
-    var clipsList = [];
-    for (var clipId in clips) {
-        var clip = clips[clipId];
+    clips.forEach(function (clip) {
         if (!clip.target) {
-            clip.target = this._scene.getNode(clip.name);
+            clip.target = this._nodes[clip.targetNodeIndex];
         }
-
-        clipsList.push(clip);
+        // Remove onframe;
+        clip.onframe = null;
 
         this._animation.addClip(clip);
-        clips[clipId].setLoop(true);
-    }
+    }, this);
 
-    this._clips = clipsList;
+    this._clips = clips.slice();
 };
 
 Viewer.prototype.resize = function () {
@@ -293,7 +291,7 @@ Viewer.prototype.loadModel = function (url, opts) {
         throw new Error('URL of model is not provided');
     }
 
-    var loader = new GLTFLoader({
+    var loader = new GLTF2Loader({
         rootNode: new Node(),
         shaderName: 'qtek.' + this._shaderName,
         textureRootPath: opts.textureRootPath,
@@ -340,7 +338,7 @@ Viewer.prototype.loadModel = function (url, opts) {
             }
         });
 
-        this._addModel(res.rootNode, res.skeletons, res.clips);
+        this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
         this.autoFitModel();
 
@@ -385,7 +383,7 @@ Viewer.prototype.loadModel = function (url, opts) {
  * @param {string} url
  */
 Viewer.prototype.loadAnimation = function (url) {
-    var loader = new GLTFLoader({
+    var loader = new GLTF2Loader({
         rootNode: new Node(),
         crossOrigin: 'Anonymous'
     });
@@ -521,7 +519,9 @@ Viewer.prototype._updateClipAndSkeletons = function () {
 };
 
 Viewer.prototype._loop = function (deltaTime) {
+
     this._updateClipAndSkeletons();
+
     this._scene.update();
 
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
