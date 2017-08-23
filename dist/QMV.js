@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 43);
+/******/ 	return __webpack_require__(__webpack_require__.s = 41);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -4450,8 +4450,8 @@ if(typeof(exports) !== 'undefined') {
 
 
 
-    var extendMixin = __webpack_require__(63);
-    var notifierMixin = __webpack_require__(32);
+    var extendMixin = __webpack_require__(61);
+    var notifierMixin = __webpack_require__(30);
     var util = __webpack_require__(5);
 
     /**
@@ -6389,6 +6389,800 @@ module.exports = {
 "use strict";
 
 /**
+ * @namespace qtek.core.glinfo
+ * @see http://www.khronos.org/registry/webgl/extensions/
+ */
+
+
+    var EXTENSION_LIST = [
+        'OES_texture_float',
+        'OES_texture_half_float',
+        'OES_texture_float_linear',
+        'OES_texture_half_float_linear',
+        'OES_standard_derivatives',
+        'OES_vertex_array_object',
+        'OES_element_index_uint',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_depth_texture',
+        'EXT_texture_filter_anisotropic',
+        'EXT_shader_texture_lod',
+        'WEBGL_draw_buffers',
+        'EXT_frag_depth',
+        'EXT_sRGB'
+    ];
+
+    var PARAMETER_NAMES = [
+        'MAX_TEXTURE_SIZE',
+        'MAX_CUBE_MAP_TEXTURE_SIZE'
+    ];
+
+    var extensions = {};
+    var parameters = {};
+
+    var glinfo = {
+        /**
+         * Initialize all extensions and parameters in context
+         * @param  {WebGLRenderingContext} _gl
+         * @memberOf qtek.core.glinfo
+         */
+        initialize: function (_gl) {
+            var glid = _gl.__GLID__;
+            if (extensions[glid]) {
+                return;
+            }
+            extensions[glid] = {};
+            parameters[glid] = {};
+            // Get webgl extension
+            for (var i = 0; i < EXTENSION_LIST.length; i++) {
+                var extName = EXTENSION_LIST[i];
+
+                this._createExtension(_gl, extName);
+            }
+            // Get parameters
+            for (var i = 0; i < PARAMETER_NAMES.length; i++) {
+                var name = PARAMETER_NAMES[i];
+                parameters[glid][name] = _gl.getParameter(_gl[name]);
+            }
+        },
+
+        /**
+         * Get extension
+         * @param  {WebGLRenderingContext} _gl
+         * @param {string} name - Extension name, vendorless
+         * @return {WebGLExtension}
+         * @memberOf qtek.core.glinfo
+         */
+        getExtension: function (_gl, name) {
+            var glid = _gl.__GLID__;
+            if (extensions[glid]) {
+                if (typeof(extensions[glid][name]) == 'undefined') {
+                    this._createExtension(_gl, name);
+                }
+                return extensions[glid][name];
+            }
+        },
+
+        /**
+         * Get parameter
+         * @param {WebGLRenderingContext} _gl
+         * @param {string} name Parameter name
+         * @return {*}
+         */
+        getParameter: function (_gl, name) {
+            var glid = _gl.__GLID__;
+            if (parameters[glid]) {
+                return parameters[glid][name];
+            }
+        },
+
+        /**
+         * Dispose context
+         * @param  {WebGLRenderingContext} _gl
+         * @memberOf qtek.core.glinfo
+         */
+        dispose: function (_gl) {
+            delete extensions[_gl.__GLID__];
+            delete parameters[_gl.__GLID__];
+        },
+
+        _createExtension: function (_gl, name) {
+            var ext = _gl.getExtension(name);
+            if (!ext) {
+                ext = _gl.getExtension('MOZ_' + name);
+            }
+            if (!ext) {
+                ext = _gl.getExtension('WEBKIT_' + name);
+            }
+
+            extensions[_gl.__GLID__][name] = ext;
+        }
+    };
+
+    module.exports = glinfo;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Base = __webpack_require__(1);
+    var Vector3 = __webpack_require__(4);
+    var Quaternion = __webpack_require__(22);
+    var Matrix4 = __webpack_require__(15);
+    var glMatrix = __webpack_require__(0);
+    var BoundingBox = __webpack_require__(3);
+    var mat4 = glMatrix.mat4;
+
+    var nameId = 0;
+
+    /**
+     * @constructor qtek.Node
+     * @extends qtek.core.Base
+     */
+    var Node = Base.extend(
+    /** @lends qtek.Node# */
+    {
+        /**
+         * Scene node name
+         * @type {string}
+         */
+        name: '',
+
+        /**
+         * Position relative to its parent node. aka translation.
+         * @type {qtek.math.Vector3}
+         */
+        position: null,
+
+        /**
+         * Rotation relative to its parent node. Represented by a quaternion
+         * @type {qtek.math.Quaternion}
+         */
+        rotation: null,
+
+        /**
+         * Scale relative to its parent node
+         * @type {qtek.math.Vector3}
+         */
+        scale: null,
+
+        /**
+         * Affine transform matrix relative to its root scene.
+         * @type {qtek.math.Matrix4}
+         */
+        worldTransform: null,
+
+        /**
+         * Affine transform matrix relative to its parent node.
+         * Composited with position, rotation and scale.
+         * @type {qtek.math.Matrix4}
+         */
+        localTransform: null,
+
+        /**
+         * If the local transform is update from SRT(scale, rotation, translation, which is position here) each frame
+         * @type {boolean}
+         */
+        autoUpdateLocalTransform: true,
+
+        /**
+         * Parent of current scene node
+         * @type {?qtek.Node}
+         * @private
+         */
+        _parent: null,
+        /**
+         * The root scene mounted. Null if it is a isolated node
+         * @type {?qtek.Scene}
+         * @private
+         */
+        _scene: null,
+
+        _needsUpdateWorldTransform: true,
+
+        _inIterating: false,
+
+        // Depth for transparent queue sorting
+        __depth: 0
+
+    }, function () {
+
+        if (!this.name) {
+            this.name = (this.type || 'NODE') + '_' + (nameId++);
+        }
+
+        if (!this.position) {
+            this.position = new Vector3();
+        }
+        if (!this.rotation) {
+            this.rotation = new Quaternion();
+        }
+        if (!this.scale) {
+            this.scale = new Vector3(1, 1, 1);
+        }
+
+        this.worldTransform = new Matrix4();
+        this.localTransform = new Matrix4();
+
+        this._children = [];
+
+    },
+    /**@lends qtek.Node.prototype. */
+    {
+
+        /**
+         * @memberOf qtek.Node
+         * @type {qtek.math.Vector3}
+         * @instance
+         */
+        target: null,
+        /**
+         * If node and its chilren invisible
+         * @type {boolean}
+         * @memberOf qtek.Node
+         * @instance
+         */
+        invisible: false,
+
+        /**
+         * Return true if it is a renderable scene node, like Mesh and ParticleSystem
+         * @return {boolean}
+         */
+        isRenderable: function () {
+            return false;
+        },
+
+        /**
+         * Set the name of the scene node
+         * @param {string} name
+         */
+        setName: function (name) {
+            var scene = this._scene;
+            if (scene) {
+                var nodeRepository = scene._nodeRepository;
+                delete nodeRepository[this.name];
+                nodeRepository[name] = this;
+            }
+            this.name = name;
+        },
+
+        /**
+         * Add a child node
+         * @param {qtek.Node} node
+         */
+        add: function (node) {
+            if (this._inIterating) {
+                console.warn('Add operation can cause unpredictable error when in iterating');
+            }
+            var originalParent = node._parent;
+            if (originalParent === this) {
+                return;
+            }
+            if (originalParent) {
+                originalParent.remove(node);
+            }
+            node._parent = this;
+            this._children.push(node);
+
+            var scene = this._scene;
+            if (scene && scene !== node.scene) {
+                node.traverse(this._addSelfToScene, this);
+            }
+            // Mark children needs update transform
+            // In case child are remove and added again after parent moved
+            node._needsUpdateWorldTransform = true;
+        },
+
+        /**
+         * Remove the given child scene node
+         * @param {qtek.Node} node
+         */
+        remove: function (node) {
+            if (this._inIterating) {
+                console.warn('Remove operation can cause unpredictable error when in iterating');
+            }
+            var children = this._children;
+            var idx = children.indexOf(node);
+            if (idx < 0) {
+                return;
+            }
+
+            children.splice(idx, 1);
+            node._parent = null;
+
+            if (this._scene) {
+                node.traverse(this._removeSelfFromScene, this);
+            }
+        },
+
+        /**
+         * Remove all children
+         */
+        removeAll: function () {
+            var children = this._children;
+
+            for (var idx = 0; idx < children.length; idx++) {
+                children[idx]._parent = null;
+
+                if (this._scene) {
+                    children[idx].traverse(this._removeSelfFromScene, this);
+                }
+            }
+
+            this._children = [];
+        },
+
+        /**
+         * Get the scene mounted
+         * @return {qtek.Scene}
+         */
+        getScene: function () {
+            return this._scene;
+        },
+
+        /**
+         * Get parent node
+         * @return {qtek.Scene}
+         */
+        getParent: function () {
+            return this._parent;
+        },
+
+        _removeSelfFromScene: function (descendant) {
+            descendant._scene.removeFromScene(descendant);
+            descendant._scene = null;
+        },
+
+        _addSelfToScene: function (descendant) {
+            this._scene.addToScene(descendant);
+            descendant._scene = this._scene;
+        },
+
+        /**
+         * Return true if it is ancestor of the given scene node
+         * @param {qtek.Node} node
+         */
+        isAncestor: function (node) {
+            var parent = node._parent;
+            while(parent) {
+                if (parent === this) {
+                    return true;
+                }
+                parent = parent._parent;
+            }
+            return false;
+        },
+
+        /**
+         * Get a new created array of all its children nodes
+         * @return {qtek.Node[]}
+         */
+        children: function () {
+            return this._children.slice();
+        },
+
+        childAt: function (idx) {
+            return this._children[idx];
+        },
+
+        /**
+         * Get first child with the given name
+         * @param {string} name
+         * @return {qtek.Node}
+         */
+        getChildByName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                if (children[i].name === name) {
+                    return children[i];
+                }
+            }
+        },
+
+        /**
+         * Get first descendant have the given name
+         * @param {string} name
+         * @return {qtek.Node}
+         */
+        getDescendantByName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                if (child.name === name) {
+                    return child;
+                } else {
+                    var res = child.getDescendantByName(name);
+                    if (res) {
+                        return res;
+                    }
+                }
+            }
+        },
+
+        /**
+         * Query descendant node by path
+         * @param {string} path
+         * @return {qtek.Node}
+         */
+        queryNode: function (path) {
+            if (!path) {
+                return;
+            }
+            // TODO Name have slash ?
+            var pathArr = path.split('/');
+            var current = this;
+            for (var i = 0; i < pathArr.length; i++) {
+                var name = pathArr[i];
+                // Skip empty
+                if (!name) {
+                    continue;
+                }
+                var found = false;
+                var children = current._children;
+                for (var j = 0; j < children.length; j++) {
+                    var child = children[j];
+                    if (child.name === name) {
+                        current = child;
+                        found = true;
+                        break;
+                    }
+                }
+                // Early return if not found
+                if (!found) {
+                    return;
+                }
+            }
+
+            return current;
+        },
+
+        /**
+         * Get query path, relative to rootNode(default is scene)
+         * @return {string}
+         */
+        getPath: function (rootNode) {
+            if (!this._parent) {
+                return '/';
+            }
+
+            var current = this._parent;
+            var path = this.name;
+            while (current._parent) {
+                path = current.name + '/' + path;
+                if (current._parent == rootNode) {
+                    break;
+                }
+                current = current._parent;
+            }
+            if (!current._parent && rootNode) {
+                return null;
+            }
+            return path;
+        },
+
+        /**
+         * Depth first traverse all its descendant scene nodes and
+         * @param {Function} callback
+         * @param {Node} [context]
+         * @param {Function} [ctor]
+         */
+        traverse: function (callback, context, ctor) {
+
+            this._inIterating = true;
+
+            if (ctor == null || this.constructor === ctor) {
+                callback.call(context, this);
+            }
+            var _children = this._children;
+            for(var i = 0, len = _children.length; i < len; i++) {
+                _children[i].traverse(callback, context, ctor);
+            }
+
+            this._inIterating = false;
+        },
+
+        eachChild: function (callback, context, ctor) {
+            this._inIterating = true;
+
+            var _children = this._children;
+            var noCtor = ctor == null;
+            for(var i = 0, len = _children.length; i < len; i++) {
+                var child = _children[i];
+                if (noCtor || child.constructor === ctor) {
+                    callback.call(context, child, i);
+                }
+            }
+
+            this._inIterating = false;
+        },
+
+        /**
+         * Set the local transform and decompose to SRT
+         * @param {qtek.math.Matrix4} matrix
+         */
+        setLocalTransform: function (matrix) {
+            mat4.copy(this.localTransform._array, matrix._array);
+            this.decomposeLocalTransform();
+        },
+
+        /**
+         * Decompose the local transform to SRT
+         */
+        decomposeLocalTransform: function (keepScale) {
+            var scale = !keepScale ? this.scale: null;
+            this.localTransform.decomposeMatrix(scale, this.rotation, this.position);
+        },
+
+        /**
+         * Set the world transform and decompose to SRT
+         * @param {qtek.math.Matrix4} matrix
+         */
+        setWorldTransform: function (matrix) {
+            mat4.copy(this.worldTransform._array, matrix._array);
+            this.decomposeWorldTransform();
+        },
+
+        /**
+         * Decompose the world transform to SRT
+         * @method
+         */
+        decomposeWorldTransform: (function () {
+
+            var tmp = mat4.create();
+
+            return function (keepScale) {
+                var localTransform = this.localTransform;
+                var worldTransform = this.worldTransform;
+                // Assume world transform is updated
+                if (this._parent) {
+                    mat4.invert(tmp, this._parent.worldTransform._array);
+                    mat4.multiply(localTransform._array, tmp, worldTransform._array);
+                } else {
+                    mat4.copy(localTransform._array, worldTransform._array);
+                }
+                var scale = !keepScale ? this.scale: null;
+                localTransform.decomposeMatrix(scale, this.rotation, this.position);
+            };
+        })(),
+
+        transformNeedsUpdate: function () {
+            return this.position._dirty
+                || this.rotation._dirty
+                || this.scale._dirty;
+        },
+
+        /**
+         * Update local transform from SRT
+         * Notice that local transform will not be updated if _dirty mark of position, rotation, scale is all false
+         */
+        updateLocalTransform: function () {
+            var position = this.position;
+            var rotation = this.rotation;
+            var scale = this.scale;
+
+            if (this.transformNeedsUpdate()) {
+                var m = this.localTransform._array;
+
+                // Transform order, scale->rotation->position
+                mat4.fromRotationTranslation(m, rotation._array, position._array);
+
+                mat4.scale(m, m, scale._array);
+
+                rotation._dirty = false;
+                scale._dirty = false;
+                position._dirty = false;
+
+                this._needsUpdateWorldTransform = true;
+            }
+        },
+
+        /**
+         * Update world transform, assume its parent world transform have been updated
+         */
+        _updateWorldTransformTopDown: function () {
+            var localTransform = this.localTransform._array;
+            var worldTransform = this.worldTransform._array;
+            if (this._parent) {
+                mat4.multiplyAffine(
+                    worldTransform,
+                    this._parent.worldTransform._array,
+                    localTransform
+                );
+            }
+            else {
+                mat4.copy(worldTransform, localTransform);
+            }
+        },
+
+        // Update world transform before whole scene is updated.
+        updateWorldTransform: function () {
+            // Find the root node which transform needs update;
+            var rootNodeIsDirty = this;
+            while (rootNodeIsDirty && rootNodeIsDirty.getParent()
+                && rootNodeIsDirty.getParent().transformNeedsUpdate()
+            ) {
+                rootNodeIsDirty = rootNodeIsDirty.getParent();
+            }
+            rootNodeIsDirty.update();
+        },
+
+        /**
+         * Update local transform and world transform recursively
+         * @param {boolean} forceUpdateWorld
+         */
+        update: function (forceUpdateWorld) {
+            if (this.autoUpdateLocalTransform) {
+                this.updateLocalTransform();
+            }
+            else {
+                // Transform is manually setted
+                forceUpdateWorld = true;
+            }
+
+            if (forceUpdateWorld || this._needsUpdateWorldTransform) {
+                this._updateWorldTransformTopDown();
+                forceUpdateWorld = true;
+                this._needsUpdateWorldTransform = false;
+            }
+
+            var children = this._children;
+            for(var i = 0, len = children.length; i < len; i++) {
+                children[i].update(forceUpdateWorld);
+            }
+        },
+
+        /**
+         * Get bounding box of node
+         * @param  {Function} [filter]
+         * @param  {qtek.math.BoundingBox} [out]
+         * @return {qtek.math.BoundingBox}
+         */
+        getBoundingBox: (function () {
+
+            function defaultFilter (el) {
+                return !el.invisible;
+            }
+            return function (filter, out) {
+                out = out || new BoundingBox();
+                filter = filter || defaultFilter;
+
+                var children = this._children;
+                if (children.length === 0) {
+                    out.max.set(-Infinity, -Infinity, -Infinity);
+                    out.min.set(Infinity, Infinity, Infinity);
+                }
+
+                var tmpBBox = new BoundingBox();
+                for (var i = 0; i < children.length; i++) {
+                    var child = children[i];
+                    if (!filter(child)) {
+                        continue;
+                    }
+                    child.getBoundingBox(filter, tmpBBox);
+                    child.updateLocalTransform();
+                    if (tmpBBox.isFinite()) {
+                        tmpBBox.applyTransform(child.localTransform);
+                    }
+                    if (i === 0) {
+                        out.copy(tmpBBox);
+                    }
+                    else {
+                        out.union(tmpBBox);
+                    }
+                }
+
+                return out;
+            };
+        })(),
+
+        /**
+         * Get world position, extracted from world transform
+         * @param  {qtek.math.Vector3} [out]
+         * @return {qtek.math.Vector3}
+         */
+        getWorldPosition: function (out) {
+            // PENDING
+            if (this.transformNeedsUpdate()) {
+                this.updateWorldTransform();
+            }
+            var m = this.worldTransform._array;
+            if (out) {
+                var arr = out._array;
+                arr[0] = m[12];
+                arr[1] = m[13];
+                arr[2] = m[14];
+                return out;
+            }
+            else {
+                return new Vector3(m[12], m[13], m[14]);
+            }
+        },
+
+        // TODO Set world transform
+
+        /**
+         * Clone a new node
+         * @return {Node}
+         */
+        clone: function () {
+            var node = new this.constructor();
+            var children = this._children;
+
+            node.setName(this.name);
+            node.position.copy(this.position);
+            node.rotation.copy(this.rotation);
+            node.scale.copy(this.scale);
+
+            for (var i = 0; i < children.length; i++) {
+                node.add(children[i].clone());
+            }
+            return node;
+        },
+
+        /**
+         * Rotate the node around a axis by angle degrees, axis passes through point
+         * @param {qtek.math.Vector3} point Center point
+         * @param {qtek.math.Vector3} axis  Center axis
+         * @param {number}       angle Rotation angle
+         * @see http://docs.unity3d.com/Documentation/ScriptReference/Transform.RotateAround.html
+         * @method
+         */
+        rotateAround: (function () {
+            var v = new Vector3();
+            var RTMatrix = new Matrix4();
+
+            // TODO improve performance
+            return function (point, axis, angle) {
+
+                v.copy(this.position).subtract(point);
+
+                var localTransform = this.localTransform;
+                localTransform.identity();
+                // parent node
+                localTransform.translate(point);
+                localTransform.rotate(angle, axis);
+
+                RTMatrix.fromRotationTranslation(this.rotation, v);
+                localTransform.multiply(RTMatrix);
+                localTransform.scale(this.scale);
+
+                this.decomposeLocalTransform();
+                this._needsUpdateWorldTransform = true;
+            };
+        })(),
+
+        /**
+         * @param {qtek.math.Vector3} target
+         * @param {qtek.math.Vector3} [up]
+         * @see http://www.opengl.org/sdk/docs/man2/xhtml/gluLookAt.xml
+         * @method
+         */
+        // TODO world space ?
+        lookAt: (function () {
+            var m = new Matrix4();
+            return function (target, up) {
+                m.lookAt(this.position, target, up || this.localTransform.y).invert();
+                this.setLocalTransform(m);
+
+                this.target = target;
+            };
+        })()
+    });
+
+    module.exports = Node;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/**
  * Mainly do the parse and compile of shader string
  * Support shader code chunk import and export
  * Support shader semantics
@@ -6401,10 +7195,10 @@ module.exports = {
 
     var Base = __webpack_require__(1);
     var util = __webpack_require__(5);
-    var Cache = __webpack_require__(18);
+    var Cache = __webpack_require__(17);
     var vendor = __webpack_require__(9);
     var glMatrix = __webpack_require__(0);
-    var glInfo = __webpack_require__(7);
+    var glInfo = __webpack_require__(6);
     var mat2 = glMatrix.mat2;
     var mat3 = glMatrix.mat3;
     var mat4 = glMatrix.mat4;
@@ -7666,792 +8460,6 @@ module.exports = {
 
 
 /***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-/**
- * @namespace qtek.core.glinfo
- * @see http://www.khronos.org/registry/webgl/extensions/
- */
-
-
-    var EXTENSION_LIST = [
-        'OES_texture_float',
-        'OES_texture_half_float',
-        'OES_texture_float_linear',
-        'OES_texture_half_float_linear',
-        'OES_standard_derivatives',
-        'OES_vertex_array_object',
-        'OES_element_index_uint',
-        'WEBGL_compressed_texture_s3tc',
-        'WEBGL_depth_texture',
-        'EXT_texture_filter_anisotropic',
-        'EXT_shader_texture_lod',
-        'WEBGL_draw_buffers',
-        'EXT_frag_depth',
-        'EXT_sRGB'
-    ];
-
-    var PARAMETER_NAMES = [
-        'MAX_TEXTURE_SIZE',
-        'MAX_CUBE_MAP_TEXTURE_SIZE'
-    ];
-
-    var extensions = {};
-    var parameters = {};
-
-    var glinfo = {
-        /**
-         * Initialize all extensions and parameters in context
-         * @param  {WebGLRenderingContext} _gl
-         * @memberOf qtek.core.glinfo
-         */
-        initialize: function (_gl) {
-            var glid = _gl.__GLID__;
-            if (extensions[glid]) {
-                return;
-            }
-            extensions[glid] = {};
-            parameters[glid] = {};
-            // Get webgl extension
-            for (var i = 0; i < EXTENSION_LIST.length; i++) {
-                var extName = EXTENSION_LIST[i];
-
-                this._createExtension(_gl, extName);
-            }
-            // Get parameters
-            for (var i = 0; i < PARAMETER_NAMES.length; i++) {
-                var name = PARAMETER_NAMES[i];
-                parameters[glid][name] = _gl.getParameter(_gl[name]);
-            }
-        },
-
-        /**
-         * Get extension
-         * @param  {WebGLRenderingContext} _gl
-         * @param {string} name - Extension name, vendorless
-         * @return {WebGLExtension}
-         * @memberOf qtek.core.glinfo
-         */
-        getExtension: function (_gl, name) {
-            var glid = _gl.__GLID__;
-            if (extensions[glid]) {
-                if (typeof(extensions[glid][name]) == 'undefined') {
-                    this._createExtension(_gl, name);
-                }
-                return extensions[glid][name];
-            }
-        },
-
-        /**
-         * Get parameter
-         * @param {WebGLRenderingContext} _gl
-         * @param {string} name Parameter name
-         * @return {*}
-         */
-        getParameter: function (_gl, name) {
-            var glid = _gl.__GLID__;
-            if (parameters[glid]) {
-                return parameters[glid][name];
-            }
-        },
-
-        /**
-         * Dispose context
-         * @param  {WebGLRenderingContext} _gl
-         * @memberOf qtek.core.glinfo
-         */
-        dispose: function (_gl) {
-            delete extensions[_gl.__GLID__];
-            delete parameters[_gl.__GLID__];
-        },
-
-        _createExtension: function (_gl, name) {
-            var ext = _gl.getExtension(name);
-            if (!ext) {
-                ext = _gl.getExtension('MOZ_' + name);
-            }
-            if (!ext) {
-                ext = _gl.getExtension('WEBKIT_' + name);
-            }
-
-            extensions[_gl.__GLID__][name] = ext;
-        }
-    };
-
-    module.exports = glinfo;
-
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Base = __webpack_require__(1);
-    var Vector3 = __webpack_require__(4);
-    var Quaternion = __webpack_require__(24);
-    var Matrix4 = __webpack_require__(15);
-    var glMatrix = __webpack_require__(0);
-    var BoundingBox = __webpack_require__(3);
-    var mat4 = glMatrix.mat4;
-
-    var nameId = 0;
-
-    /**
-     * @constructor qtek.Node
-     * @extends qtek.core.Base
-     */
-    var Node = Base.extend(
-    /** @lends qtek.Node# */
-    {
-        /**
-         * Scene node name
-         * @type {string}
-         */
-        name: '',
-
-        /**
-         * Position relative to its parent node. aka translation.
-         * @type {qtek.math.Vector3}
-         */
-        position: null,
-
-        /**
-         * Rotation relative to its parent node. Represented by a quaternion
-         * @type {qtek.math.Quaternion}
-         */
-        rotation: null,
-
-        /**
-         * Scale relative to its parent node
-         * @type {qtek.math.Vector3}
-         */
-        scale: null,
-
-        /**
-         * Affine transform matrix relative to its root scene.
-         * @type {qtek.math.Matrix4}
-         */
-        worldTransform: null,
-
-        /**
-         * Affine transform matrix relative to its parent node.
-         * Composited with position, rotation and scale.
-         * @type {qtek.math.Matrix4}
-         */
-        localTransform: null,
-
-        /**
-         * If the local transform is update from SRT(scale, rotation, translation, which is position here) each frame
-         * @type {boolean}
-         */
-        autoUpdateLocalTransform: true,
-
-        /**
-         * Parent of current scene node
-         * @type {?qtek.Node}
-         * @private
-         */
-        _parent: null,
-        /**
-         * The root scene mounted. Null if it is a isolated node
-         * @type {?qtek.Scene}
-         * @private
-         */
-        _scene: null,
-
-        _needsUpdateWorldTransform: true,
-
-        _inIterating: false,
-
-        // Depth for transparent queue sorting
-        __depth: 0
-
-    }, function () {
-
-        if (!this.name) {
-            this.name = (this.type || 'NODE') + '_' + (nameId++);
-        }
-
-        if (!this.position) {
-            this.position = new Vector3();
-        }
-        if (!this.rotation) {
-            this.rotation = new Quaternion();
-        }
-        if (!this.scale) {
-            this.scale = new Vector3(1, 1, 1);
-        }
-
-        this.worldTransform = new Matrix4();
-        this.localTransform = new Matrix4();
-
-        this._children = [];
-
-    },
-    /**@lends qtek.Node.prototype. */
-    {
-
-        /**
-         * If node and its chilren invisible
-         * @type {boolean}
-         * @memberOf qtek.Node
-         * @instance
-         */
-        invisible: false,
-
-        /**
-         * Return true if it is a renderable scene node, like Mesh and ParticleSystem
-         * @return {boolean}
-         */
-        isRenderable: function () {
-            return false;
-        },
-
-        /**
-         * Set the name of the scene node
-         * @param {string} name
-         */
-        setName: function (name) {
-            var scene = this._scene;
-            if (scene) {
-                var nodeRepository = scene._nodeRepository;
-                delete nodeRepository[this.name];
-                nodeRepository[name] = this;
-            }
-            this.name = name;
-        },
-
-        /**
-         * Add a child node
-         * @param {qtek.Node} node
-         */
-        add: function (node) {
-            if (this._inIterating) {
-                console.warn('Add operation can cause unpredictable error when in iterating');
-            }
-            var originalParent = node._parent;
-            if (originalParent === this) {
-                return;
-            }
-            if (originalParent) {
-                originalParent.remove(node);
-            }
-            node._parent = this;
-            this._children.push(node);
-
-            var scene = this._scene;
-            if (scene && scene !== node.scene) {
-                node.traverse(this._addSelfToScene, this);
-            }
-            // Mark children needs update transform
-            // In case child are remove and added again after parent moved
-            node._needsUpdateWorldTransform = true;
-        },
-
-        /**
-         * Remove the given child scene node
-         * @param {qtek.Node} node
-         */
-        remove: function (node) {
-            if (this._inIterating) {
-                console.warn('Remove operation can cause unpredictable error when in iterating');
-            }
-            var children = this._children;
-            var idx = children.indexOf(node);
-            if (idx < 0) {
-                return;
-            }
-
-            children.splice(idx, 1);
-            node._parent = null;
-
-            if (this._scene) {
-                node.traverse(this._removeSelfFromScene, this);
-            }
-        },
-
-        /**
-         * Remove all children
-         */
-        removeAll: function () {
-            var children = this._children;
-
-            for (var idx = 0; idx < children.length; idx++) {
-                children[idx]._parent = null;
-
-                if (this._scene) {
-                    children[idx].traverse(this._removeSelfFromScene, this);
-                }
-            }
-
-            this._children = [];
-        },
-
-        /**
-         * Get the scene mounted
-         * @return {qtek.Scene}
-         */
-        getScene: function () {
-            return this._scene;
-        },
-
-        /**
-         * Get parent node
-         * @return {qtek.Scene}
-         */
-        getParent: function () {
-            return this._parent;
-        },
-
-        _removeSelfFromScene: function (descendant) {
-            descendant._scene.removeFromScene(descendant);
-            descendant._scene = null;
-        },
-
-        _addSelfToScene: function (descendant) {
-            this._scene.addToScene(descendant);
-            descendant._scene = this._scene;
-        },
-
-        /**
-         * Return true if it is ancestor of the given scene node
-         * @param {qtek.Node} node
-         */
-        isAncestor: function (node) {
-            var parent = node._parent;
-            while(parent) {
-                if (parent === this) {
-                    return true;
-                }
-                parent = parent._parent;
-            }
-            return false;
-        },
-
-        /**
-         * Get a new created array of all its children nodes
-         * @return {qtek.Node[]}
-         */
-        children: function () {
-            return this._children.slice();
-        },
-
-        childAt: function (idx) {
-            return this._children[idx];
-        },
-
-        /**
-         * Get first child with the given name
-         * @param {string} name
-         * @return {qtek.Node}
-         */
-        getChildByName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                if (children[i].name === name) {
-                    return children[i];
-                }
-            }
-        },
-
-        /**
-         * Get first descendant have the given name
-         * @param {string} name
-         * @return {qtek.Node}
-         */
-        getDescendantByName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (child.name === name) {
-                    return child;
-                } else {
-                    var res = child.getDescendantByName(name);
-                    if (res) {
-                        return res;
-                    }
-                }
-            }
-        },
-
-        /**
-         * Query descendant node by path
-         * @param {string} path
-         * @return {qtek.Node}
-         */
-        queryNode: function (path) {
-            if (!path) {
-                return;
-            }
-            // TODO Name have slash ?
-            var pathArr = path.split('/');
-            var current = this;
-            for (var i = 0; i < pathArr.length; i++) {
-                var name = pathArr[i];
-                // Skip empty
-                if (!name) {
-                    continue;
-                }
-                var found = false;
-                var children = current._children;
-                for (var j = 0; j < children.length; j++) {
-                    var child = children[j];
-                    if (child.name === name) {
-                        current = child;
-                        found = true;
-                        break;
-                    }
-                }
-                // Early return if not found
-                if (!found) {
-                    return;
-                }
-            }
-
-            return current;
-        },
-
-        /**
-         * Get query path, relative to rootNode(default is scene)
-         * @return {string}
-         */
-        getPath: function (rootNode) {
-            if (!this._parent) {
-                return '/';
-            }
-
-            var current = this._parent;
-            var path = this.name;
-            while (current._parent) {
-                path = current.name + '/' + path;
-                if (current._parent == rootNode) {
-                    break;
-                }
-                current = current._parent;
-            }
-            if (!current._parent && rootNode) {
-                return null;
-            }
-            return path;
-        },
-
-        /**
-         * Depth first traverse all its descendant scene nodes and
-         * @param {Function} callback
-         * @param {Node} [context]
-         * @param {Function} [ctor]
-         */
-        traverse: function (callback, context, ctor) {
-
-            this._inIterating = true;
-
-            if (ctor == null || this.constructor === ctor) {
-                callback.call(context, this);
-            }
-            var _children = this._children;
-            for(var i = 0, len = _children.length; i < len; i++) {
-                _children[i].traverse(callback, context, ctor);
-            }
-
-            this._inIterating = false;
-        },
-
-        eachChild: function (callback, context, ctor) {
-            this._inIterating = true;
-
-            var _children = this._children;
-            var noCtor = ctor == null;
-            for(var i = 0, len = _children.length; i < len; i++) {
-                var child = _children[i];
-                if (noCtor || child.constructor === ctor) {
-                    callback.call(context, child, i);
-                }
-            }
-
-            this._inIterating = false;
-        },
-
-        /**
-         * Set the local transform and decompose to SRT
-         * @param {qtek.math.Matrix4} matrix
-         */
-        setLocalTransform: function (matrix) {
-            mat4.copy(this.localTransform._array, matrix._array);
-            this.decomposeLocalTransform();
-        },
-
-        /**
-         * Decompose the local transform to SRT
-         */
-        decomposeLocalTransform: function (keepScale) {
-            var scale = !keepScale ? this.scale: null;
-            this.localTransform.decomposeMatrix(scale, this.rotation, this.position);
-        },
-
-        /**
-         * Set the world transform and decompose to SRT
-         * @param {qtek.math.Matrix4} matrix
-         */
-        setWorldTransform: function (matrix) {
-            mat4.copy(this.worldTransform._array, matrix._array);
-            this.decomposeWorldTransform();
-        },
-
-        /**
-         * Decompose the world transform to SRT
-         * @method
-         */
-        decomposeWorldTransform: (function () {
-
-            var tmp = mat4.create();
-
-            return function (keepScale) {
-                var localTransform = this.localTransform;
-                var worldTransform = this.worldTransform;
-                // Assume world transform is updated
-                if (this._parent) {
-                    mat4.invert(tmp, this._parent.worldTransform._array);
-                    mat4.multiply(localTransform._array, tmp, worldTransform._array);
-                } else {
-                    mat4.copy(localTransform._array, worldTransform._array);
-                }
-                var scale = !keepScale ? this.scale: null;
-                localTransform.decomposeMatrix(scale, this.rotation, this.position);
-            };
-        })(),
-
-        transformNeedsUpdate: function () {
-            return this.position._dirty
-                || this.rotation._dirty
-                || this.scale._dirty;
-        },
-
-        /**
-         * Update local transform from SRT
-         * Notice that local transform will not be updated if _dirty mark of position, rotation, scale is all false
-         */
-        updateLocalTransform: function () {
-            var position = this.position;
-            var rotation = this.rotation;
-            var scale = this.scale;
-
-            if (this.transformNeedsUpdate()) {
-                var m = this.localTransform._array;
-
-                // Transform order, scale->rotation->position
-                mat4.fromRotationTranslation(m, rotation._array, position._array);
-
-                mat4.scale(m, m, scale._array);
-
-                rotation._dirty = false;
-                scale._dirty = false;
-                position._dirty = false;
-
-                this._needsUpdateWorldTransform = true;
-            }
-        },
-
-        /**
-         * Update world transform, assume its parent world transform have been updated
-         */
-        _updateWorldTransformTopDown: function () {
-            var localTransform = this.localTransform._array;
-            var worldTransform = this.worldTransform._array;
-            if (this._parent) {
-                mat4.multiplyAffine(
-                    worldTransform,
-                    this._parent.worldTransform._array,
-                    localTransform
-                );
-            }
-            else {
-                mat4.copy(worldTransform, localTransform);
-            }
-        },
-
-        // Update world transform before whole scene is updated.
-        updateWorldTransform: function () {
-            // Find the root node which transform needs update;
-            var rootNodeIsDirty = this;
-            while (rootNodeIsDirty && rootNodeIsDirty.getParent()
-                && rootNodeIsDirty.getParent().transformNeedsUpdate()
-            ) {
-                rootNodeIsDirty = rootNodeIsDirty.getParent();
-            }
-            rootNodeIsDirty.update();
-        },
-
-        /**
-         * Update local transform and world transform recursively
-         * @param {boolean} forceUpdateWorld
-         */
-        update: function (forceUpdateWorld) {
-            if (this.autoUpdateLocalTransform) {
-                this.updateLocalTransform();
-            }
-            else {
-                // Transform is manually setted
-                forceUpdateWorld = true;
-            }
-
-            if (forceUpdateWorld || this._needsUpdateWorldTransform) {
-                this._updateWorldTransformTopDown();
-                forceUpdateWorld = true;
-                this._needsUpdateWorldTransform = false;
-            }
-
-            var children = this._children;
-            for(var i = 0, len = children.length; i < len; i++) {
-                children[i].update(forceUpdateWorld);
-            }
-        },
-
-        /**
-         * Get bounding box of node
-         * @param  {Function} [filter]
-         * @param  {qtek.math.BoundingBox} [out]
-         * @return {qtek.math.BoundingBox}
-         */
-        getBoundingBox: (function () {
-
-            function defaultFilter (el) {
-                return !el.invisible;
-            }
-            return function (filter, out) {
-                out = out || new BoundingBox();
-                filter = filter || defaultFilter;
-
-                var children = this._children;
-                if (children.length === 0) {
-                    out.max.set(-Infinity, -Infinity, -Infinity);
-                    out.min.set(Infinity, Infinity, Infinity);
-                }
-
-                var tmpBBox = new BoundingBox();
-                for (var i = 0; i < children.length; i++) {
-                    var child = children[i];
-                    if (!filter(child)) {
-                        continue;
-                    }
-                    child.getBoundingBox(filter, tmpBBox);
-                    child.updateLocalTransform();
-                    if (tmpBBox.isFinite()) {
-                        tmpBBox.applyTransform(child.localTransform);
-                    }
-                    if (i === 0) {
-                        out.copy(tmpBBox);
-                    }
-                    else {
-                        out.union(tmpBBox);
-                    }
-                }
-
-                return out;
-            };
-        })(),
-
-        /**
-         * Get world position, extracted from world transform
-         * @param  {qtek.math.Vector3} [out]
-         * @return {qtek.math.Vector3}
-         */
-        getWorldPosition: function (out) {
-            // PENDING
-            if (this.transformNeedsUpdate()) {
-                this.updateWorldTransform();
-            }
-            var m = this.worldTransform._array;
-            if (out) {
-                var arr = out._array;
-                arr[0] = m[12];
-                arr[1] = m[13];
-                arr[2] = m[14];
-                return out;
-            }
-            else {
-                return new Vector3(m[12], m[13], m[14]);
-            }
-        },
-
-        // TODO Set world transform
-
-        /**
-         * Clone a new node
-         * @return {Node}
-         */
-        clone: function () {
-            var node = new this.constructor();
-            var children = this._children;
-
-            node.setName(this.name);
-            node.position.copy(this.position);
-            node.rotation.copy(this.rotation);
-            node.scale.copy(this.scale);
-
-            for (var i = 0; i < children.length; i++) {
-                node.add(children[i].clone());
-            }
-            return node;
-        },
-
-        /**
-         * Rotate the node around a axis by angle degrees, axis passes through point
-         * @param {qtek.math.Vector3} point Center point
-         * @param {qtek.math.Vector3} axis  Center axis
-         * @param {number}       angle Rotation angle
-         * @see http://docs.unity3d.com/Documentation/ScriptReference/Transform.RotateAround.html
-         * @method
-         */
-        rotateAround: (function () {
-            var v = new Vector3();
-            var RTMatrix = new Matrix4();
-
-            // TODO improve performance
-            return function (point, axis, angle) {
-
-                v.copy(this.position).subtract(point);
-
-                var localTransform = this.localTransform;
-                localTransform.identity();
-                // parent node
-                localTransform.translate(point);
-                localTransform.rotate(angle, axis);
-
-                RTMatrix.fromRotationTranslation(this.rotation, v);
-                localTransform.multiply(RTMatrix);
-                localTransform.scale(this.scale);
-
-                this.decomposeLocalTransform();
-                this._needsUpdateWorldTransform = true;
-            };
-        })(),
-
-        /**
-         * @param {qtek.math.Vector3} target
-         * @param {qtek.math.Vector3} [up]
-         * @see http://www.opengl.org/sdk/docs/man2/xhtml/gluLookAt.xml
-         * @method
-         */
-        // TODO world space ?
-        lookAt: (function () {
-            var m = new Matrix4();
-            return function (target, up) {
-                m.lookAt(this.position, target, up || this.localTransform.y).invert();
-                this.setLocalTransform(m);
-            };
-        })()
-    });
-
-    module.exports = Node;
-
-
-/***/ }),
 /* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -8506,7 +8514,7 @@ module.exports = {
 
 
 
-    var Node = __webpack_require__(8);
+    var Node = __webpack_require__(7);
 
     /**
      * @constructor qtek.Light
@@ -8945,7 +8953,7 @@ module.exports = {
  */
 
 
-    var Geometry = __webpack_require__(52);
+    var Geometry = __webpack_require__(50);
     var BoundingBox = __webpack_require__(3);
     var glMatrix = __webpack_require__(0);
     var vendor = __webpack_require__(9);
@@ -9615,8 +9623,8 @@ module.exports = {
 
     var Base = __webpack_require__(1);
     var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(18);
-    var glinfo = __webpack_require__(7);
+    var Cache = __webpack_require__(17);
+    var glinfo = __webpack_require__(6);
 
     /**
      * @constructor qtek.Texture
@@ -9915,7 +9923,7 @@ module.exports = {
 
 
 
-    var Renderable = __webpack_require__(53);
+    var Renderable = __webpack_require__(51);
     var glenum = __webpack_require__(2);
     var Texture2D = __webpack_require__(16);
 
@@ -10755,9 +10763,9 @@ module.exports = {
 
 
     var Texture = __webpack_require__(13);
-    var glinfo = __webpack_require__(7);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var mathUtil = __webpack_require__(39);
+    var mathUtil = __webpack_require__(36);
     var isPowerOfTwo = mathUtil.isPowerOfTwo;
 
     /**
@@ -10989,7 +10997,275 @@ module.exports = {
 
 
 
-    var Easing = __webpack_require__(59);
+    var DIRTY_PREFIX = '__dt__';
+
+    var Cache = function () {
+
+        this._contextId = 0;
+
+        this._caches = [];
+
+        this._context = {};
+    };
+
+    Cache.prototype = {
+
+        use: function (contextId, documentSchema) {
+            var caches = this._caches;
+            if (!caches[contextId]) {
+                caches[contextId] = {};
+
+                if (documentSchema) {
+                    caches[contextId] = documentSchema();
+                }
+            }
+            this._contextId = contextId;
+
+            this._context = caches[contextId];
+        },
+
+        put: function (key, value) {
+            this._context[key] = value;
+        },
+
+        get: function (key) {
+            return this._context[key];
+        },
+
+        dirty: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            this.put(key, true);
+        },
+
+        dirtyAll: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var caches = this._caches;
+            for (var i = 0; i < caches.length; i++) {
+                if (caches[i]) {
+                    caches[i][key] = true;
+                }
+            }
+        },
+
+        fresh: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            this.put(key, false);
+        },
+
+        freshAll: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var caches = this._caches;
+            for (var i = 0; i < caches.length; i++) {
+                if (caches[i]) {
+                    caches[i][key] = false;
+                }
+            }
+        },
+
+        isDirty: function (field) {
+            field = field || '';
+            var key = DIRTY_PREFIX + field;
+            var context = this._context;
+            return  !context.hasOwnProperty(key)
+                || context[key] === true;
+        },
+
+        deleteContext: function (contextId) {
+            delete this._caches[contextId];
+            this._context = {};
+        },
+
+        delete: function (key) {
+            delete this._context[key];
+        },
+
+        clearAll: function () {
+            this._caches = {};
+        },
+
+        getContext: function () {
+            return this._context;
+        },
+
+        eachContext : function (cb, context) {
+            var keys = Object.keys(this._caches);
+            keys.forEach(function (key) {
+                cb && cb.call(context, key);
+            });
+        },
+
+        miss: function (key) {
+            return ! this._context.hasOwnProperty(key);
+        }
+    };
+
+    Cache.prototype.constructor = Cache;
+
+    module.exports = Cache;
+
+
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @export{Object} library
+ */
+
+
+    var Shader = __webpack_require__(8);
+    var util = __webpack_require__(5);
+
+    var _library = {};
+
+    /**
+     * @export qtek.shader.library~Libaray
+     */
+    function ShaderLibrary () {
+        this._pool = {};
+    }
+
+    /**
+     * ### Builin shaders
+     * + qtek.standard
+     * + qtek.basic
+     * + qtek.lambert
+     * + qtek.phong
+     * + qtek.wireframe
+     *
+     * @namespace qtek.shader.library
+     */
+    /**
+     *
+     * Get shader from library. use shader name and option as hash key.
+     *
+     * @param {string} name
+     * @param {Object|string|Array.<string>} [option]
+     * @return {qtek.Shader}
+     *
+     * @example
+     *     qtek.shader.library.get('qtek.phong', 'diffuseMap', 'normalMap');
+     *     qtek.shader.library.get('qtek.phong', ['diffuseMap', 'normalMap']);
+     *     qtek.shader.library.get('qtek.phong', {
+     *         textures: ['diffuseMap'],
+     *         vertexDefines: {},
+     *         fragmentDefines: {}
+     *     })
+     */
+    ShaderLibrary.prototype.get = function(name, option) {
+        var enabledTextures = [];
+        var vertexDefines = {};
+        var fragmentDefines = {};
+        if (typeof(option) === 'string') {
+            enabledTextures = Array.prototype.slice.call(arguments, 1);
+        }
+        else if (Object.prototype.toString.call(option) == '[object Object]') {
+            enabledTextures = option.textures || [];
+            vertexDefines = option.vertexDefines || {};
+            fragmentDefines = option.fragmentDefines || {};
+        }
+        else if (option instanceof Array) {
+            enabledTextures = option;
+        }
+        var vertexDefineKeys = Object.keys(vertexDefines);
+        var fragmentDefineKeys = Object.keys(fragmentDefines);
+        enabledTextures.sort();
+        vertexDefineKeys.sort();
+        fragmentDefineKeys.sort();
+
+        var keyArr = [name];
+        keyArr = keyArr.concat(enabledTextures);
+        for (var i = 0; i < vertexDefineKeys.length; i++) {
+            keyArr.push(
+                vertexDefineKeys[i],
+                vertexDefines[vertexDefineKeys[i]]
+            );
+        }
+        for (var i = 0; i < fragmentDefineKeys.length; i++) {
+            keyArr.push(
+                fragmentDefineKeys[i],
+                fragmentDefines[fragmentDefineKeys[i]]
+            );
+        }
+        var key = keyArr.join('_');
+
+        if (this._pool[key]) {
+            return this._pool[key];
+        }
+        else {
+            var source = _library[name];
+            if (!source) {
+                console.error('Shader "' + name + '"' + ' is not in the library');
+                return;
+            }
+            var shader = new Shader({
+                'vertex': source.vertex,
+                'fragment': source.fragment
+            });
+            for (var i = 0; i < enabledTextures.length; i++) {
+                shader.enableTexture(enabledTextures[i]);
+            }
+            for (var name in vertexDefines) {
+                shader.define('vertex', name, vertexDefines[name]);
+            }
+            for (var name in fragmentDefines) {
+                shader.define('fragment', name, fragmentDefines[name]);
+            }
+            this._pool[key] = shader;
+            return shader;
+        }
+    };
+
+    /**
+     * Clear shaders
+     */
+    ShaderLibrary.prototype.clear = function() {
+        this._pool = {};
+    };
+
+    /**
+     * @memberOf qtek.shader.library
+     * @param  {string} name
+     * @param  {string} vertex - Vertex shader code
+     * @param  {string} fragment - Fragment shader code
+     */
+    function template(name, vertex, fragment) {
+        _library[name] = {
+            vertex: vertex,
+            fragment: fragment
+        };
+    }
+
+    var defaultLibrary = new ShaderLibrary();
+
+    module.exports = {
+        createLibrary: function () {
+            return new ShaderLibrary();
+        },
+        get: function () {
+            return defaultLibrary.get.apply(defaultLibrary, arguments);
+        },
+        template: template,
+        clear: function () {
+            return defaultLibrary.clear();
+        }
+    };
+
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Easing = __webpack_require__(57);
 
     function noop () {}
     /**
@@ -11238,552 +11514,14 @@ module.exports = {
 
 
 /***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var DIRTY_PREFIX = '__dt__';
-
-    var Cache = function () {
-
-        this._contextId = 0;
-
-        this._caches = [];
-
-        this._context = {};
-    };
-
-    Cache.prototype = {
-
-        use: function (contextId, documentSchema) {
-            var caches = this._caches;
-            if (!caches[contextId]) {
-                caches[contextId] = {};
-
-                if (documentSchema) {
-                    caches[contextId] = documentSchema();
-                }
-            }
-            this._contextId = contextId;
-
-            this._context = caches[contextId];
-        },
-
-        put: function (key, value) {
-            this._context[key] = value;
-        },
-
-        get: function (key) {
-            return this._context[key];
-        },
-
-        dirty: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            this.put(key, true);
-        },
-
-        dirtyAll: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var caches = this._caches;
-            for (var i = 0; i < caches.length; i++) {
-                if (caches[i]) {
-                    caches[i][key] = true;
-                }
-            }
-        },
-
-        fresh: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            this.put(key, false);
-        },
-
-        freshAll: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var caches = this._caches;
-            for (var i = 0; i < caches.length; i++) {
-                if (caches[i]) {
-                    caches[i][key] = false;
-                }
-            }
-        },
-
-        isDirty: function (field) {
-            field = field || '';
-            var key = DIRTY_PREFIX + field;
-            var context = this._context;
-            return  !context.hasOwnProperty(key)
-                || context[key] === true;
-        },
-
-        deleteContext: function (contextId) {
-            delete this._caches[contextId];
-            this._context = {};
-        },
-
-        delete: function (key) {
-            delete this._context[key];
-        },
-
-        clearAll: function () {
-            this._caches = {};
-        },
-
-        getContext: function () {
-            return this._context;
-        },
-
-        eachContext : function (cb, context) {
-            var keys = Object.keys(this._caches);
-            keys.forEach(function (key) {
-                cb && cb.call(context, key);
-            });
-        },
-
-        miss: function (key) {
-            return ! this._context.hasOwnProperty(key);
-        }
-    };
-
-    Cache.prototype.constructor = Cache;
-
-    module.exports = Cache;
-
-
-
-/***/ }),
-/* 19 */
-/***/ (function(module, exports, __webpack_require__) {
-
-/**
- * @export{Object} library
- */
-
-
-    var Shader = __webpack_require__(6);
-    var util = __webpack_require__(5);
-
-    var _library = {};
-
-    /**
-     * @export qtek.shader.library~Libaray
-     */
-    function ShaderLibrary () {
-        this._pool = {};
-    }
-
-    /**
-     * ### Builin shaders
-     * + qtek.standard
-     * + qtek.basic
-     * + qtek.lambert
-     * + qtek.phong
-     * + qtek.wireframe
-     *
-     * @namespace qtek.shader.library
-     */
-    /**
-     *
-     * Get shader from library. use shader name and option as hash key.
-     *
-     * @param {string} name
-     * @param {Object|string|Array.<string>} [option]
-     * @return {qtek.Shader}
-     *
-     * @example
-     *     qtek.shader.library.get('qtek.phong', 'diffuseMap', 'normalMap');
-     *     qtek.shader.library.get('qtek.phong', ['diffuseMap', 'normalMap']);
-     *     qtek.shader.library.get('qtek.phong', {
-     *         textures: ['diffuseMap'],
-     *         vertexDefines: {},
-     *         fragmentDefines: {}
-     *     })
-     */
-    ShaderLibrary.prototype.get = function(name, option) {
-        var enabledTextures = [];
-        var vertexDefines = {};
-        var fragmentDefines = {};
-        if (typeof(option) === 'string') {
-            enabledTextures = Array.prototype.slice.call(arguments, 1);
-        }
-        else if (Object.prototype.toString.call(option) == '[object Object]') {
-            enabledTextures = option.textures || [];
-            vertexDefines = option.vertexDefines || {};
-            fragmentDefines = option.fragmentDefines || {};
-        }
-        else if (option instanceof Array) {
-            enabledTextures = option;
-        }
-        var vertexDefineKeys = Object.keys(vertexDefines);
-        var fragmentDefineKeys = Object.keys(fragmentDefines);
-        enabledTextures.sort();
-        vertexDefineKeys.sort();
-        fragmentDefineKeys.sort();
-
-        var keyArr = [name];
-        keyArr = keyArr.concat(enabledTextures);
-        for (var i = 0; i < vertexDefineKeys.length; i++) {
-            keyArr.push(
-                vertexDefineKeys[i],
-                vertexDefines[vertexDefineKeys[i]]
-            );
-        }
-        for (var i = 0; i < fragmentDefineKeys.length; i++) {
-            keyArr.push(
-                fragmentDefineKeys[i],
-                fragmentDefines[fragmentDefineKeys[i]]
-            );
-        }
-        var key = keyArr.join('_');
-
-        if (this._pool[key]) {
-            return this._pool[key];
-        }
-        else {
-            var source = _library[name];
-            if (!source) {
-                console.error('Shader "' + name + '"' + ' is not in the library');
-                return;
-            }
-            var shader = new Shader({
-                'vertex': source.vertex,
-                'fragment': source.fragment
-            });
-            for (var i = 0; i < enabledTextures.length; i++) {
-                shader.enableTexture(enabledTextures[i]);
-            }
-            for (var name in vertexDefines) {
-                shader.define('vertex', name, vertexDefines[name]);
-            }
-            for (var name in fragmentDefines) {
-                shader.define('fragment', name, fragmentDefines[name]);
-            }
-            this._pool[key] = shader;
-            return shader;
-        }
-    };
-
-    /**
-     * Clear shaders
-     */
-    ShaderLibrary.prototype.clear = function() {
-        this._pool = {};
-    };
-
-    /**
-     * @memberOf qtek.shader.library
-     * @param  {string} name
-     * @param  {string} vertex - Vertex shader code
-     * @param  {string} fragment - Fragment shader code
-     */
-    function template(name, vertex, fragment) {
-        _library[name] = {
-            vertex: vertex,
-            fragment: fragment
-        };
-    }
-
-    var defaultLibrary = new ShaderLibrary();
-
-    module.exports = {
-        createLibrary: function () {
-            return new ShaderLibrary();
-        },
-        get: function () {
-            return defaultLibrary.get.apply(defaultLibrary, arguments);
-        },
-        template: template,
-        clear: function () {
-            return defaultLibrary.clear();
-        }
-    };
-
-
-/***/ }),
 /* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
-
-
-    var Texture = __webpack_require__(13);
-    var glinfo = __webpack_require__(7);
-    var glenum = __webpack_require__(2);
-    var util = __webpack_require__(5);
-    var mathUtil = __webpack_require__(39);
-    var isPowerOfTwo = mathUtil.isPowerOfTwo;
-
-    var targetList = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
-
-    /**
-     * @constructor qtek.TextureCube
-     * @extends qtek.Texture
-     *
-     * @example
-     *     ...
-     *     var mat = new qtek.Material({
-     *         shader: qtek.shader.library.get('qtek.phong', 'environmentMap')
-     *     });
-     *     var envMap = new qtek.TextureCube();
-     *     envMap.load({
-     *         'px': 'assets/textures/sky/px.jpg',
-     *         'nx': 'assets/textures/sky/nx.jpg'
-     *         'py': 'assets/textures/sky/py.jpg'
-     *         'ny': 'assets/textures/sky/ny.jpg'
-     *         'pz': 'assets/textures/sky/pz.jpg'
-     *         'nz': 'assets/textures/sky/nz.jpg'
-     *     });
-     *     mat.set('environmentMap', envMap);
-     *     ...
-     *     envMap.success(function () {
-     *         // Wait for the sky texture loaded
-     *         animation.on('frame', function (frameTime) {
-     *             renderer.render(scene, camera);
-     *         });
-     *     });
-     */
-    var TextureCube = Texture.extend(function () {
-        return /** @lends qtek.TextureCube# */{
-            /**
-             * @type {Object}
-             * @property {HTMLImageElement|HTMLCanvasElemnet} px
-             * @property {HTMLImageElement|HTMLCanvasElemnet} nx
-             * @property {HTMLImageElement|HTMLCanvasElemnet} py
-             * @property {HTMLImageElement|HTMLCanvasElemnet} ny
-             * @property {HTMLImageElement|HTMLCanvasElemnet} pz
-             * @property {HTMLImageElement|HTMLCanvasElemnet} nz
-             */
-            image: {
-                px: null,
-                nx: null,
-                py: null,
-                ny: null,
-                pz: null,
-                nz: null
-            },
-            /**
-             * @type {Object}
-             * @property {Uint8Array} px
-             * @property {Uint8Array} nx
-             * @property {Uint8Array} py
-             * @property {Uint8Array} ny
-             * @property {Uint8Array} pz
-             * @property {Uint8Array} nz
-             */
-            pixels: {
-                px: null,
-                nx: null,
-                py: null,
-                ny: null,
-                pz: null,
-                nz: null
-            },
-
-            /**
-             * @type {Array.<Object>}
-             */
-            mipmaps: []
-       };
-    }, {
-        update: function (_gl) {
-
-            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this._cache.get('webgl_texture'));
-
-            this.updateCommon(_gl);
-
-            var glFormat = this.format;
-            var glType = this.type;
-
-            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_S, this.wrapS);
-            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_T, this.wrapT);
-
-            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MAG_FILTER, this.magFilter);
-            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MIN_FILTER, this.minFilter);
-
-            var anisotropicExt = glinfo.getExtension(_gl, 'EXT_texture_filter_anisotropic');
-            if (anisotropicExt && this.anisotropic > 1) {
-                _gl.texParameterf(_gl.TEXTURE_CUBE_MAP, anisotropicExt.TEXTURE_MAX_ANISOTROPY_EXT, this.anisotropic);
-            }
-
-            // Fallback to float type if browser don't have half float extension
-            if (glType === 36193) {
-                var halfFloatExt = glinfo.getExtension(_gl, 'OES_texture_half_float');
-                if (!halfFloatExt) {
-                    glType = glenum.FLOAT;
-                }
-            }
-
-            if (this.mipmaps.length) {
-                var width = this.width;
-                var height = this.height;
-                for (var i = 0; i < this.mipmaps.length; i++) {
-                    var mipmap = this.mipmaps[i];
-                    this._updateTextureData(_gl, mipmap, i, width, height, glFormat, glType);
-                    width /= 2;
-                    height /= 2;
-                }
-            }
-            else {
-                this._updateTextureData(_gl, this, 0, this.width, this.height, glFormat, glType);
-
-                if (!this.NPOT && this.useMipmap) {
-                    _gl.generateMipmap(_gl.TEXTURE_CUBE_MAP);
-                }
-            }
-
-            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, null);
-        },
-
-        _updateTextureData: function (_gl, data, level, width, height, glFormat, glType) {
-            for (var i = 0; i < 6; i++) {
-                var target = targetList[i];
-                var img = data.image && data.image[target];
-                if (img) {
-                    _gl.texImage2D(_gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, level, glFormat, glFormat, glType, img);
-                }
-                else {
-                    _gl.texImage2D(_gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, level, glFormat, width, height, 0, glFormat, glType, data.pixels && data.pixels[target]);
-                }
-            }
-        },
-
-        /**
-         * @param  {WebGLRenderingContext} _gl
-         * @memberOf qtek.TextureCube.prototype
-         */
-        generateMipmap: function (_gl) {
-            if (this.useMipmap && !this.NPOT) {
-                _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this._cache.get('webgl_texture'));
-                _gl.generateMipmap(_gl.TEXTURE_CUBE_MAP);
-            }
-        },
-
-        bind: function (_gl) {
-
-            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this.getWebGLTexture(_gl));
-        },
-
-        unbind: function (_gl) {
-            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, null);
-        },
-
-        // Overwrite the isPowerOfTwo method
-        isPowerOfTwo: function () {
-            if (this.image.px) {
-                return isPowerOfTwo(this.image.px.width)
-                    && isPowerOfTwo(this.image.px.height);
-            }
-            else {
-                return isPowerOfTwo(this.width)
-                    && isPowerOfTwo(this.height);
-            }
-        },
-
-        isRenderable: function () {
-            if (this.image.px) {
-                return isImageRenderable(this.image.px)
-                    && isImageRenderable(this.image.nx)
-                    && isImageRenderable(this.image.py)
-                    && isImageRenderable(this.image.ny)
-                    && isImageRenderable(this.image.pz)
-                    && isImageRenderable(this.image.nz);
-            }
-            else {
-                return !!(this.width && this.height);
-            }
-        },
-
-        load: function (imageList, crossOrigin) {
-            var loading = 0;
-            var self = this;
-            util.each(imageList, function (src, target){
-                var image = new Image();
-                if (crossOrigin) {
-                    image.crossOrigin = crossOrigin;
-                }
-                image.onload = function () {
-                    loading --;
-                    if (loading === 0){
-                        self.dirty();
-                        self.trigger('success', self);
-                    }
-                    image.onload = null;
-                };
-                image.onerror = function () {
-                    loading --;
-                    image.onerror = null;
-                };
-
-                loading++;
-                image.src = src;
-                self.image[target] = image;
-            });
-
-            return this;
-        }
-    });
-
-    Object.defineProperty(TextureCube.prototype, 'width', {
-        get: function () {
-            if (this.image && this.image.px) {
-                return this.image.px.width;
-            }
-            return this._width;
-        },
-        set: function (value) {
-            if (this.image && this.image.px) {
-                console.warn('Texture from image can\'t set width');
-            }
-            else {
-                if (this._width !== value) {
-                    this.dirty();
-                }
-                this._width = value;
-            }
-        }
-    });
-    Object.defineProperty(TextureCube.prototype, 'height', {
-        get: function () {
-            if (this.image && this.image.px) {
-                return this.image.px.height;
-            }
-            return this._height;
-        },
-        set: function (value) {
-            if (this.image && this.image.px) {
-                console.warn('Texture from image can\'t set height');
-            }
-            else {
-                if (this._height !== value) {
-                    this.dirty();
-                }
-                this._height = value;
-            }
-        }
-    });
-    function isImageRenderable(image) {
-        return image.nodeName === 'CANVAS' ||
-                image.nodeName === 'VIDEO' ||
-                image.complete;
-    }
-
-    module.exports = TextureCube;
-
-
-/***/ }),
-/* 21 */
-/***/ (function(module, exports, __webpack_require__) {
-
 "use strict";
 
 
 
-    var Camera = __webpack_require__(25);
+    var Camera = __webpack_require__(23);
     /**
      * @constructor qtek.camera.Orthographic
      * @extends qtek.Camera
@@ -11852,14 +11590,14 @@ module.exports = {
 
 
 /***/ }),
-/* 22 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Camera = __webpack_require__(25);
+    var Camera = __webpack_require__(23);
 
     /**
      * @constructor qtek.camera.Perspective
@@ -11922,91 +11660,7 @@ module.exports = {
 
 
 /***/ }),
-/* 23 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Light = __webpack_require__(10);
-    var Vector3 = __webpack_require__(4);
-
-    /**
-     * @constructor qtek.light.Directional
-     * @extends qtek.Light
-     *
-     * @example
-     *     var light = new qtek.light.Directional({
-     *         intensity: 0.5,
-     *         color: [1.0, 0.0, 0.0]
-     *     });
-     *     light.position.set(10, 10, 10);
-     *     light.lookAt(qtek.math.Vector3.ZERO);
-     *     scene.add(light);
-     */
-    var DirectionalLight = Light.extend(
-    /** @lends qtek.light.Directional# */
-    {
-        /**
-         * @type {number}
-         */
-        shadowBias: 0.001,
-        /**
-         * @type {number}
-         */
-        shadowSlopeScale: 2.0,
-        /**
-         * Shadow cascade.
-         * Use PSSM technique when it is larger than 1 and have a unique directional light in scene.
-         * @type {number}
-         */
-        shadowCascade: 1,
-
-        /**
-         * Available when shadowCascade is larger than 1 and have a unique directional light in scene.
-         * @type {number}
-         */
-        cascadeSplitLogFactor: 0.2
-    }, {
-
-        type: 'DIRECTIONAL_LIGHT',
-
-        uniformTemplates: {
-            directionalLightDirection: {
-                type: '3f',
-                value: function (instance) {
-                    instance.__dir = instance.__dir || new Vector3();
-                    // Direction is target to eye
-                    return instance.__dir.copy(instance.worldTransform.z).normalize().negate()._array;
-                }
-            },
-            directionalLightColor: {
-                type: '3f',
-                value: function (instance) {
-                    var color = instance.color;
-                    var intensity = instance.intensity;
-                    return [color[0] * intensity, color[1] * intensity, color[2] * intensity];
-                }
-            }
-        },
-        /**
-         * @return {qtek.light.Directional}
-         * @memberOf qtek.light.Directional.prototype
-         */
-        clone: function () {
-            var light = Light.prototype.clone.call(this);
-            light.shadowBias = this.shadowBias;
-            light.shadowSlopeScale = this.shadowSlopeScale;
-            return light;
-        }
-    });
-
-    module.exports = DirectionalLight;
-
-
-/***/ }),
-/* 24 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -12789,16 +12443,16 @@ module.exports = {
 
 
 /***/ }),
-/* 25 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Node = __webpack_require__(8);
+    var Node = __webpack_require__(7);
     var Matrix4 = __webpack_require__(15);
-    var Frustum = __webpack_require__(37);
+    var Frustum = __webpack_require__(34);
     var Ray = __webpack_require__(69);
 
     var glMatrix = __webpack_require__(0);
@@ -12922,7 +12576,7 @@ module.exports = {
 
 
 /***/ }),
-/* 26 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -12949,11 +12603,6 @@ module.exports = {
          * @type {number}
          */
         index: -1,
-        /**
-         * Index of parent joint index, -1 if it is a root joint
-         * @type {number}
-         */
-        parentIndex: -1,
 
         /**
          * Scene node attached to
@@ -12972,7 +12621,7 @@ module.exports = {
 
 
 /***/ }),
-/* 27 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -12984,19 +12633,19 @@ module.exports = {
 
 
     var Base = __webpack_require__(1);
-    var glinfo = __webpack_require__(7);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
     var vendor = __webpack_require__(9);
     var BoundingBox = __webpack_require__(3);
     var Matrix4 = __webpack_require__(15);
-    var shaderLibrary = __webpack_require__(19);
+    var shaderLibrary = __webpack_require__(18);
     var Material = __webpack_require__(11);
-    var Vector2 = __webpack_require__(38);
+    var Vector2 = __webpack_require__(35);
 
     // Light header
-    var Shader = __webpack_require__(6);
-    Shader['import'](__webpack_require__(91));
-    Shader['import'](__webpack_require__(40));
+    var Shader = __webpack_require__(8);
+    Shader['import'](__webpack_require__(37));
+    Shader['import'](__webpack_require__(38));
 
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
@@ -13980,14 +13629,14 @@ module.exports = {
 
 
 /***/ }),
-/* 28 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Node = __webpack_require__(8);
+    var Node = __webpack_require__(7);
     var Light = __webpack_require__(10);
     var BoundingBox = __webpack_require__(3);
 
@@ -14334,7 +13983,7 @@ module.exports = {
 
 
 /***/ }),
-/* 29 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14343,9 +13992,9 @@ module.exports = {
 
     var Material = __webpack_require__(11);
 
-    var Shader = __webpack_require__(6);
+    var Shader = __webpack_require__(8);
     // Import standard shader
-    Shader['import'](__webpack_require__(41));
+    Shader['import'](__webpack_require__(39));
 
     var shaderLibrary = {};
     var shaderUsedCount = {};
@@ -14819,289 +14468,285 @@ module.exports = {
 
 
 /***/ }),
-/* 30 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
 
 
+    var Texture = __webpack_require__(13);
+    var glinfo = __webpack_require__(6);
+    var glenum = __webpack_require__(2);
+    var util = __webpack_require__(5);
+    var mathUtil = __webpack_require__(36);
+    var isPowerOfTwo = mathUtil.isPowerOfTwo;
 
-    var Clip = __webpack_require__(17);
+    var targetList = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
-    var glMatrix = __webpack_require__(0);
-    var quat = glMatrix.quat;
-    var vec3 = glMatrix.vec3;
+    /**
+     * @constructor qtek.TextureCube
+     * @extends qtek.Texture
+     *
+     * @example
+     *     ...
+     *     var mat = new qtek.Material({
+     *         shader: qtek.shader.library.get('qtek.phong', 'environmentMap')
+     *     });
+     *     var envMap = new qtek.TextureCube();
+     *     envMap.load({
+     *         'px': 'assets/textures/sky/px.jpg',
+     *         'nx': 'assets/textures/sky/nx.jpg'
+     *         'py': 'assets/textures/sky/py.jpg'
+     *         'ny': 'assets/textures/sky/ny.jpg'
+     *         'pz': 'assets/textures/sky/pz.jpg'
+     *         'nz': 'assets/textures/sky/nz.jpg'
+     *     });
+     *     mat.set('environmentMap', envMap);
+     *     ...
+     *     envMap.success(function () {
+     *         // Wait for the sky texture loaded
+     *         animation.on('frame', function (frameTime) {
+     *             renderer.render(scene, camera);
+     *         });
+     *     });
+     */
+    var TextureCube = Texture.extend(function () {
+        return /** @lends qtek.TextureCube# */{
+            /**
+             * @type {Object}
+             * @property {HTMLImageElement|HTMLCanvasElemnet} px
+             * @property {HTMLImageElement|HTMLCanvasElemnet} nx
+             * @property {HTMLImageElement|HTMLCanvasElemnet} py
+             * @property {HTMLImageElement|HTMLCanvasElemnet} ny
+             * @property {HTMLImageElement|HTMLCanvasElemnet} pz
+             * @property {HTMLImageElement|HTMLCanvasElemnet} nz
+             */
+            image: {
+                px: null,
+                nx: null,
+                py: null,
+                ny: null,
+                pz: null,
+                nz: null
+            },
+            /**
+             * @type {Object}
+             * @property {Uint8Array} px
+             * @property {Uint8Array} nx
+             * @property {Uint8Array} py
+             * @property {Uint8Array} ny
+             * @property {Uint8Array} pz
+             * @property {Uint8Array} nz
+             */
+            pixels: {
+                px: null,
+                nx: null,
+                py: null,
+                ny: null,
+                pz: null,
+                nz: null
+            },
 
-    function keyframeSort(a, b) {
-        return a.time - b.time;
+            /**
+             * @type {Array.<Object>}
+             */
+            mipmaps: []
+       };
+    }, {
+        update: function (_gl) {
+
+            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this._cache.get('webgl_texture'));
+
+            this.updateCommon(_gl);
+
+            var glFormat = this.format;
+            var glType = this.type;
+
+            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_S, this.wrapS);
+            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_T, this.wrapT);
+
+            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MAG_FILTER, this.magFilter);
+            _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MIN_FILTER, this.minFilter);
+
+            var anisotropicExt = glinfo.getExtension(_gl, 'EXT_texture_filter_anisotropic');
+            if (anisotropicExt && this.anisotropic > 1) {
+                _gl.texParameterf(_gl.TEXTURE_CUBE_MAP, anisotropicExt.TEXTURE_MAX_ANISOTROPY_EXT, this.anisotropic);
+            }
+
+            // Fallback to float type if browser don't have half float extension
+            if (glType === 36193) {
+                var halfFloatExt = glinfo.getExtension(_gl, 'OES_texture_half_float');
+                if (!halfFloatExt) {
+                    glType = glenum.FLOAT;
+                }
+            }
+
+            if (this.mipmaps.length) {
+                var width = this.width;
+                var height = this.height;
+                for (var i = 0; i < this.mipmaps.length; i++) {
+                    var mipmap = this.mipmaps[i];
+                    this._updateTextureData(_gl, mipmap, i, width, height, glFormat, glType);
+                    width /= 2;
+                    height /= 2;
+                }
+            }
+            else {
+                this._updateTextureData(_gl, this, 0, this.width, this.height, glFormat, glType);
+
+                if (!this.NPOT && this.useMipmap) {
+                    _gl.generateMipmap(_gl.TEXTURE_CUBE_MAP);
+                }
+            }
+
+            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, null);
+        },
+
+        _updateTextureData: function (_gl, data, level, width, height, glFormat, glType) {
+            for (var i = 0; i < 6; i++) {
+                var target = targetList[i];
+                var img = data.image && data.image[target];
+                if (img) {
+                    _gl.texImage2D(_gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, level, glFormat, glFormat, glType, img);
+                }
+                else {
+                    _gl.texImage2D(_gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, level, glFormat, width, height, 0, glFormat, glType, data.pixels && data.pixels[target]);
+                }
+            }
+        },
+
+        /**
+         * @param  {WebGLRenderingContext} _gl
+         * @memberOf qtek.TextureCube.prototype
+         */
+        generateMipmap: function (_gl) {
+            if (this.useMipmap && !this.NPOT) {
+                _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this._cache.get('webgl_texture'));
+                _gl.generateMipmap(_gl.TEXTURE_CUBE_MAP);
+            }
+        },
+
+        bind: function (_gl) {
+
+            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, this.getWebGLTexture(_gl));
+        },
+
+        unbind: function (_gl) {
+            _gl.bindTexture(_gl.TEXTURE_CUBE_MAP, null);
+        },
+
+        // Overwrite the isPowerOfTwo method
+        isPowerOfTwo: function () {
+            if (this.image.px) {
+                return isPowerOfTwo(this.image.px.width)
+                    && isPowerOfTwo(this.image.px.height);
+            }
+            else {
+                return isPowerOfTwo(this.width)
+                    && isPowerOfTwo(this.height);
+            }
+        },
+
+        isRenderable: function () {
+            if (this.image.px) {
+                return isImageRenderable(this.image.px)
+                    && isImageRenderable(this.image.nx)
+                    && isImageRenderable(this.image.py)
+                    && isImageRenderable(this.image.ny)
+                    && isImageRenderable(this.image.pz)
+                    && isImageRenderable(this.image.nz);
+            }
+            else {
+                return !!(this.width && this.height);
+            }
+        },
+
+        load: function (imageList, crossOrigin) {
+            var loading = 0;
+            var self = this;
+            util.each(imageList, function (src, target){
+                var image = new Image();
+                if (crossOrigin) {
+                    image.crossOrigin = crossOrigin;
+                }
+                image.onload = function () {
+                    loading --;
+                    if (loading === 0){
+                        self.dirty();
+                        self.trigger('success', self);
+                    }
+                    image.onload = null;
+                };
+                image.onerror = function () {
+                    loading --;
+                    image.onerror = null;
+                };
+
+                loading++;
+                image.src = src;
+                self.image[target] = image;
+            });
+
+            return this;
+        }
+    });
+
+    Object.defineProperty(TextureCube.prototype, 'width', {
+        get: function () {
+            if (this.image && this.image.px) {
+                return this.image.px.width;
+            }
+            return this._width;
+        },
+        set: function (value) {
+            if (this.image && this.image.px) {
+                console.warn('Texture from image can\'t set width');
+            }
+            else {
+                if (this._width !== value) {
+                    this.dirty();
+                }
+                this._width = value;
+            }
+        }
+    });
+    Object.defineProperty(TextureCube.prototype, 'height', {
+        get: function () {
+            if (this.image && this.image.px) {
+                return this.image.px.height;
+            }
+            return this._height;
+        },
+        set: function (value) {
+            if (this.image && this.image.px) {
+                console.warn('Texture from image can\'t set height');
+            }
+            else {
+                if (this._height !== value) {
+                    this.dirty();
+                }
+                this._height = value;
+            }
+        }
+    });
+    function isImageRenderable(image) {
+        return image.nodeName === 'CANVAS' ||
+                image.nodeName === 'VIDEO' ||
+                image.complete;
     }
 
-    /**
-     * @constructor
-     * @alias qtek.animation.TransformClip
-     * @extends qtek.animation.Clip
-     *
-     * @param {Object} [opts]
-     * @param {string} [opts.name]
-     * @param {Object} [opts.target]
-     * @param {number} [opts.life]
-     * @param {number} [opts.delay]
-     * @param {number} [opts.gap]
-     * @param {number} [opts.playbackRatio]
-     * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
-     * @param {string|Function} [opts.easing]
-     * @param {Function} [opts.onframe]
-     * @param {Function} [opts.onfinish]
-     * @param {Function} [opts.onrestart]
-     * @param {object[]} [opts.keyFrames]
-     */
-    var TransformClip = function (opts) {
-
-        opts = opts || {};
-
-        Clip.call(this, opts);
-
-        //[{
-        //  time: //ms
-        //  position:  // optional
-        //  rotation:  // optional
-        //  scale:     // optional
-        //}]
-        this.keyFrames = [];
-        if (opts.keyFrames) {
-            this.addKeyFrames(opts.keyFrames);
-        }
-
-        /**
-         * @type {Float32Array}
-         */
-        this.position = vec3.create();
-        /**
-         * Rotation is represented by a quaternion
-         * @type {Float32Array}
-         */
-        this.rotation = quat.create();
-        /**
-         * @type {Float32Array}
-         */
-        this.scale = vec3.fromValues(1, 1, 1);
-
-        this._cacheKey = 0;
-        this._cacheTime = 0;
-    };
-
-    TransformClip.prototype = Object.create(Clip.prototype);
-
-    TransformClip.prototype.constructor = TransformClip;
-
-    TransformClip.prototype.step = function (time, dTime) {
-
-        var ret = Clip.prototype.step.call(this, time, dTime);
-
-        if (ret !== 'finish') {
-            this.setTime(this.getElapsedTime());
-        }
-
-        return ret;
-    };
-
-    TransformClip.prototype.setTime = function (time) {
-        this._interpolateField(time, 'position');
-        this._interpolateField(time, 'rotation');
-        this._interpolateField(time, 'scale');
-    };
-    /**
-     * Add a key frame
-     * @param {Object} kf
-     */
-    TransformClip.prototype.addKeyFrame = function (kf) {
-        for (var i = 0; i < this.keyFrames.length - 1; i++) {
-            var prevFrame = this.keyFrames[i];
-            var nextFrame = this.keyFrames[i+1];
-            if (prevFrame.time <= kf.time && nextFrame.time >= kf.time) {
-                this.keyFrames.splice(i, 0, kf);
-                return i;
-            }
-        }
-
-        this.life = kf.time;
-        this.keyFrames.push(kf);
-    };
-
-    /**
-     * Add keyframes
-     * @param {object[]} kfs
-     */
-    TransformClip.prototype.addKeyFrames = function (kfs) {
-        for (var i = 0; i < kfs.length; i++) {
-            this.keyFrames.push(kfs[i]);
-        }
-
-        this.keyFrames.sort(keyframeSort);
-
-        this.life = this.keyFrames[this.keyFrames.length - 1].time;
-    };
-
-    TransformClip.prototype._interpolateField = function (time, fieldName) {
-        var kfs = this.keyFrames;
-        var len = kfs.length;
-        var start;
-        var end;
-
-        if (!kfs.length) {
-            return;
-        }
-        if (time < kfs[0].time || time > kfs[kfs.length-1].time) {
-            return;
-        }
-        if (time < this._cacheTime) {
-            var s = this._cacheKey >= len-1 ? len-1 : this._cacheKey+1;
-            for (var i = s; i >= 0; i--) {
-                if (kfs[i].time <= time && kfs[i][fieldName]) {
-                    start = kfs[i];
-                    this._cacheKey = i;
-                    this._cacheTime = time;
-                } else if (kfs[i][fieldName]) {
-                    end = kfs[i];
-                    break;
-                }
-            }
-        } else {
-            for (var i = this._cacheKey; i < len; i++) {
-                if (kfs[i].time <= time && kfs[i][fieldName]) {
-                    start = kfs[i];
-                    this._cacheKey = i;
-                    this._cacheTime = time;
-                } else if (kfs[i][fieldName]) {
-                    end = kfs[i];
-                    break;
-                }
-            }
-        }
-
-        if (start && end) {
-            var percent = (time-start.time) / (end.time-start.time);
-            percent = Math.max(Math.min(percent, 1), 0);
-            if (fieldName === 'rotation') {
-                quat.slerp(this[fieldName], start[fieldName], end[fieldName], percent);
-            } else {
-                vec3.lerp(this[fieldName], start[fieldName], end[fieldName], percent);
-            }
-        } else {
-            this._cacheKey = 0;
-            this._cacheTime = 0;
-        }
-    };
-    /**
-     * 1D blending between two clips
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
-     * @param  {number} w
-     */
-    TransformClip.prototype.blend1D = function (c1, c2, w) {
-        vec3.lerp(this.position, c1.position, c2.position, w);
-        vec3.lerp(this.scale, c1.scale, c2.scale, w);
-        quat.slerp(this.rotation, c1.rotation, c2.rotation, w);
-    };
-
-    /**
-     * 2D blending between three clips
-     * @method
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c3
-     * @param  {number} f
-     * @param  {number} g
-     */
-    TransformClip.prototype.blend2D = (function () {
-        var q1 = quat.create();
-        var q2 = quat.create();
-        return function (c1, c2, c3, f, g) {
-            var a = 1 - f - g;
-
-            this.position[0] = c1.position[0] * a + c2.position[0] * f + c3.position[0] * g;
-            this.position[1] = c1.position[1] * a + c2.position[1] * f + c3.position[1] * g;
-            this.position[2] = c1.position[2] * a + c2.position[2] * f + c3.position[2] * g;
-
-            this.scale[0] = c1.scale[0] * a + c2.scale[0] * f + c3.scale[0] * g;
-            this.scale[1] = c1.scale[1] * a + c2.scale[1] * f + c3.scale[1] * g;
-            this.scale[2] = c1.scale[2] * a + c2.scale[2] * f + c3.scale[2] * g;
-
-            // http://msdn.microsoft.com/en-us/library/windows/desktop/bb205403(v=vs.85).aspx
-            // http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.quaternion.xmquaternionbarycentric(v=vs.85).aspx
-            var s = f + g;
-            if (s === 0) {
-                quat.copy(this.rotation, c1.rotation);
-            } else {
-                quat.slerp(q1, c1.rotation, c2.rotation, s);
-                quat.slerp(q2, c1.rotation, c3.rotation, s);
-                quat.slerp(this.rotation, q1, q2, g / s);
-            }
-        };
-    })();
-
-    /**
-     * Additive blending between two clips
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
-     */
-    TransformClip.prototype.additiveBlend = function (c1, c2) {
-        vec3.add(this.position, c1.position, c2.position);
-        vec3.add(this.scale, c1.scale, c2.scale);
-        quat.multiply(this.rotation, c2.rotation, c1.rotation);
-    };
-
-    /**
-     * Subtractive blending between two clips
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
-     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
-     */
-    TransformClip.prototype.subtractiveBlend = function (c1, c2) {
-        vec3.sub(this.position, c1.position, c2.position);
-        vec3.sub(this.scale, c1.scale, c2.scale);
-        quat.invert(this.rotation, c2.rotation);
-        quat.multiply(this.rotation, this.rotation, c1.rotation);
-    };
-
-    /**
-     * @param {number} startTime
-     * @param {number} endTime
-     * @param {boolean} isLoop
-     */
-    TransformClip.prototype.getSubClip = function (startTime, endTime) {
-        // TODO
-        console.warn('TODO');
-    };
-
-    /**
-     * Clone a new TransformClip
-     * @return {qtek.animation.TransformClip}
-     */
-    TransformClip.prototype.clone = function () {
-        var clip = Clip.prototype.clone.call(this);
-        clip.keyFrames = this.keyFrames;
-
-        vec3.copy(clip.position, this.position);
-        quat.copy(clip.rotation, this.rotation);
-        vec3.copy(clip.scale, this.scale);
-
-        return clip;
-    };
-
-
-    module.exports = TransformClip;
+    module.exports = TextureCube;
 
 
 /***/ }),
-/* 31 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var notifier = __webpack_require__(32);
-    var request = __webpack_require__(33);
+    var notifier = __webpack_require__(30);
+    var request = __webpack_require__(31);
     var util  = __webpack_require__(5);
 
     /**
@@ -15221,7 +14866,7 @@ module.exports = {
 
 
 /***/ }),
-/* 32 */
+/* 30 */
 /***/ (function(module, exports) {
 
 
@@ -15432,7 +15077,7 @@ module.exports = {
 
 
 /***/ }),
-/* 33 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15476,7 +15121,7 @@ module.exports = {
 
 
 /***/ }),
-/* 34 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15557,73 +15202,7 @@ module.exports = {
 
 
 /***/ }),
-/* 35 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-
-    var Light = __webpack_require__(10);
-
-    /**
-     * @constructor qtek.light.Point
-     * @extends qtek.Light
-     */
-    var PointLight = Light.extend(
-    /** @lends qtek.light.Point# */
-    {
-        /**
-         * @type {number}
-         */
-        range: 100,
-
-        /**
-         * @type {number}
-         */
-        castShadow: false
-    }, {
-
-        type: 'POINT_LIGHT',
-
-        uniformTemplates: {
-            pointLightPosition: {
-                type: '3f',
-                value: function(instance) {
-                    return instance.getWorldPosition()._array;
-                }
-            },
-            pointLightRange: {
-                type: '1f',
-                value: function(instance) {
-                    return instance.range;
-                }
-            },
-            pointLightColor: {
-                type: '3f',
-                value: function(instance) {
-                    var color = instance.color,
-                        intensity = instance.intensity;
-                    return [ color[0]*intensity, color[1]*intensity, color[2]*intensity ];
-                }
-            }
-        },
-        /**
-         * @return {qtek.light.Point}
-         * @memberOf qtek.light.Point.prototype
-         */
-        clone: function() {
-            var light = Light.prototype.clone.call(this);
-            light.range = this.range;
-            return light;
-        }
-    });
-
-    module.exports = PointLight;
-
-
-/***/ }),
-/* 36 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15634,80 +15213,55 @@ module.exports = {
     var Vector3 = __webpack_require__(4);
 
     /**
-     * @constructor qtek.light.Spot
+     * @constructor qtek.light.Directional
      * @extends qtek.Light
+     *
+     * @example
+     *     var light = new qtek.light.Directional({
+     *         intensity: 0.5,
+     *         color: [1.0, 0.0, 0.0]
+     *     });
+     *     light.position.set(10, 10, 10);
+     *     light.lookAt(qtek.math.Vector3.ZERO);
+     *     scene.add(light);
      */
-    var SpotLight = Light.extend(
-    /**@lends qtek.light.Spot */
+    var DirectionalLight = Light.extend(
+    /** @lends qtek.light.Directional# */
     {
         /**
          * @type {number}
          */
-        range: 20,
+        shadowBias: 0.001,
         /**
          * @type {number}
          */
-        umbraAngle: 30,
+        shadowSlopeScale: 2.0,
         /**
+         * Shadow cascade.
+         * Use PSSM technique when it is larger than 1 and have a unique directional light in scene.
          * @type {number}
          */
-        penumbraAngle: 45,
-        /**
-         * @type {number}
-         */
-        falloffFactor: 2.0,
-        /**
-         * @type {number}
-         */
-        shadowBias: 0.0002,
-        /**
-         * @type {number}
-         */
-        shadowSlopeScale: 2.0
-    },{
+        shadowCascade: 1,
 
-        type: 'SPOT_LIGHT',
+        /**
+         * Available when shadowCascade is larger than 1 and have a unique directional light in scene.
+         * @type {number}
+         */
+        cascadeSplitLogFactor: 0.2
+    }, {
+
+        type: 'DIRECTIONAL_LIGHT',
 
         uniformTemplates: {
-            spotLightPosition: {
-                type: '3f',
-                value: function (instance) {
-                    return instance.getWorldPosition()._array;
-                }
-            },
-            spotLightRange: {
-                type: '1f',
-                value: function (instance) {
-                    return instance.range;
-                }
-            },
-            spotLightUmbraAngleCosine: {
-                type: '1f',
-                value: function (instance) {
-                    return Math.cos(instance.umbraAngle * Math.PI / 180);
-                }
-            },
-            spotLightPenumbraAngleCosine: {
-                type: '1f',
-                value: function (instance) {
-                    return Math.cos(instance.penumbraAngle * Math.PI / 180);
-                }
-            },
-            spotLightFalloffFactor: {
-                type: '1f',
-                value: function (instance) {
-                    return instance.falloffFactor;
-                }
-            },
-            spotLightDirection: {
+            directionalLightDirection: {
                 type: '3f',
                 value: function (instance) {
                     instance.__dir = instance.__dir || new Vector3();
                     // Direction is target to eye
-                    return instance.__dir.copy(instance.worldTransform.z).negate()._array;
+                    return instance.__dir.copy(instance.worldTransform.z).normalize().negate()._array;
                 }
             },
-            spotLightColor: {
+            directionalLightColor: {
                 type: '3f',
                 value: function (instance) {
                     var color = instance.color;
@@ -15717,26 +15271,22 @@ module.exports = {
             }
         },
         /**
-         * @return {qtek.light.Spot}
-         * @memberOf qtek.light.Spot.prototype
+         * @return {qtek.light.Directional}
+         * @memberOf qtek.light.Directional.prototype
          */
         clone: function () {
             var light = Light.prototype.clone.call(this);
-            light.range = this.range;
-            light.umbraAngle = this.umbraAngle;
-            light.penumbraAngle = this.penumbraAngle;
-            light.falloffFactor = this.falloffFactor;
             light.shadowBias = this.shadowBias;
             light.shadowSlopeScale = this.shadowSlopeScale;
             return light;
         }
     });
 
-    module.exports = SpotLight;
+    module.exports = DirectionalLight;
 
 
 /***/ }),
-/* 37 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15931,7 +15481,7 @@ module.exports = {
 
 
 /***/ }),
-/* 38 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16670,7 +16220,7 @@ module.exports = {
 
 
 /***/ }),
-/* 39 */
+/* 36 */
 /***/ (function(module, exports) {
 
 
@@ -16701,7 +16251,57 @@ module.exports = {
 
 
 /***/ }),
-/* 40 */
+/* 37 */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+    var uniformVec3Prefix = 'uniform vec3 ';
+    var uniformFloatPrefix = 'uniform float ';
+    var exportHeaderPrefix = '@export qtek.header.';
+    var exportEnd = '@end';
+    var unconfigurable = ':unconfigurable;';
+    module.exports = [
+        exportHeaderPrefix + 'directional_light',
+        uniformVec3Prefix + 'directionalLightDirection[DIRECTIONAL_LIGHT_COUNT]' + unconfigurable,
+        uniformVec3Prefix + 'directionalLightColor[DIRECTIONAL_LIGHT_COUNT]' + unconfigurable,
+        exportEnd,
+
+        exportHeaderPrefix + 'ambient_light',
+        uniformVec3Prefix + 'ambientLightColor[AMBIENT_LIGHT_COUNT]' + unconfigurable,
+        exportEnd,
+
+        exportHeaderPrefix + 'ambient_sh_light',
+        uniformVec3Prefix + 'ambientSHLightColor[AMBIENT_SH_LIGHT_COUNT]' + unconfigurable,
+        uniformVec3Prefix + 'ambientSHLightCoefficients[AMBIENT_SH_LIGHT_COUNT * 9]' + unconfigurable,
+        __webpack_require__(90),
+        exportEnd,
+
+        exportHeaderPrefix + 'ambient_cubemap_light',
+        uniformVec3Prefix + 'ambientCubemapLightColor[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
+        'uniform samplerCube ambientCubemapLightCubemap[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
+        'uniform sampler2D ambientCubemapLightBRDFLookup[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
+        exportEnd,
+
+        exportHeaderPrefix + 'point_light',
+        uniformVec3Prefix + 'pointLightPosition[POINT_LIGHT_COUNT]' + unconfigurable,
+        uniformFloatPrefix + 'pointLightRange[POINT_LIGHT_COUNT]' + unconfigurable,
+        uniformVec3Prefix + 'pointLightColor[POINT_LIGHT_COUNT]' + unconfigurable,
+        exportEnd,
+
+        exportHeaderPrefix + 'spot_light',
+        uniformVec3Prefix + 'spotLightPosition[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformVec3Prefix + 'spotLightDirection[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformFloatPrefix + 'spotLightRange[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformFloatPrefix + 'spotLightUmbraAngleCosine[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformFloatPrefix + 'spotLightPenumbraAngleCosine[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformFloatPrefix + 'spotLightFalloffFactor[SPOT_LIGHT_COUNT]' + unconfigurable,
+        uniformVec3Prefix + 'spotLightColor[SPOT_LIGHT_COUNT]' + unconfigurable,
+        exportEnd
+    ].join('\n');
+
+
+/***/ }),
+/* 38 */
 /***/ (function(module, exports) {
 
 
@@ -16709,7 +16309,7 @@ module.exports = "@export qtek.prez.vertex\n\nuniform mat4 worldViewProjection :
 
 
 /***/ }),
-/* 41 */
+/* 39 */
 /***/ (function(module, exports) {
 
 
@@ -16717,35 +16317,35 @@ module.exports = "\n\n@export qtek.standard.vertex\n\nuniform mat4 worldViewProj
 
 
 /***/ }),
-/* 42 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Renderer = __webpack_require__(27);
-var PerspectiveCamera = __webpack_require__(22);
+var Renderer = __webpack_require__(25);
+var PerspectiveCamera = __webpack_require__(21);
 var ShadowMapPass = __webpack_require__(71);
-var GLTFLoader = __webpack_require__(67);
-var DirectionalLight = __webpack_require__(23);
-var AmbientSHLight = __webpack_require__(66);
-var Scene = __webpack_require__(28);
-var Node = __webpack_require__(8);
+var GLTF2Loader = __webpack_require__(67);
+var DirectionalLight = __webpack_require__(33);
+var AmbientSHLight = __webpack_require__(64);
+var Scene = __webpack_require__(26);
+var Node = __webpack_require__(7);
 var Vector3 = __webpack_require__(4);
-var Animation = __webpack_require__(55);
-var meshUtil = __webpack_require__(97);
-var SphereGeo = __webpack_require__(65);
-var CubeGeo = __webpack_require__(64);
+var Animation = __webpack_require__(53);
+var meshUtil = __webpack_require__(96);
+var SphereGeo = __webpack_require__(63);
+var CubeGeo = __webpack_require__(62);
 var Mesh = __webpack_require__(14);
 var Material = __webpack_require__(11);
-var Shader = __webpack_require__(6);
+var Shader = __webpack_require__(8);
 var StaticGeometry = __webpack_require__(12);
-var Task = __webpack_require__(31);
-var TaskGroup = __webpack_require__(60);
+var Task = __webpack_require__(29);
+var TaskGroup = __webpack_require__(58);
 var util = __webpack_require__(5);
-var colorUtil = __webpack_require__(45);
+var colorUtil = __webpack_require__(43);
 
-var getBoundingBoxWithSkinning = __webpack_require__(50);
-var directionFromAlphaBeta = __webpack_require__(49);
-var OrbitControl = __webpack_require__(48);
-var HotspotManager = __webpack_require__(47);
+var getBoundingBoxWithSkinning = __webpack_require__(48);
+var directionFromAlphaBeta = __webpack_require__(47);
+var OrbitControl = __webpack_require__(46);
+var HotspotManager = __webpack_require__(45);
 
 function createSkeletonDebugScene(skeleton) {
     var scene = new Scene();
@@ -16900,7 +16500,7 @@ Viewer.prototype._initLights = function () {
     var light = new DirectionalLight({
         intensity: 1,
         shadowResolution: 1024,
-        shadowBias: 0.05
+        shadowBias: 0.01
     });
     var ambientLight = new AmbientSHLight({
         intensity : 0.8,
@@ -16916,7 +16516,7 @@ Viewer.prototype._initLights = function () {
     this._scene.add(ambientLight);
 };
 
-Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
+Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Remove previous loaded
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
@@ -16932,42 +16532,40 @@ Viewer.prototype._addModel = function (modelNode, skeletons, clips) {
 
     this._scene.add(modelNode);
 
-    var skeletonsList = [];
-    for (var id in skeletons) {
-        var skeleton = skeletons[id];
-
-        skeletonsList.push(skeleton);
-
+    skeletons.forEach(function (skeleton) {
         if (this._renderDebugSkeleton) {
             skeleton.__debugScene = createSkeletonDebugScene(skeleton);
         }
-    }
+    });
 
-    this._skeletons = skeletonsList;
+    this._skeletons = skeletons.slice();
     this._modelNode = modelNode;
 
     this._setAnimationClips(clips);
+
+    // Not save if glTF has only animation info
+    if (nodes && nodes.length) {
+        this._nodes = nodes;
+    }
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
+
     this._clips.forEach(function (clip) {
-        this._animation.removeClip(clips[id]);
+        this._animation.removeClip(clip);
     }, this);
 
-    var clipsList = [];
-    for (var clipId in clips) {
-        var clip = clips[clipId];
+    clips.forEach(function (clip) {
         if (!clip.target) {
-            clip.target = this._scene.getNode(clip.name);
+            clip.target = this._nodes[clip.targetNodeIndex];
         }
-
-        clipsList.push(clip);
+        // Remove onframe;
+        clip.onframe = null;
 
         this._animation.addClip(clip);
-        clips[clipId].setLoop(true);
-    }
+    }, this);
 
-    this._clips = clipsList;
+    this._clips = clips.slice();
 };
 
 Viewer.prototype.resize = function () {
@@ -16982,7 +16580,7 @@ Viewer.prototype.resize = function () {
 Viewer.prototype.autoFitModel = function (fitSize) {
     fitSize = fitSize || 10;
     if (this._modelNode) {
-        this._setPose(0);
+        this.setPose(0);
         this._modelNode.update();
         var bbox = getBoundingBoxWithSkinning(this._modelNode);
 
@@ -17015,7 +16613,7 @@ Viewer.prototype.loadModel = function (url, opts) {
         throw new Error('URL of model is not provided');
     }
 
-    var loader = new GLTFLoader({
+    var loader = new GLTF2Loader({
         rootNode: new Node(),
         shaderName: 'qtek.' + this._shaderName,
         textureRootPath: opts.textureRootPath,
@@ -17062,7 +16660,7 @@ Viewer.prototype.loadModel = function (url, opts) {
             }
         });
 
-        this._addModel(res.rootNode, res.skeletons, res.clips);
+        this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
         this.autoFitModel();
 
@@ -17074,8 +16672,8 @@ Viewer.prototype.loadModel = function (url, opts) {
         });
 
         var stat = {
-            triangleCount: vertexCount,
-            vertexCount: triangleCount,
+            triangleCount: triangleCount,
+            vertexCount: vertexCount,
             nodeCount: nodeCount,
             meshCount: Object.keys(res.meshes).length,
             materialCount: Object.keys(res.materials).length,
@@ -17107,7 +16705,7 @@ Viewer.prototype.loadModel = function (url, opts) {
  * @param {string} url
  */
 Viewer.prototype.loadAnimation = function (url) {
-    var loader = new GLTFLoader({
+    var loader = new GLTF2Loader({
         rootNode: new Node(),
         crossOrigin: 'Anonymous'
     });
@@ -17217,7 +16815,7 @@ Viewer.prototype.addHotspot = function (position, tipHTML) {
     return this._hotspotManager.add(position, tipHTML);
 };
 
-Viewer.prototype._setPose = function (time) {
+Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
@@ -17243,7 +16841,9 @@ Viewer.prototype._updateClipAndSkeletons = function () {
 };
 
 Viewer.prototype._loop = function (deltaTime) {
+
     this._updateClipAndSkeletons();
+
     this._scene.update();
 
     this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
@@ -17265,7 +16865,9 @@ Viewer.prototype._loop = function (deltaTime) {
  * Dispose viewer.
  */
 Viewer.prototype.dispose = function () {
-    this._shadowMapPass.dispose(this._renderer);
+    if (this._shadowMapPass) {
+        this._shadowMapPass.dispose(this._renderer);
+    }
     this._renderer.disposeScene(this._scene);
     this._renderer.dispose();
     this._cameraControl.dispose();
@@ -17276,16 +16878,21 @@ Viewer.prototype.dispose = function () {
 
 module.exports = Viewer;
 
+
+
+
+
+
 /***/ }),
-/* 43 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = {
-    Viewer: __webpack_require__(42)
+    Viewer: __webpack_require__(40)
 };
 
 /***/ }),
-/* 44 */
+/* 42 */
 /***/ (function(module, exports) {
 
 // Simple LRU cache use doubly linked list
@@ -17487,7 +17094,7 @@ module.exports = {
 
 
 /***/ }),
-/* 45 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -17495,7 +17102,7 @@ module.exports = {
  */
 
 
-    var LRU = __webpack_require__(44);
+    var LRU = __webpack_require__(42);
 
     var kCSSColorTable = {
         'transparent': [0,0,0,0], 'aliceblue': [240,248,255,1],
@@ -18025,7 +17632,7 @@ module.exports = {
 
 
 /***/ }),
-/* 46 */
+/* 44 */
 /***/ (function(module, exports) {
 
 /**
@@ -18141,7 +17748,7 @@ var recognizers = {
 module.exports = GestureMgr;
 
 /***/ }),
-/* 47 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var Base = __webpack_require__(1);
@@ -18259,7 +17866,7 @@ var HotspotManger = Base.extend(function () {
             var percent = (linearDepth - tmpBBox.max.z) / (tmpBBox.min.z - tmpBBox.max.z);
             var alpha = Math.max(Math.min(percent, 1.0), 0.0) * (farAlpha - nearAlpha) + nearAlpha;
 
-            hotspot.dom.style.opacity = alpha;
+            hotspot.dom.style.opacity = 1;
 
             hotspot.onupdate && hotspot.onupdate(x, y);
         }, this);
@@ -18269,7 +17876,7 @@ var HotspotManger = Base.extend(function () {
 module.exports = HotspotManger;
 
 /***/ }),
-/* 48 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -18281,10 +17888,10 @@ module.exports = HotspotManger;
 
 // TODO Remove magic numbers on sensitivity
 var Base = __webpack_require__(1);
-var Vector2 = __webpack_require__(38);
+var Vector2 = __webpack_require__(35);
 var Vector3 = __webpack_require__(4);
-var Quaternion = __webpack_require__(24);
-var GestureMgr = __webpack_require__(46);
+var Quaternion = __webpack_require__(22);
+var GestureMgr = __webpack_require__(44);
 
 function firstNotNull() {
     for (var i = 0, len = arguments.length; i < len; i++) {
@@ -18969,7 +18576,7 @@ Object.defineProperty(OrbitControl.prototype, 'autoRotate', {
 module.exports = OrbitControl;
 
 /***/ }),
-/* 49 */
+/* 47 */
 /***/ (function(module, exports) {
 
 module.exports = function directionFromAlphaBeta (alpha, beta) {
@@ -18986,7 +18593,7 @@ module.exports = function directionFromAlphaBeta (alpha, beta) {
 };
 
 /***/ }),
-/* 50 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var BoundingBox = __webpack_require__(3);
@@ -19079,7 +18686,7 @@ function getBoundingBoxWithSkinning(node, out) {
 module.exports = getBoundingBoxWithSkinning;
 
 /***/ }),
-/* 51 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19088,10 +18695,10 @@ module.exports = getBoundingBoxWithSkinning;
 
     var Base = __webpack_require__(1);
     var Texture = __webpack_require__(13);
-    var TextureCube = __webpack_require__(20);
-    var glinfo = __webpack_require__(7);
+    var TextureCube = __webpack_require__(28);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(18);
+    var Cache = __webpack_require__(17);
 
     var KEY_FRAMEBUFFER = 'framebuffer';
     var KEY_RENDERBUFFER = 'renderbuffer';
@@ -19482,7 +19089,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 52 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19491,31 +19098,17 @@ module.exports = getBoundingBoxWithSkinning;
 
     var Base = __webpack_require__(1);
     var glenum = __webpack_require__(2);
-    var Cache = __webpack_require__(18);
+    var Cache = __webpack_require__(17);
     var vendor = __webpack_require__(9);
 
     function getArrayCtorByType (type) {
-        var ArrayConstructor;
-        switch(type) {
-            case 'byte':
-                ArrayConstructor = vendor.Int8Array;
-                break;
-            case 'ubyte':
-                ArrayConstructor = vendor.Uint8Array;
-                break;
-            case 'short':
-                ArrayConstructor = vendor.Int16Array;
-                break;
-            case 'ushort':
-                ArrayConstructor = vendor.Uint16Array;
-                break;
-            default:
-                ArrayConstructor = vendor.Float32Array;
-                break;
-        }
-        return ArrayConstructor;
+        return ({
+            'byte': vendor.Int8Array,
+            'ubyte': vendor.Uint8Array,
+            'short': vendor.Int16Array,
+            'ushort': vendor.Uint16Array
+        })[type] || vendor.Float32Array;
     }
-
 
     function Attribute(name, type, size, semantic) {
         this.name = name;
@@ -19835,16 +19428,16 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 53 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Node = __webpack_require__(8);
+    var Node = __webpack_require__(7);
     var glenum = __webpack_require__(2);
-    var glinfo = __webpack_require__(7);
+    var glinfo = __webpack_require__(6);
 
     // Cache
     var prevDrawID = 0;
@@ -20230,7 +19823,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 54 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20238,7 +19831,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
     var Base = __webpack_require__(1);
-    var Joint = __webpack_require__(26);
+    var Joint = __webpack_require__(24);
 
     var glMatrix = __webpack_require__(0);
     var quat = glMatrix.quat;
@@ -20265,6 +19858,7 @@ module.exports = getBoundingBoxWithSkinning;
              * root joints
              * @type {Array.<qtek.Joint>}
              */
+            // PENDING If needs this?
             roots: [],
 
             /**
@@ -20294,23 +19888,6 @@ module.exports = getBoundingBoxWithSkinning;
     },
     /** @lends qtek.Skeleton.prototype */
     {
-        /**
-         * Update joints hierarchy
-         */
-        updateHierarchy: function () {
-            this.roots = [];
-            var joints = this.joints;
-            for (var i = 0; i < joints.length; i++) {
-                var joint = joints[i];
-                if (joint.parentIndex >= 0) {
-                    var parent = joints[joint.parentIndex].node;
-                    parent.add(joint.node);
-                }
-                else {
-                    this.roots.push(joint);
-                }
-            }
-        },
 
         /**
          * Add a skinning clip and create a map between clip and skeleton
@@ -20435,6 +20012,12 @@ module.exports = getBoundingBoxWithSkinning;
             };
         })(),
 
+        setJointMatricesArray: function (array) {
+            this._invBindPoseMatricesArray = array;
+            this._skinMatricesArray = new Float32Array(array.length);
+            this.updateMatricesSubArrays();
+        },
+
         updateMatricesSubArrays: function () {
             for (var i = 0; i < this.joints.length; i++) {
                 this._jointMatricesSubArrays[i] = this._invBindPoseMatricesArray.subarray(i * 16, (i+1) * 16);
@@ -20534,14 +20117,12 @@ module.exports = getBoundingBoxWithSkinning;
                 var newJoint = new Joint();
                 newJoint.name = this.joints[i].name;
                 newJoint.index = this.joints[i].index;
-                newJoint.parentIndex = this.joints[i].parentIndex;
 
                 var path = this.joints[i].node.getPath(rootNode);
                 var rootNodePath = this.joints[i].rootNode.getPath(rootNode);
 
                 if (path != null && rootNodePath != null) {
                     newJoint.node = newRootNode.queryNode(path);
-                    newJoint.rootNode = newRootNode.queryNode(rootNodePath);
                 }
                 else {
                     // PENDING
@@ -20575,7 +20156,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 55 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20583,7 +20164,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
     var Base = __webpack_require__(1);
-    var Animator = __webpack_require__(56);
+    var Animator = __webpack_require__(54);
 
     var requestAnimationFrame = window.requestAnimationFrame
                                 || window.msRequestAnimationFrame
@@ -20809,7 +20390,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 56 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -20817,7 +20398,7 @@ module.exports = getBoundingBoxWithSkinning;
  */
 
 
-    var Clip = __webpack_require__(17);
+    var Clip = __webpack_require__(19);
 
     var arraySlice = Array.prototype.slice;
 
@@ -21348,7 +20929,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 57 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21359,8 +20940,8 @@ module.exports = getBoundingBoxWithSkinning;
 // TODO Sync target transform
 
 
-    var Clip = __webpack_require__(17);
-    var TransformClip = __webpack_require__(30);
+    var Clip = __webpack_require__(19);
+    var TransformClip = __webpack_require__(56);
 
     var glMatrix = __webpack_require__(0);
     var quat = glMatrix.quat;
@@ -21690,26 +21271,28 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 58 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 
-    var Clip = __webpack_require__(17);
-
-    var TransformClip = __webpack_require__(30);
+    var Clip = __webpack_require__(19);
 
     var glMatrix = __webpack_require__(0);
     var quat = glMatrix.quat;
     var vec3 = glMatrix.vec3;
 
+    function keyframeSort(a, b) {
+        return a.time - b.time;
+    }
+
     /**
      * @constructor
-     * @alias qtek.animation.SkinningClip
-     *
+     * @alias qtek.animation.TransformClip
      * @extends qtek.animation.Clip
+     *
      * @param {Object} [opts]
      * @param {string} [opts.name]
      * @param {Object} [opts.target]
@@ -21718,39 +21301,52 @@ module.exports = getBoundingBoxWithSkinning;
      * @param {number} [opts.gap]
      * @param {number} [opts.playbackRatio]
      * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
-     * @param {string|function} [opts.easing]
-     * @param {function} [opts.onframe]
-     * @param {function} [opts.onfinish]
-     * @param {function} [opts.onrestart]
+     * @param {string|Function} [opts.easing]
+     * @param {Function} [opts.onframe]
+     * @param {Function} [opts.onfinish]
+     * @param {Function} [opts.onrestart]
+     * @param {object[]} [opts.keyFrames]
      */
-    var SkinningClip = function(opts) {
+    var TransformClip = function (opts) {
 
         opts = opts || {};
 
         Clip.call(this, opts);
 
-        this.jointClips = [];
-
-        this.life = 0;
-        if (opts.jointClips && opts.jointClips.length > 0) {
-            for (var j = 0; j < opts.jointClips.length; j++) {
-                var jointPoseCfg = opts.jointClips[j];
-                var jointClip = new TransformClip({
-                    keyFrames: jointPoseCfg.keyFrames
-                });
-                jointClip.name = jointPoseCfg.name || '';
-                this.jointClips[j] = jointClip;
-
-                this.life = Math.max(jointClip.life, this.life);
-            }
+        //[{
+        //  time: //ms
+        //  position:  // optional
+        //  rotation:  // optional
+        //  scale:     // optional
+        //}]
+        this.keyFrames = [];
+        if (opts.keyFrames) {
+            this.addKeyFrames(opts.keyFrames);
         }
+
+        /**
+         * @type {Float32Array}
+         */
+        this.position = vec3.create();
+        /**
+         * Rotation is represented by a quaternion
+         * @type {Float32Array}
+         */
+        this.rotation = quat.create();
+        /**
+         * @type {Float32Array}
+         */
+        this.scale = vec3.fromValues(1, 1, 1);
+
+        this._cacheKey = 0;
+        this._cacheTime = 0;
     };
 
-    SkinningClip.prototype = Object.create(Clip.prototype);
+    TransformClip.prototype = Object.create(Clip.prototype);
 
-    SkinningClip.prototype.constructor = SkinningClip;
+    TransformClip.prototype.constructor = TransformClip;
 
-    SkinningClip.prototype.step = function(time, dTime) {
+    TransformClip.prototype.step = function (time, dTime) {
 
         var ret = Clip.prototype.step.call(this, time, dTime);
 
@@ -21761,143 +21357,195 @@ module.exports = getBoundingBoxWithSkinning;
         return ret;
     };
 
-    SkinningClip.prototype.setTime = function(time) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            this.jointClips[i].setTime(time);
+    TransformClip.prototype.setTime = function (time) {
+        this._interpolateField(time, 'position');
+        this._interpolateField(time, 'rotation');
+        this._interpolateField(time, 'scale');
+    };
+    /**
+     * Add a key frame
+     * @param {Object} kf
+     */
+    TransformClip.prototype.addKeyFrame = function (kf) {
+        for (var i = 0; i < this.keyFrames.length - 1; i++) {
+            var prevFrame = this.keyFrames[i];
+            var nextFrame = this.keyFrames[i+1];
+            if (prevFrame.time <= kf.time && nextFrame.time >= kf.time) {
+                this.keyFrames.splice(i, 0, kf);
+                return i;
+            }
+        }
+
+        this.life = kf.time;
+        this.keyFrames.push(kf);
+    };
+
+    /**
+     * Add keyframes
+     * @param {object[]} kfs
+     */
+    TransformClip.prototype.addKeyFrames = function (kfs) {
+        for (var i = 0; i < kfs.length; i++) {
+            this.keyFrames.push(kfs[i]);
+        }
+
+        this.keyFrames.sort(keyframeSort);
+
+        this.life = this.keyFrames[this.keyFrames.length - 1].time;
+    };
+
+    TransformClip.prototype._interpolateField = function (time, fieldName) {
+        var kfs = this.keyFrames;
+        var len = kfs.length;
+        var start;
+        var end;
+
+        if (!kfs.length) {
+            return;
+        }
+        if (time < kfs[0].time || time > kfs[kfs.length-1].time) {
+            return;
+        }
+        if (time < this._cacheTime) {
+            var s = this._cacheKey >= len-1 ? len-1 : this._cacheKey+1;
+            for (var i = s; i >= 0; i--) {
+                if (kfs[i].time <= time && kfs[i][fieldName]) {
+                    start = kfs[i];
+                    this._cacheKey = i;
+                    this._cacheTime = time;
+                } else if (kfs[i][fieldName]) {
+                    end = kfs[i];
+                    break;
+                }
+            }
+        } else {
+            for (var i = this._cacheKey; i < len; i++) {
+                if (kfs[i].time <= time && kfs[i][fieldName]) {
+                    start = kfs[i];
+                    this._cacheKey = i;
+                    this._cacheTime = time;
+                } else if (kfs[i][fieldName]) {
+                    end = kfs[i];
+                    break;
+                }
+            }
+        }
+
+        if (start && end) {
+            var percent = (time-start.time) / (end.time-start.time);
+            percent = Math.max(Math.min(percent, 1), 0);
+            if (fieldName === 'rotation') {
+                quat.slerp(this[fieldName], start[fieldName], end[fieldName], percent);
+            } else {
+                vec3.lerp(this[fieldName], start[fieldName], end[fieldName], percent);
+            }
+        } else {
+            this._cacheKey = 0;
+            this._cacheTime = 0;
         }
     };
-
     /**
-     * @param {qtek.animation.TransformClip|qtek.animation.SamplerClip} jointClip
+     * 1D blending between two clips
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+     * @param  {number} w
      */
-    SkinningClip.prototype.addJointClip = function(jointClip) {
-        this.jointClips.push(jointClip);
-        this.life = Math.max(jointClip.life, this.life);
+    TransformClip.prototype.blend1D = function (c1, c2, w) {
+        vec3.lerp(this.position, c1.position, c2.position, w);
+        vec3.lerp(this.scale, c1.scale, c2.scale, w);
+        quat.slerp(this.rotation, c1.rotation, c2.rotation, w);
     };
 
     /**
-     * @param {qtek.animation.TransformClip|qtek.animation.SamplerClip} jointClip
+     * 2D blending between three clips
+     * @method
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c3
+     * @param  {number} f
+     * @param  {number} g
      */
-    SkinningClip.prototype.removeJointClip = function(jointClip) {
-        this.jointClips.splice(this.jointClips.indexOf(jointClip), 1);
+    TransformClip.prototype.blend2D = (function () {
+        var q1 = quat.create();
+        var q2 = quat.create();
+        return function (c1, c2, c3, f, g) {
+            var a = 1 - f - g;
+
+            this.position[0] = c1.position[0] * a + c2.position[0] * f + c3.position[0] * g;
+            this.position[1] = c1.position[1] * a + c2.position[1] * f + c3.position[1] * g;
+            this.position[2] = c1.position[2] * a + c2.position[2] * f + c3.position[2] * g;
+
+            this.scale[0] = c1.scale[0] * a + c2.scale[0] * f + c3.scale[0] * g;
+            this.scale[1] = c1.scale[1] * a + c2.scale[1] * f + c3.scale[1] * g;
+            this.scale[2] = c1.scale[2] * a + c2.scale[2] * f + c3.scale[2] * g;
+
+            // http://msdn.microsoft.com/en-us/library/windows/desktop/bb205403(v=vs.85).aspx
+            // http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.quaternion.xmquaternionbarycentric(v=vs.85).aspx
+            var s = f + g;
+            if (s === 0) {
+                quat.copy(this.rotation, c1.rotation);
+            } else {
+                quat.slerp(q1, c1.rotation, c2.rotation, s);
+                quat.slerp(q2, c1.rotation, c3.rotation, s);
+                quat.slerp(this.rotation, q1, q2, g / s);
+            }
+        };
+    })();
+
+    /**
+     * Additive blending between two clips
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+     */
+    TransformClip.prototype.additiveBlend = function (c1, c2) {
+        vec3.add(this.position, c1.position, c2.position);
+        vec3.add(this.scale, c1.scale, c2.scale);
+        quat.multiply(this.rotation, c2.rotation, c1.rotation);
+    };
+
+    /**
+     * Subtractive blending between two clips
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
+     * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+     */
+    TransformClip.prototype.subtractiveBlend = function (c1, c2) {
+        vec3.sub(this.position, c1.position, c2.position);
+        vec3.sub(this.scale, c1.scale, c2.scale);
+        quat.invert(this.rotation, c2.rotation);
+        quat.multiply(this.rotation, this.rotation, c1.rotation);
     };
 
     /**
      * @param {number} startTime
      * @param {number} endTime
      * @param {boolean} isLoop
-     * @return {qtek.animation.SkinningClip}
      */
-    SkinningClip.prototype.getSubClip = function(startTime, endTime, isLoop) {
-        var subClip = new SkinningClip({
-            name: this.name
-        });
-
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var subJointClip = this.jointClips[i].getSubClip(startTime, endTime);
-            subClip.addJointClip(subJointClip);
-        }
-
-        if (isLoop !== undefined) {
-            subClip.setLoop(isLoop);
-        }
-
-        return subClip;
+    TransformClip.prototype.getSubClip = function (startTime, endTime) {
+        // TODO
+        console.warn('TODO');
     };
 
     /**
-     * 1d blending between two skinning clips
-     * @param  {qtek.animation.SkinningClip} clip1
-     * @param  {qtek.animation.SkinningClip} clip2
-     * @param  {number} w
+     * Clone a new TransformClip
+     * @return {qtek.animation.TransformClip}
      */
-    SkinningClip.prototype.blend1D = function(clip1, clip2, w) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var c1 = clip1.jointClips[i];
-            var c2 = clip2.jointClips[i];
-            var tClip = this.jointClips[i];
-
-            tClip.blend1D(c1, c2, w);
-        }
-    };
-
-    /**
-     * Additive blending between two skinning clips
-     * @param  {qtek.animation.SkinningClip} clip1
-     * @param  {qtek.animation.SkinningClip} clip2
-     */
-    SkinningClip.prototype.additiveBlend = function(clip1, clip2) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var c1 = clip1.jointClips[i];
-            var c2 = clip2.jointClips[i];
-            var tClip = this.jointClips[i];
-
-            tClip.additiveBlend(c1, c2);
-        }
-    };
-
-    /**
-     * Subtractive blending between two skinning clips
-     * @param  {qtek.animation.SkinningClip} clip1
-     * @param  {qtek.animation.SkinningClip} clip2
-     */
-    SkinningClip.prototype.subtractiveBlend = function(clip1, clip2) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var c1 = clip1.jointClips[i];
-            var c2 = clip2.jointClips[i];
-            var tClip = this.jointClips[i];
-
-            tClip.subtractiveBlend(c1, c2);
-        }
-    };
-
-    /**
-     * 2D blending between three skinning clips
-     * @param  {qtek.animation.SkinningClip} clip1
-     * @param  {qtek.animation.SkinningClip} clip2
-     * @param  {qtek.animation.SkinningClip} clip3
-     * @param  {number} f
-     * @param  {number} g
-     */
-    SkinningClip.prototype.blend2D = function(clip1, clip2, clip3, f, g) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var c1 = clip1.jointClips[i];
-            var c2 = clip2.jointClips[i];
-            var c3 = clip3.jointClips[i];
-            var tClip = this.jointClips[i];
-
-            tClip.blend2D(c1, c2, c3, f, g);
-        }
-    };
-
-    /**
-     * Copy SRT of all joints clips from another SkinningClip
-     * @param  {qtek.animation.SkinningClip} clip
-     */
-    SkinningClip.prototype.copy = function(clip) {
-        for (var i = 0; i < this.jointClips.length; i++) {
-            var sClip = clip.jointClips[i];
-            var tClip = this.jointClips[i];
-
-            vec3.copy(tClip.position, sClip.position);
-            vec3.copy(tClip.scale, sClip.scale);
-            quat.copy(tClip.rotation, sClip.rotation);
-        }
-    };
-
-    SkinningClip.prototype.clone = function () {
+    TransformClip.prototype.clone = function () {
         var clip = Clip.prototype.clone.call(this);
-        for (var i = 0; i < this.jointClips.length; i++) {
-            clip.addJointClip(this.jointClips[i].clone());
-        }
+        clip.keyFrames = this.keyFrames;
+
+        vec3.copy(clip.position, this.position);
+        quat.copy(clip.rotation, this.rotation);
+        vec3.copy(clip.scale, this.scale);
+
         return clip;
     };
 
-    module.exports = SkinningClip;
+
+    module.exports = TransformClip;
 
 
 /***/ }),
-/* 59 */
+/* 57 */
 /***/ (function(module, exports) {
 
 // 缓动函数来自 https://github.com/sole/tween.js/blob/master/src/Tween.js
@@ -22251,7 +21899,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 60 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22259,7 +21907,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
     var util  = __webpack_require__(5);
-    var Task = __webpack_require__(31);
+    var Task = __webpack_require__(29);
 
     /**
      * @constructor
@@ -22491,7 +22139,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 61 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22499,12 +22147,12 @@ module.exports = getBoundingBoxWithSkinning;
 
 
     var Base = __webpack_require__(1);
-    var OrthoCamera = __webpack_require__(21);
-    var Plane = __webpack_require__(34);
-    var Shader = __webpack_require__(6);
+    var OrthoCamera = __webpack_require__(20);
+    var Plane = __webpack_require__(32);
+    var Shader = __webpack_require__(8);
     var Material = __webpack_require__(11);
     var Mesh = __webpack_require__(14);
-    var glinfo = __webpack_require__(7);
+    var glinfo = __webpack_require__(6);
     var glenum = __webpack_require__(2);
 
     Shader['import'](__webpack_require__(88));
@@ -22713,7 +22361,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 62 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22831,7 +22479,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 63 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22947,7 +22595,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 64 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22955,7 +22603,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
     var StaticGeometry = __webpack_require__(12);
-    var Plane = __webpack_require__(34);
+    var Plane = __webpack_require__(32);
     var Matrix4 = __webpack_require__(15);
     var Vector3 = __webpack_require__(4);
     var BoundingBox = __webpack_require__(3);
@@ -23093,7 +22741,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 65 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -23246,7 +22894,7 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
-/* 66 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -23311,6 +22959,185 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 /***/ }),
+/* 65 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Light = __webpack_require__(10);
+
+    /**
+     * @constructor qtek.light.Point
+     * @extends qtek.Light
+     */
+    var PointLight = Light.extend(
+    /** @lends qtek.light.Point# */
+    {
+        /**
+         * @type {number}
+         */
+        range: 100,
+
+        /**
+         * @type {number}
+         */
+        castShadow: false
+    }, {
+
+        type: 'POINT_LIGHT',
+
+        uniformTemplates: {
+            pointLightPosition: {
+                type: '3f',
+                value: function(instance) {
+                    return instance.getWorldPosition()._array;
+                }
+            },
+            pointLightRange: {
+                type: '1f',
+                value: function(instance) {
+                    return instance.range;
+                }
+            },
+            pointLightColor: {
+                type: '3f',
+                value: function(instance) {
+                    var color = instance.color,
+                        intensity = instance.intensity;
+                    return [ color[0]*intensity, color[1]*intensity, color[2]*intensity ];
+                }
+            }
+        },
+        /**
+         * @return {qtek.light.Point}
+         * @memberOf qtek.light.Point.prototype
+         */
+        clone: function() {
+            var light = Light.prototype.clone.call(this);
+            light.range = this.range;
+            return light;
+        }
+    });
+
+    module.exports = PointLight;
+
+
+/***/ }),
+/* 66 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+    var Light = __webpack_require__(10);
+    var Vector3 = __webpack_require__(4);
+
+    /**
+     * @constructor qtek.light.Spot
+     * @extends qtek.Light
+     */
+    var SpotLight = Light.extend(
+    /**@lends qtek.light.Spot */
+    {
+        /**
+         * @type {number}
+         */
+        range: 20,
+        /**
+         * @type {number}
+         */
+        umbraAngle: 30,
+        /**
+         * @type {number}
+         */
+        penumbraAngle: 45,
+        /**
+         * @type {number}
+         */
+        falloffFactor: 2.0,
+        /**
+         * @type {number}
+         */
+        shadowBias: 0.0002,
+        /**
+         * @type {number}
+         */
+        shadowSlopeScale: 2.0
+    },{
+
+        type: 'SPOT_LIGHT',
+
+        uniformTemplates: {
+            spotLightPosition: {
+                type: '3f',
+                value: function (instance) {
+                    return instance.getWorldPosition()._array;
+                }
+            },
+            spotLightRange: {
+                type: '1f',
+                value: function (instance) {
+                    return instance.range;
+                }
+            },
+            spotLightUmbraAngleCosine: {
+                type: '1f',
+                value: function (instance) {
+                    return Math.cos(instance.umbraAngle * Math.PI / 180);
+                }
+            },
+            spotLightPenumbraAngleCosine: {
+                type: '1f',
+                value: function (instance) {
+                    return Math.cos(instance.penumbraAngle * Math.PI / 180);
+                }
+            },
+            spotLightFalloffFactor: {
+                type: '1f',
+                value: function (instance) {
+                    return instance.falloffFactor;
+                }
+            },
+            spotLightDirection: {
+                type: '3f',
+                value: function (instance) {
+                    instance.__dir = instance.__dir || new Vector3();
+                    // Direction is target to eye
+                    return instance.__dir.copy(instance.worldTransform.z).negate()._array;
+                }
+            },
+            spotLightColor: {
+                type: '3f',
+                value: function (instance) {
+                    var color = instance.color;
+                    var intensity = instance.intensity;
+                    return [color[0] * intensity, color[1] * intensity, color[2] * intensity];
+                }
+            }
+        },
+        /**
+         * @return {qtek.light.Spot}
+         * @memberOf qtek.light.Spot.prototype
+         */
+        clone: function () {
+            var light = Light.prototype.clone.call(this);
+            light.range = this.range;
+            light.umbraAngle = this.umbraAngle;
+            light.penumbraAngle = this.penumbraAngle;
+            light.falloffFactor = this.falloffFactor;
+            light.shadowBias = this.shadowBias;
+            light.shadowSlopeScale = this.shadowSlopeScale;
+            return light;
+        }
+    });
+
+    module.exports = SpotLight;
+
+
+/***/ }),
 /* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -23320,45 +23147,36 @@ module.exports = getBoundingBoxWithSkinning;
  * glTF Loader
  * Specification https://github.com/KhronosGroup/glTF/blob/master/specification/README.md
  *
- * TODO https://github.com/KhronosGroup/glTF/issues/298
+ * TODO Morph targets
  */
 
 
     var Base = __webpack_require__(1);
-    var request = __webpack_require__(33);
+    var request = __webpack_require__(31);
     var util = __webpack_require__(5);
     var vendor = __webpack_require__(9);
 
-    var Scene = __webpack_require__(28);
-    var Shader = __webpack_require__(6);
+    var Scene = __webpack_require__(26);
     var Material = __webpack_require__(11);
-    var StandardMaterial = __webpack_require__(29);
+    var StandardMaterial = __webpack_require__(27);
     var Mesh = __webpack_require__(14);
-    var Node = __webpack_require__(8);
+    var Node = __webpack_require__(7);
     var Texture = __webpack_require__(13);
     var Texture2D = __webpack_require__(16);
-    var TextureCube = __webpack_require__(20);
-    var shaderLibrary = __webpack_require__(19);
-    var Skeleton = __webpack_require__(54);
-    var Joint = __webpack_require__(26);
-    var PerspectiveCamera = __webpack_require__(22);
-    var OrthographicCamera = __webpack_require__(21);
-    var PointLight = __webpack_require__(35);
-    var SpotLight = __webpack_require__(36);
-    var DirectionalLight = __webpack_require__(23);
+    var shaderLibrary = __webpack_require__(18);
+    var Skeleton = __webpack_require__(52);
+    var Joint = __webpack_require__(24);
+    var PerspectiveCamera = __webpack_require__(21);
+    var OrthographicCamera = __webpack_require__(20);
     var glenum = __webpack_require__(2);
 
     var Vector3 = __webpack_require__(4);
-    var Quaternion = __webpack_require__(24);
+    var Quaternion = __webpack_require__(22);
     var BoundingBox = __webpack_require__(3);
 
-    var SamplerClip = __webpack_require__(57);
-    var SkinningClip = __webpack_require__(58);
+    var SamplerClip = __webpack_require__(55);
 
     var StaticGeometry = __webpack_require__(12);
-
-    var glMatrix = __webpack_require__(0);
-    var quat = glMatrix.quat;
 
     // Import builtin shader
     __webpack_require__(72);
@@ -23368,11 +23186,34 @@ module.exports = getBoundingBoxWithSkinning;
         'POSITION': 'position',
         'TEXCOORD_0': 'texcoord0',
         'TEXCOORD_1': 'texcoord1',
-        'WEIGHT': 'weight',
-        'JOINT': 'joint',
+        'WEIGHTS_0': 'weight',
+        'JOINTS_0': 'joint',
         'COLOR': 'color'
     };
 
+    var ARRAY_CTOR_MAP = {
+        5120: vendor.Int8Array,
+        5121: vendor.Uint8Array,
+        5122: vendor.Int16Array,
+        5123: vendor.Uint16Array,
+        5125: vendor.Uint32Array,
+        5126: vendor.Float32Array
+    };
+    var ATTR_TYPE_MAP = {
+        5120: 'byte',
+        5121: 'ubyte',
+        5122: 'short',
+        5123: 'ushort'
+    };
+    var SIZE_MAP = {
+        SCALAR: 1,
+        VEC2: 2,
+        VEC3: 3,
+        VEC4: 4,
+        MAT2: 4,
+        MAT3: 9,
+        MAT4: 16
+    };
 
     /**
      * @typedef {Object} qtek.loader.GLTF.IResult
@@ -23418,10 +23259,6 @@ module.exports = getBoundingBoxWithSkinning;
         shaderName: 'qtek.standard',
 
         /**
-         * Cross origin setting
-         */
-
-        /**
          * @type {string}
          */
         useStandardMaterial: false,
@@ -23430,11 +23267,6 @@ module.exports = getBoundingBoxWithSkinning;
          * @type {boolean}
          */
         includeCamera: true,
-
-        /**
-         * @type {boolean}
-         */
-        includeLight: true,
 
         /**
          * @type {boolean}
@@ -23494,43 +23326,52 @@ module.exports = getBoundingBoxWithSkinning;
          */
         parse: function (json) {
             var self = this;
-            var loading = 0;
 
             var lib = {
-                buffers: {},
-                materials: {},
-                textures: {},
-                meshes: {},
-                joints: {},
-                skeletons: {},
-                cameras: {},
-                nodes: {}
+                buffers: [],
+                materials: [],
+                textures: [],
+                meshes: [],
+                joints: [],
+                skeletons: [],
+                cameras: [],
+                nodes: [],
+                clips: []
             };
             // Mount on the root node if given
             var rootNode = this.rootNode || new Scene();
+            
+            var loading = 0;
+            function checkLoad() {
+                loading--;
+                if (loading === 0) {
+                    afterLoadBuffer();
+                }
+            }
             // Load buffers
-            util.each(json.buffers, function (bufferInfo, name) {
+            util.each(json.buffers, function (bufferInfo, idx) {
                 loading++;
                 var path = bufferInfo.uri;
 
-                // DEPRECATED compatible with older version(< 1.0)
-                // https://github.com/KhronosGroup/glTF/wiki/glTF-0.8-to-1.0-Guide
-                if (path == null) {
-                    path = bufferInfo.path;
-                }
                 self._loadBuffer(path, function (buffer) {
-                    lib.buffers[name] = buffer;
-                    loading--;
-                    if (loading === 0) {
-                        afterLoadBuffer();
-                    }
-                }, function () {
-                    loading--;
-                    if (loading === 0) {
-                        afterLoadBuffer();
-                    }
-                });
+                    lib.buffers[idx] = buffer;
+                    checkLoad();
+                }, checkLoad);
             });
+
+            function getResult() {
+                return {
+                    scene: self.rootNode ? null : rootNode,
+                    rootNode: self.rootNode ? rootNode : null,
+                    cameras: lib.cameras,
+                    textures: lib.textures,
+                    materials: lib.materials,
+                    skeletons: lib.skeletons,
+                    meshes: lib.meshes,
+                    clips: lib.clips,
+                    nodes: lib.nodes
+                };
+            }
 
             function afterLoadBuffer() {
                 if (self.includeMesh) {
@@ -23542,67 +23383,29 @@ module.exports = getBoundingBoxWithSkinning;
                 }
                 self._parseNodes(json, lib);
 
-                var sceneInfo = json.scenes[json.scene];
-                if (sceneInfo) {
-                    for (var i = 0; i < sceneInfo.nodes.length; i++) {
-                        var node = lib.nodes[sceneInfo.nodes[i]];
-                        node.update();
-                        rootNode.add(node);
+                // Only support one scene.
+                if (json.scenes) {
+                    var sceneInfo = json.scenes[json.scene];
+                    if (sceneInfo) {
+                        for (var i = 0; i < sceneInfo.nodes.length; i++) {
+                            var node = lib.nodes[sceneInfo.nodes[i]];
+                            node.update();
+                            rootNode.add(node);
+                        }
                     }
                 }
 
                 if (self.includeMesh) {
                     self._parseSkins(json, lib);
                 }
-
-                var clips = {};
-                var skinningClip;
+                
                 if (self.includeAnimation) {
-                    clips = self._parseAnimations(json, lib);
-                    if (Object.keys(clips).length) {
-                        skinningClip = new SkinningClip();
-                        // Default loop the skinning animation
-                        skinningClip.setLoop(true);
-                        for (var targetId in clips) {
-                            skinningClip.addJointClip(clips[targetId]);
-                        }
-
-                        for (var name in lib.skeletons) {
-                            lib.skeletons[name].addClip(skinningClip);
-                        }
-                    }
+                    self._parseAnimations(json, lib);
                 }
-
-                for (var name in lib.skeletons) {
-                    lib.skeletons[name].relativeRootNode = rootNode;
-                }
-
-                self.trigger('success', {
-                    scene: self.rootNode ? null : rootNode,
-                    rootNode: self.rootNode ? rootNode : null,
-                    cameras: lib.cameras,
-                    textures: lib.textures,
-                    materials: lib.materials,
-                    skeletons: lib.skeletons,
-                    meshes: lib.meshes,
-                    clips: lib.clips,
-                    // Main skinning clip
-                    // TODO Skinning clip used for multiple skeleton ?
-                    // TODO Some clip for individual node animations.
-                    clip: skinningClip
-                });
+                self.trigger('success', getResult());
             }
 
-            return {
-                scene: self.rootNode ? null : rootNode,
-                rootNode: self.rootNode ? rootNode : null,
-                cameras: lib.cameras,
-                textures: lib.textures,
-                materials: lib.materials,
-                skeletons: lib.skeletons,
-                meshes: lib.meshes,
-                clip: null
-            };
+            return getResult();
         },
 
         _loadBuffer: function (path, onsuccess, onerror) {
@@ -23631,71 +23434,40 @@ module.exports = getBoundingBoxWithSkinning;
 
             // Create skeletons and joints
             var haveInvBindMatrices = false;
-            for (var name in json.skins) {
-                var skinInfo = json.skins[name];
+            util.each(json.skins, function (skinInfo, idx) {
                 var skeleton = new Skeleton({
-                    name: name
+                    name: skinInfo.name
                 });
                 for (var i = 0; i < skinInfo.joints.length; i++) {
-                    var jointId = skinInfo.joints[i];
+                    var nodeIdx = skinInfo.joints[i];
+                    var node = lib.nodes[nodeIdx];
                     var joint = new Joint({
-                        name: jointId,
+                        name: node.name,
+                        node: node,
                         index: skeleton.joints.length
                     });
                     skeleton.joints.push(joint);
                 }
+                skeleton.relativeRootNode = lib.nodes[skinInfo.skeleton] || this.rootNode;
                 if (skinInfo.inverseBindMatrices) {
                     haveInvBindMatrices = true;
-                    var IBMInfo = skinInfo.inverseBindMatrices;
+                    var IBMInfo = json.accessors[skinInfo.inverseBindMatrices];
                     var bufferViewName = IBMInfo.bufferView;
                     var bufferViewInfo = json.bufferViews[bufferViewName];
                     var buffer = lib.buffers[bufferViewInfo.buffer];
 
-                    var offset = IBMInfo.byteOffset + bufferViewInfo.byteOffset;
+                    var offset = (IBMInfo.byteOffset || 0) + (bufferViewInfo.byteOffset || 0);
                     var size = IBMInfo.count * 16;
 
                     var array = new vendor.Float32Array(buffer, offset, size);
 
-                    skeleton._invBindPoseMatricesArray = array;
-                    skeleton._skinMatricesArray = new vendor.Float32Array(array.length);
-                }
-                lib.skeletons[name] = skeleton;
-            }
-
-            var bindNodeToJoint = function (jointsMap, nodeName, parentIndex, rootNode) {
-                var node = lib.nodes[nodeName];
-                var nodeInfo = json.nodes[nodeName];
-                var joint = jointsMap[nodeInfo.jointId];
-                if (joint) {
-                    // throw new Error('Joint bind to ' + nodeInfo.name + ' doesn\'t exist in skin');
-                    joint.node = node;
-                    joint.parentIndex = parentIndex;
-                    joint.rootNode = rootNode;
-                    parentIndex = joint.index;
+                    skeleton.setJointMatricesArray(array);
                 }
                 else {
-                    // Some root node may be a simple transform joint, without deformation data.
-                    // Which is, no vertex is attached to the joint
-                    // PENDING
-                    joint = new Joint({
-                        node: node,
-                        rootNode: rootNode,
-                        parentIndex: parentIndex
-                    });
+                    skeleton.updateJointMatrices();
                 }
-
-                for (var i = 0; i < nodeInfo.children.length; i++) {
-                    bindNodeToJoint(jointsMap, nodeInfo.children[i], parentIndex, rootNode);
-                }
-
-                return joint;
-            };
-
-            var getJointIndex = function (joint) {
-                return joint.index;
-            };
-
-            var instanceSkins = {};
+                lib.skeletons[idx] = skeleton;
+            }, this);
 
             var shaderLib = this.shaderLibrary;
             var shaderName = this.shaderName;
@@ -23722,55 +23494,29 @@ module.exports = getBoundingBoxWithSkinning;
                 }
             }
 
-            for (var name in json.nodes) {
+            function getJointIndex(joint) {
+                return joint.index;
+            }
 
-                var nodeInfo = json.nodes[name];
+            util.each(json.nodes, function (nodeInfo, nodeIdx) {
+                if (nodeInfo.skin != null) {
+                    var skinIdx = nodeInfo.skin;
+                    var skeleton = lib.skeletons[skinIdx];
 
-                if (nodeInfo.instanceSkin) {
-                    var skinName = nodeInfo.instanceSkin.skin;
-                    var skeleton = lib.skeletons[skinName];
-                    instanceSkins[skinName] = skeleton;
-
-                    var node = lib.nodes[name];
+                    var node = lib.nodes[nodeIdx];
                     var jointIndices = skeleton.joints.map(getJointIndex);
                     if (node instanceof Mesh) {
                         enableSkinningForMesh(node, skeleton, jointIndices);
                     }
                     else {
                         // Mesh have multiple primitives
-                        for (var i = 0; i < node._children.length; i++) {
-                            enableSkinningForMesh(node._children[i], skeleton, jointIndices);
-                        }
-                    }
-
-                    var jointsMap = {};
-                    for (var i = 0; i < skeleton.joints.length; i++) {
-                        var joint = skeleton.joints[i];
-                        jointsMap[joint.name] = joint;
-                    }
-                    // Build up hierarchy from root nodes
-                    var rootNodes = nodeInfo.instanceSkin.skeletons;
-                    for (i = 0; i < rootNodes.length; i++) {
-                        var rootNode = lib.nodes[rootNodes[i]];
-                        var rootJoint = bindNodeToJoint(jointsMap, rootNodes[i], -1, rootNode);
-                        // Root joint may not in the skeleton
-                        if (rootJoint) {
-                            skeleton.roots.push(rootJoint);
+                        var children = node.children();
+                        for (var i = 0; i < children.length; i++) {
+                            enableSkinningForMesh(children[i], skeleton, jointIndices);
                         }
                     }
                 }
-            }
-
-            for (var name in instanceSkins) {
-                var skeleton = instanceSkins[name];
-                if (haveInvBindMatrices) {
-                    skeleton.updateMatricesSubArrays();
-                }
-                else {
-                    skeleton.updateJointMatrices();
-                }
-                skeleton.update();
-            }
+            }, this);
         },
 
         _parseTextures: function (json, lib) {
@@ -23778,253 +23524,285 @@ module.exports = getBoundingBoxWithSkinning;
             if (rootPath == null) {
                 rootPath = this.rootPath;
             }
-            util.each(json.textures, function (textureInfo, name){
-                var samplerInfo = json.samplers[textureInfo.sampler];
+            util.each(json.textures, function (textureInfo, idx){
+                // samplers is optional
+                var samplerInfo = (json.samplers && json.samplers[textureInfo.sampler]) || {};
                 var parameters = {};
-                ['wrapS', 'wrapT', 'magFilter', 'minFilter']
-                .forEach(function (name) {
+                ['wrapS', 'wrapT', 'magFilter', 'minFilter'].forEach(function (name) {
                     var value = samplerInfo[name];
                     if (value != null) {
-                        if (typeof(value) === 'string') {
-                            // DEPRECATED, sampler parameter now use gl enum instead of string
-                            value = glenum[value];
-                        }
                         parameters[name] = value;
                     }
                 });
+                util.defaults(parameters, {
+                    wrapS: Texture.REPEAT,
+                    wrapT: Texture.REPEAT,
+                    // PENDING
+                    // https://github.com/KhronosGroup/glTF/issues/674
+                    // flipY: false
+                });
 
-                var target = textureInfo.target;
+                var target = textureInfo.target || glenum.TEXTURE_2D;
                 var format = textureInfo.format;
-                if (typeof(target) === 'string') {
-                    // DEPRECATED
-                    target = glenum[target];
-                    format = glenum[format];
+                if (format != null) {
+                    parameters.format = format;
                 }
-                parameters.format = format;
 
                 if (target === glenum.TEXTURE_2D) {
                     var texture = new Texture2D(parameters);
                     var imageInfo = json.images[textureInfo.source];
-                    texture.load(util.relative2absolute(imageInfo.path, rootPath), this.crossOrigin);
-                    lib.textures[name] = texture;
-                }
-                else if(target === glenum.TEXTURE_CUBE_MAP) {
-                    // TODO
+                    texture.load(util.relative2absolute(imageInfo.uri, rootPath), this.crossOrigin);
+                    lib.textures[idx] = texture;
                 }
             }, this);
         },
 
-        // Only phong material is support yet
-        // TODO support custom material
-        _parseMaterials: function (json, lib) {
-            var techniques = {};
-            // Parse techniques
-            for (var name in json.techniques) {
-                var techniqueInfo = json.techniques[name];
+        _KHRCommonMaterialToStandard: function (materialInfo, lib) {
+            var uniforms = {};
+            var commonMaterialInfo = materialInfo.extensions['KHR_materials_common'];
+            uniforms = commonMaterialInfo.values;
+            
+            if (typeof uniforms.diffuse === 'number') {
+                uniforms.diffuse = lib.textures[uniforms.diffuse]
+            }
+            if (typeof uniforms.emission === 'number') {
+                uniforms.emission = lib.textures[uniforms.emission]
+            }
 
-                // DEPRECATED compatible with older version(< 1.0)
-                // There are no passes in techniques now
-                // https://github.com/KhronosGroup/glTF/wiki/glTF-0.8-to-1.0-Guide
-                if (techniqueInfo.passes) {
-                    techniques[name] = techniqueInfo.passes[techniqueInfo.pass];
+            var enabledTextures = [];
+            if (uniforms['diffuse'] instanceof Texture2D) {
+                enabledTextures.push('diffuseMap');
+            }
+            if (materialInfo.normalTexture) {
+                enabledTextures.push('normalMap');
+            }
+            if (uniforms['emission'] instanceof Texture2D) {
+                enabledTextures.push('emissiveMap');
+            }
+            var material;
+            var isStandardMaterial = this.useStandardMaterial;
+            if (isStandardMaterial) {
+                material = new StandardMaterial({
+                    name: materialInfo.name,
+                    doubleSided: materialInfo.doubleSided
+                });
+            }
+            else {
+                var fragmentDefines = {};
+                if (materialInfo.doubleSided) {
+                    fragmentDefines.DOUBLE_SIDED = null;
                 }
-                else {
-                    techniques[name] = techniqueInfo;
+                material = new Material({
+                    name: materialInfo.name,
+                    shader: this.shaderLibrary.get(this.shaderName, {
+                        fragmentDefines: fragmentDefines,
+                        textures: enabledTextures
+                    })
+                });
+            }
+
+            if (materialInfo.transparent) {
+                material.depthMask = false;
+                material.depthTest = true;
+                material.transparent = true;
+            }
+
+            var diffuseProp = uniforms['diffuse'];
+            if (diffuseProp) {
+                // Color
+                if (diffuseProp instanceof Array) {
+                    diffuseProp = diffuseProp.slice(0, 3);
+                    isStandardMaterial ? (material.color = diffuseProp)
+                        : material.set('color', diffuseProp);
+                }
+                else { // Texture
+                    isStandardMaterial ? (material.diffuseMap = diffuseProp)
+                        : material.set('diffuseMap', diffuseProp);
                 }
             }
-            for (var name in json.materials) {
-                var materialInfo = json.materials[name];
-
-                // DEPRECATED compatible with older version(< 1.0)
-                // There no instanceTechnique in material now.
-                // https://github.com/KhronosGroup/glTF/wiki/glTF-0.8-to-1.0-Guide
-                if (materialInfo.instanceTechnique) {
-                    for (var key in materialInfo.instanceTechnique) {
-                        materialInfo[key] = materialInfo.instanceTechnique[key];
-                    }
-                    materialInfo.instanceTechnique = null;
+            var emissionProp = uniforms['emission'];
+            if (emissionProp != null) {
+                // Color
+                if (emissionProp instanceof Array) {
+                    emissionProp = emissionProp.slice(0, 3);
+                    isStandardMaterial ? (material.emission = emissionProp)
+                        : material.set('emission', emissionProp);
                 }
-                var technique = techniques[materialInfo.technique];
-                var uniforms = {};
-
-                uniforms = materialInfo.values;
-                for (var symbol in uniforms) {
-                    var value = uniforms[symbol];
-                    // TODO: texture judgement should be more robust
-                    if (typeof(value) === 'string') {
-                        if (lib.textures[value]) {
-                            uniforms[symbol] = lib.textures[value];
-                        }
-                        else {
-                            uniforms[symbol] = null;
-                        }
-                    }
+                else { // Texture
+                    isStandardMaterial ? (material.emissiveMap = emissionProp)
+                        : material.set('emissiveMap', emissionProp);
                 }
-                var enabledTextures = [];
-                if (uniforms['diffuse'] instanceof Texture2D) {
-                    enabledTextures.push('diffuseMap');
-                }
-                if (uniforms['normalMap'] instanceof Texture2D) {
-                    enabledTextures.push('normalMap');
-                }
-                var material;
-                var isStandardMaterial = this.useStandardMaterial;
+            }
+            if (materialInfo.normalTexture != null) {
+                // TODO texCoord
+                var normalTextureIndex = materialInfo.normalTexture.index;
                 if (isStandardMaterial) {
-                    material = new StandardMaterial({
-                        name: materialInfo.name
-                    });
+                    material.normalMap = lib.textures[normalTextureIndex];
                 }
                 else {
-                    material = new Material({
-                        name: materialInfo.name,
-                        shader: this.shaderLibrary.get(this.shaderName, enabledTextures)
-                    });
+                    material.set('normalMap', lib.textures[normalTextureIndex]);
                 }
-                if (technique.states.depthMask != null) {
-                    material.depthMask = technique.states.depthMask;
-                }
-                if (technique.states.depthTestEnable != null) {
-                    material.depthTest = technique.states.depthTestEnable;
-                }
-                material.cullFace = technique.states.cullFaceEnable || false;
-                if (technique.states.blendEnable) {
-                    material.transparent = true;
-                    // TODO blend Func and blend Equation
-                }
-
-                var diffuseProp = uniforms['diffuse'];
-                if (diffuseProp) {
-                    // Color
-                    if (diffuseProp instanceof Array) {
-                        if (isStandardMaterial) {
-                            material.color = diffuseProp.slice(0, 3);
-                        }
-                        else {
-                            material.set('color', diffuseProp.slice(0, 3));
-                        }
-                    }
-                    else { // Texture
-                        if (isStandardMaterial) {
-                            material.diffuseMap = diffuseProp;
-                        }
-                        else {
-                            material.set('diffuseMap', diffuseProp);
-                        }
-                    }
-                }
-                if (uniforms['normalMap'] != null) {
-                    if (isStandardMaterial) {
-                        material.normalMap = uniforms['normalMap'];
-                    }
-                    else {
-                        material.set('normalMap', uniforms['normalMap']);
-                    }
-                }
-                if (uniforms['emission'] != null) {
-                    material.set('emission', uniforms['emission'].slice(0, 3));
-                }
-                if (uniforms['shininess'] != null) {
-                    var glossiness = Math.log(uniforms['shininess']) / Math.log(8192);
-                    // Uniform glossiness
-                    material.set('glossiness', glossiness);
-                    material.set('roughness', 1 - glossiness);
-                    material.set('shininess', uniforms['shininess']);
-                }
-                else {
-                    material.set('glossiness', 0.5);
-                    material.set('shininess', 0.5);
-                }
-                if (uniforms['specular'] != null) {
-                    material.set('specularColor', uniforms['specular'].slice(0, 3));
-                }
-                if (uniforms['transparency'] != null) {
-                    material.set('alpha', uniforms['transparency']);
-                }
-
-                lib.materials[name] = material;
             }
+            if (uniforms['shininess'] != null) {
+                var glossiness = Math.log(uniforms['shininess']) / Math.log(8192);
+                // Uniform glossiness
+                material.set('glossiness', glossiness);
+                material.set('roughness', 1 - glossiness);
+            }
+            else {
+                material.set('glossiness', 0.5);
+                material.set('roughness', 0.5);
+            }
+            if (uniforms['specular'] != null) {
+                material.set('specularColor', uniforms['specular'].slice(0, 3));
+            }
+            if (uniforms['transparency'] != null) {
+                material.set('alpha', uniforms['transparency']);
+            }
+
+            return material;
+        },
+
+        _pbrToStandard: function (materialInfo, lib) {
+            var alphaTest = materialInfo.alphaMode === 'MASK';
+            var metallicRoughnessMatInfo = materialInfo.pbrMetallicRoughness;
+
+            var isStandardMaterial = this.useStandardMaterial;
+            var material;
+            var diffuseMap, roughnessMap, metalnessMap, normalMap, emissiveMap;
+            var enabledTextures = [];
+                // TODO texCoord
+            if (metallicRoughnessMatInfo.baseColorTexture) {
+                diffuseMap = lib.textures[metallicRoughnessMatInfo.baseColorTexture.index];
+                enabledTextures.push('diffuseMap');
+            }
+            if (metallicRoughnessMatInfo.metallicRoughnessTexture) {
+                roughnessMap = lib.textures[metallicRoughnessMatInfo.metallicRoughnessTexture.index];
+                enabledTextures.push('metalnessMap', 'roughnessMap');
+            }
+            if (materialInfo.normalTexture) {
+                normalMap = lib.textures[materialInfo.normalTexture.index];
+                enabledTextures.push('normalMap');
+            }
+            if (materialInfo.emissiveTexture) {
+                emissiveMap = lib.textures[materialInfo.emissiveTexture.index];
+                enabledTextures.push('emissiveMap');
+            }
+
+            var commonProperties = {
+                diffuseMap: diffuseMap || null,
+                roughnessMap: roughnessMap || null,
+                metalnessMap: metalnessMap || null,
+                normalMap: normalMap || null,
+                emissiveMap: emissiveMap || null,
+                color: metallicRoughnessMatInfo.baseColorFactor || [1, 1, 1],
+                metalness: metallicRoughnessMatInfo.metallicFactor || 0,
+                roughness: metallicRoughnessMatInfo.roughnessFactor || 0,
+                emission: materialInfo.emissiveFactor || [0, 0, 0]
+            }
+            if (commonProperties.roughnessMap) {
+                // In glTF metallicFactor will do multiply, which is different from StandardMaterial.
+                // So simply ignore it
+                commonProperties.metalness = 0.5;
+                commonProperties.roughness = 0.5;
+            }
+            if (isStandardMaterial) {
+                material = new StandardMaterial(util.extend({
+                    name: materialInfo.name,
+                    alphaTest: alphaTest,
+                    doubleSided: materialInfo.doubleSided,
+                    // G channel
+                    roughnessChannel: 1,
+                    // B Channel
+                    metalnessChannel: 2
+                }, commonProperties));
+            }
+            else {
+                var fragmentDefines = {
+                    ROUGHNESS_CHANNEL: 1,
+                    METALNESS_CHANNEL: 2,
+                    USE_ROUGHNESS: null,
+                    USE_METALNESS: null
+                };
+                if (alphaTest) {
+                    fragmentDefines.ALPHA_TEST = null;
+                }
+                if (materialInfo.doubleSided) {
+                    fragmentDefines.DOUBLE_SIDED = null;
+                }
+                material = new Material({
+                    name: materialInfo.name,
+                    shader: this.shaderLibrary.get(this.shaderName, {
+                        fragmentDefines: fragmentDefines,
+                        textures: enabledTextures
+                    })
+                });
+                material.set(commonProperties);
+            }
+
+            if (materialInfo.alphaMode === 'BLEND') {
+                material.depthMask = false;
+                material.depthTest = true;
+                material.transparent = true;
+            }
+
+            return material;
+        },
+
+        _parseMaterials: function (json, lib) {
+            util.each(json.materials, function (materialInfo, idx) {
+                if (materialInfo.extensions && materialInfo.extensions['KHR_materials_common']) {
+                    lib.materials[idx] = this._KHRCommonMaterialToStandard(materialInfo, lib);
+                }
+                else if (materialInfo.pbrMetallicRoughness) {
+                    lib.materials[idx] = this._pbrToStandard(materialInfo, lib);
+                }
+                // TODO
+            }, this);
         },
 
         _parseMeshes: function (json, lib) {
             var self = this;
 
-            var meshKeys = Object.keys(json.meshes);
-            for (var nn = 0; nn < meshKeys.length; nn++) {
-                var name = meshKeys[nn];
-                var meshInfo = json.meshes[name];
-
-                lib.meshes[name] = [];
+            util.each(json.meshes, function (meshInfo, idx) {
+                lib.meshes[idx] = [];
                 // Geometry
                 for (var pp = 0; pp < meshInfo.primitives.length; pp++) {
                     var primitiveInfo = meshInfo.primitives[pp];
                     var geometry = new StaticGeometry({
+                        // PENDIGN
+                        name: meshInfo.name,
                         boundingBox: new BoundingBox()
                     });
                     // Parse attributes
                     var semantics = Object.keys(primitiveInfo.attributes);
                     for (var ss = 0; ss < semantics.length; ss++) {
                         var semantic = semantics[ss];
-                        var accessorName = primitiveInfo.attributes[semantic];
-                        var attributeInfo = json.accessors[accessorName];
+                        var accessorIdx = primitiveInfo.attributes[semantic];
+                        var attributeInfo = json.accessors[accessorIdx];
                         var attributeName = semanticAttributeMap[semantic];
                         if (!attributeName) {
                             continue;
                         }
                         var componentType = attributeInfo.componentType;
-                        // DEPRECATED compatible with older version(< 1.0)
-                        if (componentType == null) {
-                            var attributeType = attributeInfo.type;
-                            switch(attributeType) {
-                                case 0x8B50:     // FLOAT_VEC2
-                                    size = 2;
-                                    ArrayCtor = vendor.Float32Array;
-                                    break;
-                                case 0x8B51:     // FLOAT_VEC3
-                                    size = 3;
-                                    ArrayCtor = vendor.Float32Array;
-                                    break;
-                                case 0x8B52:     // FLOAT_VEC4
-                                    size = 4;
-                                    ArrayCtor = vendor.Float32Array;
-                                    break;
-                                case 0x1406:     // FLOAT
-                                    size = 1;
-                                    ArrayCtor = vendor.Float32Array;
-                                    break;
-                                default:
-                                    console.warn('Attribute type ' + attributeInfo.type + ' not support yet');
-                                    break;
-                            }
-                        }
-                        else {
-                            var attributeType = attributeInfo.type;
-                            ArrayCtor = ({
-                                5120: vendor.Int8Array,
-                                5121: vendor.Uint8Array,
-                                5122: vendor.Int16Array,
-                                5123: vendor.Uint16Array,
-                                5126: vendor.Float32Array
-                            })[componentType] || vendor.Float32Array;
-
-                            size = ({
-                                SCALAR: 1,
-                                VEC2: 2,
-                                VEC3: 3,
-                                VEC4: 4,
-                                MAT2: 4,
-                                MAT3: 9,
-                                MAT4: 16
-                            })[attributeType];
-                        }
+                        var attributeType = attributeInfo.type;
+                        ArrayCtor = ARRAY_CTOR_MAP[componentType] || vendor.Float32Array;
+                        size = SIZE_MAP[attributeType];
 
                         var bufferViewInfo = json.bufferViews[attributeInfo.bufferView];
                         var buffer = lib.buffers[bufferViewInfo.buffer];
-                        var byteOffset = bufferViewInfo.byteOffset + attributeInfo.byteOffset;
+                        // byteoffset is optional
+                        var byteOffset = (bufferViewInfo.byteOffset || 0) + (attributeInfo.byteOffset || 0);
 
                         var size;
                         var ArrayCtor;
                         var attributeArray = new ArrayCtor(buffer, byteOffset, attributeInfo.count * size);
-                        if (semantic === 'WEIGHT' && size === 4) {
+                        // WebGL attribute buffer not support uint32.
+                        // Direct use Float32Array may also have issue.
+                        if (attributeArray instanceof vendor.Uint32Array) {
+                            attributeArray = new Float32Array(attributeArray);
+                        }
+                        if (semantic === 'WEIGHTS_0' && size === 4) {
                             // Weight data in QTEK has only 3 component, the last component can be evaluated since it is normalized
                             var weightArray = new ArrayCtor(attributeInfo.count * 3);
                             for (var i = 0; i < attributeInfo.count; i++) {
@@ -24037,6 +23815,9 @@ module.exports = getBoundingBoxWithSkinning;
                         else {
                             geometry.attributes[attributeName].value = attributeArray;
                         }
+                        geometry.attributes[attributeName].type = ATTR_TYPE_MAP[componentType] || 'float';
+                        
+
                         if (semantic === 'POSITION') {
                             // Bounding Box
                             var min = attributeInfo.min;
@@ -24055,18 +23836,13 @@ module.exports = getBoundingBoxWithSkinning;
 
                     var bufferViewInfo = json.bufferViews[indicesInfo.bufferView];
                     var buffer = lib.buffers[bufferViewInfo.buffer];
-                    var byteOffset = bufferViewInfo.byteOffset + indicesInfo.byteOffset;
+                    var byteOffset = (bufferViewInfo.byteOffset || 0) + (indicesInfo.byteOffset || 0);
 
-                    // index uint
-                    if (indicesInfo.componentType === 0x1405) { // UNSIGNED_INT
-                        geometry.indices = new vendor.Uint32Array(buffer, byteOffset, indicesInfo.count);
-                    }
-                    else { // UNSIGNED_SHORT, 0x1403
-                        geometry.indices = new vendor.Uint16Array(buffer, byteOffset, indicesInfo.count);
-                    }
+                    var IndicesCtor = indicesInfo.componentType === 0x1405 ? vendor.Uint32Array : vendor.Uint16Array;
+                    geometry.indices = new IndicesCtor(buffer, byteOffset, indicesInfo.count);
 
                     var material = lib.materials[primitiveInfo.material];
-                    //Collada export from blender may not have default material
+                    // Use default material
                     if (!material) {
                         material = new Material({
                             shader: this.shaderLibrary.get(self.shaderName)
@@ -24074,7 +23850,8 @@ module.exports = getBoundingBoxWithSkinning;
                     }
                     var mesh = new Mesh({
                         geometry: geometry,
-                        material: material
+                        material: material,
+                        mode: [Mesh.POINTS, Mesh.LINES, Mesh.LINE_LOOP, Mesh.LINE_STRIP, Mesh.TRIANGLES, Mesh.TRIANGLE_STRIP, Mesh.TRIANGLE_FAN][primitiveInfo.mode] || Mesh.TRIANGLES
                     });
                     if (material.shader.isTextureEnabled('normalMap')) {
                         if (!mesh.geometry.attributes.tangent.value) {
@@ -24087,95 +23864,79 @@ module.exports = getBoundingBoxWithSkinning;
                             mesh.name = [meshInfo.name, pp].join('-');
                         }
                         else {
-                            // PENDING name or meshInfo.name ?
                             mesh.name = meshInfo.name;
                         }
                     }
 
-                    lib.meshes[name].push(mesh);
+                    lib.meshes[idx].push(mesh);
                 }
+            }, this);
+        },
+
+        _instanceCamera: function (json, nodeInfo) {
+            var cameraInfo = json.cameras[nodeInfo.camera];
+
+            if (cameraInfo.type === 'perspective') {
+                var perspectiveInfo = cameraInfo.perspective || {};
+                return new PerspectiveCamera({
+                    name: nodeInfo.name,
+                    aspect: perspectiveInfo.aspectRatio,
+                    fov: perspectiveInfo.yfov,
+                    far: perspectiveInfo.zfar,
+                    near: perspectiveInfo.znear
+                });
+            }
+            else {
+                var orthographicInfo = cameraInfo.orthographic || {};
+                return new OrthographicCamera({
+                    name: nodeInfo.name,
+                    top: orthographicInfo.ymag,
+                    right: orthographicInfo.xmag,
+                    left: -orthographicInfo.xmag,
+                    bottom: -orthographicInfo.ymag,
+                    near: orthographicInfo.znear,
+                    far: orthographicInfo.zfar
+                });
             }
         },
 
         _parseNodes: function (json, lib) {
 
-            for (var name in json.nodes) {
-                var nodeInfo = json.nodes[name];
-                var node;
-                if (nodeInfo.camera && this.includeCamera) {
-                    var cameraInfo = json.cameras[nodeInfo.camera];
+            function instanceMesh(mesh) {
+                return new Mesh({
+                    name: mesh.name,
+                    geometry: mesh.geometry,
+                    material: mesh.material,
+                    mode: mesh.mode
+                });
+            }
 
-                    if (cameraInfo.projection === 'perspective') {
-                        node = new PerspectiveCamera({
-                            name: nodeInfo.name,
-                            aspect: cameraInfo.aspect_ratio,
-                            fov: cameraInfo.xfov,
-                            far: cameraInfo.zfar,
-                            near: cameraInfo.znear
-                        });
-                    }
-                    else {
-                        // TODO
-                        node = new OrthographicCamera();
-                        console.warn('TODO:Orthographic camera');
-                    }
-                    node.setName(nodeInfo.name);
-                    lib.cameras[nodeInfo.name] = node;
+            util.each(json.nodes, function (nodeInfo, idx) {
+                var node;
+                if (nodeInfo.camera != null && this.includeCamera) {
+                    this._instanceCamera(nodeInfo.camera);
+                    lib.cameras.push(node);
                 }
-                else if (nodeInfo.lights && this.includeLight) {
-                    var lights = [];
-                    for (var i = 0; i < nodeInfo.lights.length; i++) {
-                        var lightInfo = json.lights[nodeInfo.lights[i]];
-                        var light = this._parseLight(lightInfo);
-                        if (light) {
-                            lights.push(light);
+                else if (nodeInfo.mesh != null && this.includeMesh) {
+                    var primitives = lib.meshes[nodeInfo.mesh];
+                    if (primitives) {
+                        if (primitives.length === 1) {
+                            // Replace the node with mesh directly
+                            node = instanceMesh(primitives[0]);
+                            node.setName(nodeInfo.name);
                         }
-                    }
-                    if (lights.length == 1) {
-                        // Replace the node with light
-                        node = lights[0];
-                        node.setName(nodeInfo.name);
-                    }
-                    else {
-                        node = new Node();
-                        node.setName(nodeInfo.name);
-                        for (var i = 0; i < lights.length; i++) {
-                            node.add(lights[i]);
-                        }
-                    }
-                }
-                else if ((nodeInfo.meshes || nodeInfo.instanceSkin) && this.includeMesh) {
-                    // TODO one node have multiple meshes ?
-                    var meshKey;
-                    if (nodeInfo.meshes) {
-                        meshKey = nodeInfo.meshes[0];
-                    }
-                    else {
-                        meshKey = nodeInfo.instanceSkin.sources[0];
-                    }
-                    if (meshKey) {
-                        var primitives = lib.meshes[meshKey];
-                        if (primitives) {
-                            if (primitives.length === 1) {
-                                // Replace the node with mesh directly
-                                node = primitives[0];
-                                node.setName(nodeInfo.name);
-                            }
-                            else {
-                                node = new Node();
-                                node.setName(nodeInfo.name);
-                                for (var j = 0; j < primitives.length; j++) {
-                                    if (nodeInfo.instanceSkin) {
-                                        primitives[j].skeleton = nodeInfo.instanceSkin.skin;
-                                    }
-                                    node.add(primitives[j]);
-                                }
+                        else {
+                            node = new Node();
+                            node.setName(nodeInfo.name);
+                            for (var j = 0; j < primitives.length; j++) {
+                                node.add(instanceMesh(primitives[j]));
                             }
                         }
                     }
                 }
                 else {
                     node = new Node();
+                    // PENDING Dulplicate name.
                     node.setName(nodeInfo.name);
                 }
                 if (nodeInfo.matrix) {
@@ -24187,13 +23948,6 @@ module.exports = getBoundingBoxWithSkinning;
                         node.position.setArray(nodeInfo.translation);
                     }
                     if (nodeInfo.rotation) {
-                        // glTF use axis angle in rotation
-                        // https://github.com/KhronosGroup/glTF/issues/144
-                        // quat.setAxisAngle(node.rotation._array, nodeInfo.rotation.slice(0, 3), nodeInfo.rotation[3]);
-                        // node.rotation._dirty = true;
-
-                        // https://github.com/KhronosGroup/glTF/wiki/glTF-0.8-to-1.0-Guide
-                        // From 1.0 rotation use quaternion instead
                         node.rotation.setArray(nodeInfo.rotation);
                     }
                     if (nodeInfo.scale) {
@@ -24201,131 +23955,118 @@ module.exports = getBoundingBoxWithSkinning;
                     }
                 }
 
-                lib.nodes[name] = node;
-            }
+                lib.nodes[idx] = node;
+            }, this);
 
             // Build hierarchy
-            for (var name in json.nodes) {
-                var nodeInfo = json.nodes[name];
-                var node = lib.nodes[name];
+            util.each(json.nodes, function (nodeInfo, idx) {
+                var node = lib.nodes[idx];
                 if (nodeInfo.children) {
                     for (var i = 0; i < nodeInfo.children.length; i++) {
-                        var childName = nodeInfo.children[i];
-                        var child = lib.nodes[childName];
+                        var childIdx = nodeInfo.children[i];
+                        var child = lib.nodes[childIdx];
                         node.add(child);
                     }
                 }
-            }
+            });
          },
 
-        _parseLight: function (lightInfo) {
-            // TODO Light parameters
-            switch(lightInfo.type) {
-                case 'point':
-                    var light = new PointLight({
-                        name: lightInfo.id,
-                        color: lightInfo.point.color,
-                    });
-                    break;
-                case 'spot':
-                    var light = new SpotLight({
-                        name: lightInfo.id,
-                        color: lightInfo.spot.color
-                    });
-                    break;
-                case 'directional':
-                    var light = new DirectionalLight({
-                        name: lightInfo.id,
-                        color: lightInfo.directional.color
-                    });
-                    break;
-                default:
-                    console.warn('Light ' + lightInfo.type + ' not support yet');
-            }
-
-            return light;
-        },
-
         _parseAnimations: function (json, lib) {
-            // TODO Only support nodes animation now
+            function getAccessorData(accessorIdx) {
+                var accessorInfo = json.accessors[accessorIdx];
 
-            var nodeAnimationClips = lib.clips = {};
+                var bufferViewInfo = json.bufferViews[accessorInfo.bufferView];
+                var buffer = lib.buffers[bufferViewInfo.buffer];
+                var byteOffset = (bufferViewInfo.byteOffset || 0) + (accessorInfo.byteOffset || 0);
+                var ArrayCtor = ARRAY_CTOR_MAP[accessorInfo.componentType] || vendor.Float32Array;
 
-            var quatTmp = quat.create();
-
-            for (var animName in json.animations) {
-                var animationInfo = json.animations[animName];
-                var parameters = {};
-
-                for (var paramName in animationInfo.parameters) {
-                    var accessorName = animationInfo.parameters[paramName];
-                    var accessorInfo = json.accessors[accessorName];
-
-                    var bufferViewInfo = json.bufferViews[accessorInfo.bufferView];
-                    var buffer = lib.buffers[bufferViewInfo.buffer];
-                    var byteOffset = bufferViewInfo.byteOffset + accessorInfo.byteOffset;
-                    switch(accessorInfo.type) {
-                        case 0x8B50:     // FLOAT_VEC2
-                            var size = 2;
-                            break;
-                        case 0x8B51:     // FLOAT_VEC3
-                            var size = 3;
-                            break;
-                        case 0x8B52:     // FLOAT_VEC4
-                            var size = 4;
-                            break;
-                        case 0x1406:     // FLOAT
-                            var size = 1;
-                            break;
-                    }
-                    parameters[paramName] = new vendor.Float32Array(buffer, byteOffset, size * accessorInfo.count);
-                }
-
-                if (!parameters.TIME || !animationInfo.channels.length) {
-                    continue;
-                }
-
-                // Use the first channels target
-                var targetId = animationInfo.channels[0].target.id;
-                var targetNode = lib.nodes[targetId];
-
-                // glTF use axis angle in rotation, convert to quaternion
-                // https://github.com/KhronosGroup/glTF/issues/144
-                var rotationArr = parameters.rotation;
-                if (rotationArr) {
-                    for (var i = 0; i < parameters.TIME.length; i++) {
-                        parameters.TIME[i] *= 1000;
-                        var offset = i * 4;
-                        if (rotationArr) {
-                            quatTmp[0] = rotationArr[offset];
-                            quatTmp[1] = rotationArr[offset + 1];
-                            quatTmp[2] = rotationArr[offset + 2];
-                            quat.setAxisAngle(quatTmp, quatTmp, rotationArr[offset + 3]);
-                            parameters.rotation[offset] = quatTmp[0];
-                            parameters.rotation[offset + 1] = quatTmp[1];
-                            parameters.rotation[offset + 2] = quatTmp[2];
-                            parameters.rotation[offset + 3] = quatTmp[3];
-                        }
-                    }
-                }
-                // TODO
-                // if (nodeAnimationClips[targetId]) {
-                //     continue;
-                // }
-                nodeAnimationClips[targetId] = new SamplerClip({
-                    // PENDING
-                    name: targetId,
-                    target: targetNode
-                });
-                var nodeAnimationClip = nodeAnimationClips[targetId];
-                nodeAnimationClip.channels.time = parameters.TIME;
-                nodeAnimationClip.channels.rotation = parameters.rotation || null;
-                nodeAnimationClip.channels.position = parameters.translation || null;
-                nodeAnimationClip.channels.scale = parameters.scale || null;
-                nodeAnimationClip.life = parameters.TIME[parameters.TIME.length - 1];
+                var size = SIZE_MAP[accessorInfo.type];
+                return new ArrayCtor(buffer, byteOffset, size * accessorInfo.count);
             }
 
-            return nodeAnimationClips;
+            function checkChannelPath(channelInfo) {
+                if (channelInfo.path === 'weights') {
+                    console.warn('GLTFLoader not support morph targets yet.');
+                    return false;
+                }
+                return true;
+            }
+
+            function getChannelHash(channelInfo, animationInfo) {
+                return channelInfo.target.node + '_' + animationInfo.samplers[channelInfo.sampler].input;
+            }
+
+            function clipOnframe() {
+                var targetNode = this.target;
+                if (targetNode) {
+                    var channels = this.channels;
+                    if (channels.position) {
+                        targetNode.position.setArray(this.position);
+                    }
+                    if (channels.rotation) {
+                        targetNode.rotation.setArray(this.rotation);
+                    }
+                    if (channels.scale) {
+                        targetNode.scale.setArray(this.scale);
+                    }
+                }
+            }
+
+
+            util.each(json.animations, function (animationInfo, idx) {
+                var channels = animationInfo.channels.filter(checkChannelPath);
+
+                if (!channels.length) {
+                    return;
+                }
+
+                var clips = {};
+                for (var i = 0; i < channels.length; i++) {
+                    var channelInfo = channels[i];
+                    var channelHash = getChannelHash(channelInfo, animationInfo);
+
+                    var targetNode = lib.nodes[channelInfo.target.node];
+                    var clip = clips[channelHash];
+                    var samplerInfo = animationInfo.samplers[channelInfo.sampler];
+                    
+                    if (!clip) {
+                        clip = clips[channelHash] = new SamplerClip({
+                            target: targetNode,
+                            name: targetNode ? targetNode.name : '',
+                            // PENDING, If write here
+                            loop: true,
+                            onframe: clipOnframe
+                        });
+                        clip.targetNodeIndex = channelInfo.target.node;
+                        clip.channels.time = getAccessorData(samplerInfo.input);
+                        var frameLen = clip.channels.time.length;
+                        // TODO May share same buffer data ?
+                        for (var k = 0; k < frameLen; k++) {
+                            clip.channels.time[k] *= 1000;
+                        }
+
+                        clip.life = clip.channels.time[frameLen - 1];
+                    }
+
+                    var interpolation = samplerInfo.interpolation || 'LINEAR';
+                    if (interpolation !== 'LINEAR') {
+                        console.warn('GLTFLoader only support LINEAR interpolation.');
+                    }
+
+                    var path = channelInfo.target.path;
+                    if (path === 'translation') {
+                        path = 'position';
+                    }
+
+                    clip.channels[path] = getAccessorData(samplerInfo.output);
+                }
+
+                for (var key in clips) {
+                    lib.clips.push(clips[key]);
+                }
+            }, this);
+
+            return lib.clips;
         }
     });
 
@@ -25578,26 +25319,26 @@ module.exports = getBoundingBoxWithSkinning;
     var glenum = __webpack_require__(2);
     var Vector3 = __webpack_require__(4);
     var BoundingBox = __webpack_require__(3);
-    var Frustum = __webpack_require__(37);
+    var Frustum = __webpack_require__(34);
     var Matrix4 = __webpack_require__(15);
-    var Renderer = __webpack_require__(27);
-    var Shader = __webpack_require__(6);
+    var Renderer = __webpack_require__(25);
+    var Shader = __webpack_require__(8);
     var Light = __webpack_require__(10);
     var Mesh = __webpack_require__(14);
-    var SpotLight = __webpack_require__(36);
-    var DirectionalLight = __webpack_require__(23);
-    var PointLight = __webpack_require__(35);
-    var shaderLibrary = __webpack_require__(19);
+    var SpotLight = __webpack_require__(66);
+    var DirectionalLight = __webpack_require__(33);
+    var PointLight = __webpack_require__(65);
+    var shaderLibrary = __webpack_require__(18);
     var Material = __webpack_require__(11);
-    var FrameBuffer = __webpack_require__(51);
+    var FrameBuffer = __webpack_require__(49);
     var Texture = __webpack_require__(13);
     var Texture2D = __webpack_require__(16);
-    var TextureCube = __webpack_require__(20);
-    var PerspectiveCamera = __webpack_require__(22);
-    var OrthoCamera = __webpack_require__(21);
+    var TextureCube = __webpack_require__(28);
+    var PerspectiveCamera = __webpack_require__(21);
+    var OrthoCamera = __webpack_require__(20);
 
-    var Pass = __webpack_require__(61);
-    var TexturePool = __webpack_require__(62);
+    var Pass = __webpack_require__(59);
+    var TexturePool = __webpack_require__(60);
 
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
@@ -25605,7 +25346,7 @@ module.exports = getBoundingBoxWithSkinning;
 
     var targets = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
-    Shader['import'](__webpack_require__(93));
+    Shader['import'](__webpack_require__(92));
 
     /**
      * Pass rendering shadow map.
@@ -25858,7 +25599,7 @@ module.exports = getBoundingBoxWithSkinning;
             }
         },
 
-        _updateCasterAndReceiver: function (mesh) {
+        _updateCasterAndReceiver: function (renderer, mesh) {
             if (mesh.castShadow) {
                 this._opaqueCasters.push(mesh);
             }
@@ -25872,6 +25613,9 @@ module.exports = getBoundingBoxWithSkinning;
                 mesh.material.set('shadowEnabled', 0);
             }
 
+            if (!mesh.material.shader && mesh.material.updateShader) {
+                mesh.material.updateShader(renderer.gl);
+            }
             var shader = mesh.material.shader;
             if (this.softShadow === ShadowMapPass.VSM) {
                 shader.define('fragment', 'USE_VSM');
@@ -25889,14 +25633,14 @@ module.exports = getBoundingBoxWithSkinning;
             }
         },
 
-        _update: function (scene) {
+        _update: function (renderer, scene) {
             for (var i = 0; i < scene.opaqueQueue.length; i++) {
-                this._updateCasterAndReceiver(scene.opaqueQueue[i]);
+                this._updateCasterAndReceiver(renderer, scene.opaqueQueue[i]);
             }
             for (var i = 0; i < scene.transparentQueue.length; i++) {
                 // TODO Transparent object receive shadow will be very slow
                 // in stealth demo, still not find the reason
-                this._updateCasterAndReceiver(scene.transparentQueue[i]);
+                this._updateCasterAndReceiver(renderer, scene.transparentQueue[i]);
             }
             for (var i = 0; i < scene.lights.length; i++) {
                 var light = scene.lights[i];
@@ -25921,7 +25665,7 @@ module.exports = getBoundingBoxWithSkinning;
                 scene.update();
             }
 
-            this._update(scene);
+            this._update(renderer, scene);
 
             if (!this._lightsCastShadow.length) {
                 return;
@@ -26466,19 +26210,20 @@ module.exports = getBoundingBoxWithSkinning;
 
 
 
-    var library = __webpack_require__(19);
-    var Shader = __webpack_require__(6);
+    var library = __webpack_require__(18);
+    var Shader = __webpack_require__(8);
 
 
-    Shader['import'](__webpack_require__(95));
+    Shader['import'](__webpack_require__(37));
+    Shader['import'](__webpack_require__(94));
 
     // Some build in shaders
     Shader['import'](__webpack_require__(73));
-    Shader['import'](__webpack_require__(92));
-    Shader['import'](__webpack_require__(41));
-    Shader['import'](__webpack_require__(96));
-    Shader['import'](__webpack_require__(94));
-    Shader['import'](__webpack_require__(40));
+    Shader['import'](__webpack_require__(91));
+    Shader['import'](__webpack_require__(39));
+    Shader['import'](__webpack_require__(95));
+    Shader['import'](__webpack_require__(93));
+    Shader['import'](__webpack_require__(38));
 
     library.template('qtek.basic', Shader.source('qtek.basic.vertex'), Shader.source('qtek.basic.fragment'));
     library.template('qtek.lambert', Shader.source('qtek.lambert.vertex'), Shader.source('qtek.lambert.fragment'));
@@ -26653,56 +26398,6 @@ module.exports = "vec3 calcAmbientSHLight(int idx, vec3 N) {\n int offset = 9 * 
 
 /***/ }),
 /* 91 */
-/***/ (function(module, exports, __webpack_require__) {
-
-
-    var uniformVec3Prefix = 'uniform vec3 ';
-    var uniformFloatPrefix = 'uniform float ';
-    var exportHeaderPrefix = '@export qtek.header.';
-    var exportEnd = '@end';
-    var unconfigurable = ':unconfigurable;';
-    module.exports = [
-        exportHeaderPrefix + 'directional_light',
-        uniformVec3Prefix + 'directionalLightDirection[DIRECTIONAL_LIGHT_COUNT]' + unconfigurable,
-        uniformVec3Prefix + 'directionalLightColor[DIRECTIONAL_LIGHT_COUNT]' + unconfigurable,
-        exportEnd,
-
-        exportHeaderPrefix + 'ambient_light',
-        uniformVec3Prefix + 'ambientLightColor[AMBIENT_LIGHT_COUNT]' + unconfigurable,
-        exportEnd,
-
-        exportHeaderPrefix + 'ambient_sh_light',
-        uniformVec3Prefix + 'ambientSHLightColor[AMBIENT_SH_LIGHT_COUNT]' + unconfigurable,
-        uniformVec3Prefix + 'ambientSHLightCoefficients[AMBIENT_SH_LIGHT_COUNT * 9]' + unconfigurable,
-        __webpack_require__(90),
-        exportEnd,
-
-        exportHeaderPrefix + 'ambient_cubemap_light',
-        uniformVec3Prefix + 'ambientCubemapLightColor[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
-        'uniform samplerCube ambientCubemapLightCubemap[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
-        'uniform sampler2D ambientCubemapLightBRDFLookup[AMBIENT_CUBEMAP_LIGHT_COUNT]' + unconfigurable,
-        exportEnd,
-
-        exportHeaderPrefix + 'point_light',
-        uniformVec3Prefix + 'pointLightPosition[POINT_LIGHT_COUNT]' + unconfigurable,
-        uniformFloatPrefix + 'pointLightRange[POINT_LIGHT_COUNT]' + unconfigurable,
-        uniformVec3Prefix + 'pointLightColor[POINT_LIGHT_COUNT]' + unconfigurable,
-        exportEnd,
-
-        exportHeaderPrefix + 'spot_light',
-        uniformVec3Prefix + 'spotLightPosition[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformVec3Prefix + 'spotLightDirection[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformFloatPrefix + 'spotLightRange[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformFloatPrefix + 'spotLightUmbraAngleCosine[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformFloatPrefix + 'spotLightPenumbraAngleCosine[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformFloatPrefix + 'spotLightFalloffFactor[SPOT_LIGHT_COUNT]' + unconfigurable,
-        uniformVec3Prefix + 'spotLightColor[SPOT_LIGHT_COUNT]' + unconfigurable,
-        exportEnd
-    ].join('\n');
-
-
-/***/ }),
-/* 92 */
 /***/ (function(module, exports) {
 
 
@@ -26710,7 +26405,7 @@ module.exports = "/**\n * http: */\n\n@export qtek.lambert.vertex\n\nuniform mat
 
 
 /***/ }),
-/* 93 */
+/* 92 */
 /***/ (function(module, exports) {
 
 
@@ -26718,7 +26413,7 @@ module.exports = "@export qtek.sm.depth.vertex\n\nuniform mat4 worldViewProjecti
 
 
 /***/ }),
-/* 94 */
+/* 93 */
 /***/ (function(module, exports) {
 
 
@@ -26726,15 +26421,15 @@ module.exports = "@export qtek.skybox.vertex\n\nuniform mat4 world : WORLD;\nuni
 
 
 /***/ }),
-/* 95 */
+/* 94 */
 /***/ (function(module, exports) {
 
 
-module.exports = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n return fract(sin(sn) * c);\n}\n@end\n\n@export qtek.util.calculate_attenuation\n\nuniform float attenuationFactor : 5.0;\n\nfloat lightAttenuation(float dist, float range)\n{\n float attenuation = 1.0;\n attenuation = dist*dist/(range*range+1.0);\n float att_s = attenuationFactor;\n attenuation = 1.0/(attenuation*att_s+1.0);\n att_s = 1.0/(att_s+1.0);\n attenuation = attenuation - att_s;\n attenuation /= 1.0 - att_s;\n return clamp(attenuation, 0.0, 1.0);\n}\n\n@end\n\n@export qtek.util.edge_factor\n\nfloat edgeFactor(float width)\n{\n vec3 d = fwidth(v_Barycentric);\n vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n return min(min(a3.x, a3.y), a3.z);\n}\n\n@end\n\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n \n \n const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n const vec4 bit_mask = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n vec4 res = fract(depth * bitShifts);\n res -= res.xxyz * bit_mask;\n\n return res;\n}\n@end\n\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n \n \n const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n return dot(color, bitShifts);\n}\n@end\n\n\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n\n\n\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n return range * rgbm.rgb * rgbm.a;\n }\n@end\n\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n if (dot(color, color) == 0.0) {\n return vec4(0.0);\n }\n vec4 rgbm;\n color /= range;\n rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n rgbm.rgb = color / rgbm.a;\n return rgbm;\n}\n@end\n\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\n\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n return color;\n#endif\n}\n\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n return RGBMEncode(color.xyz, 51.5);\n#else\n return color;\n#endif\n}\n\n@end\n\n\n@export qtek.util.srgb\n\nvec4 sRGBToLinear(in vec4 value) {\n return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\n\nvec4 linearTosRGB(in vec4 value) {\n return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n\n\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n float j = idx * 4.0;\n float x = mod(j, skinMatricesTextureSize);\n float y = floor(j / skinMatricesTextureSize) + 0.5;\n vec2 scale = vec2(skinMatricesTextureSize);\n\n return mat4(\n texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n return skinMatrix[int(idx)];\n}\n#endif\n\n#endif\n\n@end\n\n@export qtek.chunk.skin_matrix\n\nmat4 skinMatrixWS;\nif (joint.x >= 0.0)\n{\n skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\n}\nif (joint.y >= 0.0)\n{\n skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (joint.z >= 0.0)\n{\n skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nif (joint.w >= 0.0)\n{\n skinMatrixWS += getSkinMatrix(joint.w) * (1.0-weight.x-weight.y-weight.z);\n}\n@end\n\n\n\n@export qtek.util.parallax_correct\n\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n vec3 first = (boxMax - pos) / dir;\n vec3 second = (boxMin - pos) / dir;\n\n vec3 further = max(first, second);\n float dist = min(further.x, min(further.y, further.z));\n\n vec3 fixedPos = pos + dir * dist;\n vec3 boxCenter = (boxMax + boxMin) * 0.5;\n\n return normalize(fixedPos - boxCenter);\n}\n\n@end\n\n\n\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n float eye = step(0.5, coord.x) * 0.5;\n vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n return texture2D(texture, coordClamped);\n}\n@end";
+module.exports = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n return fract(sin(sn) * c);\n}\n@end\n\n@export qtek.util.calculate_attenuation\n\nuniform float attenuationFactor : 5.0;\n\nfloat lightAttenuation(float dist, float range)\n{\n float attenuation = 1.0;\n attenuation = dist*dist/(range*range+1.0);\n float att_s = attenuationFactor;\n attenuation = 1.0/(attenuation*att_s+1.0);\n att_s = 1.0/(att_s+1.0);\n attenuation = attenuation - att_s;\n attenuation /= 1.0 - att_s;\n return clamp(attenuation, 0.0, 1.0);\n}\n\n@end\n\n@export qtek.util.edge_factor\n\nfloat edgeFactor(float width)\n{\n vec3 d = fwidth(v_Barycentric);\n vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n return min(min(a3.x, a3.y), a3.z);\n}\n\n@end\n\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n \n \n const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n const vec4 bit_mask = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n vec4 res = fract(depth * bitShifts);\n res -= res.xxyz * bit_mask;\n\n return res;\n}\n@end\n\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n \n \n const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n return dot(color, bitShifts);\n}\n@end\n\n\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n\n\n\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n return range * rgbm.rgb * rgbm.a;\n }\n@end\n\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n if (dot(color, color) == 0.0) {\n return vec4(0.0);\n }\n vec4 rgbm;\n color /= range;\n rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n rgbm.rgb = color / rgbm.a;\n return rgbm;\n}\n@end\n\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\n\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n return color;\n#endif\n}\n\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n return RGBMEncode(color.xyz, 51.5);\n#else\n return color;\n#endif\n}\n\n@end\n\n\n@export qtek.util.srgb\n\nvec4 sRGBToLinear(in vec4 value) {\n return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\n\nvec4 linearTosRGB(in vec4 value) {\n return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n\n\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n float j = idx * 4.0;\n float x = mod(j, skinMatricesTextureSize);\n float y = floor(j / skinMatricesTextureSize) + 0.5;\n vec2 scale = vec2(skinMatricesTextureSize);\n\n return mat4(\n texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n return skinMatrix[int(idx)];\n}\n#endif\n\n#endif\n\n@end\n\n@export qtek.chunk.skin_matrix\n\nmat4 skinMatrixWS;\nif (weight.x > 1e-4)\n{\n skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\n}\nif (weight.y > 1e-4)\n{\n skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (weight.z > 1e-4)\n{\n skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nfloat weightW = 1.0-weight.x-weight.y-weight.z;\nif (weightW > 1e-3)\n{\n skinMatrixWS += getSkinMatrix(joint.w) * weightW;\n}\n@end\n\n\n\n@export qtek.util.parallax_correct\n\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n vec3 first = (boxMax - pos) / dir;\n vec3 second = (boxMin - pos) / dir;\n\n vec3 further = max(first, second);\n float dist = min(further.x, min(further.y, further.z));\n\n vec3 fixedPos = pos + dir * dist;\n vec3 boxCenter = (boxMax + boxMin) * 0.5;\n\n return normalize(fixedPos - boxCenter);\n}\n\n@end\n\n\n\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n float eye = step(0.5, coord.x) * 0.5;\n vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n return texture2D(texture, coordClamped);\n}\n@end";
 
 
 /***/ }),
-/* 96 */
+/* 95 */
 /***/ (function(module, exports) {
 
 
@@ -26742,7 +26437,7 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
 
 
 /***/ }),
-/* 97 */
+/* 96 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -26752,8 +26447,8 @@ module.exports = "@export qtek.wireframe.vertex\n\nuniform mat4 worldViewProject
     // TODO test
     var StaticGeometry = __webpack_require__(12);
     var Mesh = __webpack_require__(14);
-    var Node = __webpack_require__(8);
-    var StandardMaterial = __webpack_require__(29);
+    var Node = __webpack_require__(7);
+    var StandardMaterial = __webpack_require__(27);
     var BoundingBox = __webpack_require__(3);
     var glMatrix = __webpack_require__(0);
     var mat4 = glMatrix.mat4;
