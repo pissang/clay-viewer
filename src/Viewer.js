@@ -287,6 +287,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  */
 Viewer.prototype.loadModel = function (url, opts) {
     opts = opts || {};
+    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
     if (!url) {
         throw new Error('URL of model is not provided');
     }
@@ -334,7 +335,7 @@ Viewer.prototype.loadModel = function (url, opts) {
                 mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
                 mesh.material.shader.precision = 'mediump';
-                mesh.material.set('alphaCutoff', 0.95);
+                mesh.material.set('alphaCutoff', alphaCutoff);
             }
         });
 
