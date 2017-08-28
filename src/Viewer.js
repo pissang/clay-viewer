@@ -475,6 +475,11 @@ Viewer.prototype.setAmbientLight = function (opts) {
  * Start loop.
  */
 Viewer.prototype.start = function () {
+    if (this._disposed) {
+        console.warn('Viewer already disposed');
+        return;
+    }
+
     this._animation.start();
     this._animation.on('frame', this._loop, this);
 };
@@ -520,6 +525,9 @@ Viewer.prototype._updateClipAndSkeletons = function () {
 };
 
 Viewer.prototype._loop = function (deltaTime) {
+    if (this._disposed) {
+        return;
+    }
 
     this._updateClipAndSkeletons();
 
@@ -544,6 +552,8 @@ Viewer.prototype._loop = function (deltaTime) {
  * Dispose viewer.
  */
 Viewer.prototype.dispose = function () {
+    this._disposed = true;
+    
     if (this._shadowMapPass) {
         this._shadowMapPass.dispose(this._renderer);
     }
@@ -552,7 +562,7 @@ Viewer.prototype.dispose = function () {
     this._cameraControl.dispose();
     this.root.innerHTML = '';
 
-    this._animation.stop();
+    this.stop();
 };
 
 module.exports = Viewer;
