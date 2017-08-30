@@ -214,7 +214,7 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
         if (this._renderDebugSkeleton) {
             skeleton.__debugScene = createSkeletonDebugScene(skeleton);
         }
-    });
+    }, this);
 
     this._skeletons = skeletons.slice();
     this._modelNode = modelNode;
