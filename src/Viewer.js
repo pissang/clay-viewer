@@ -88,7 +88,6 @@ function createSkeletonDebugScene(skeleton) {
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
  * @param {boolean} [opts.shadow=false] If enable shadow
- * @param {boolean} [opts.shader='lambert'] If enable shadow
  * @param {boolean} [opts.renderDebugSkeleton=false]
  */
 function Viewer(dom, opts) {
@@ -99,7 +98,6 @@ function Viewer(dom, opts) {
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
 
-    this._shaderName = opts.shader || 'lambert';
     this._renderDebugSkeleton = opts.renderDebugSkeleton;
 
     if (opts.shadow) {
@@ -162,6 +160,10 @@ Viewer.prototype.init = function (dom, opts) {
      * List of animation clips
      */
     this._clips = [];
+    /**
+     * Map of materials
+     */
+    this._materialsMap = {};
 
     this._initLights();
 
@@ -224,6 +226,18 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Not save if glTF has only animation info
     if (nodes && nodes.length) {
         this._nodes = nodes;
+        var materialsMap = {};
+        // Save material
+        nodes.forEach(function (node) {
+            if (node.material) {
+                var material = node.material;
+                // Avoid name duplicate
+                materialsMap[material.name] = materialsMap[material.name] || [];
+                materialsMap[material.name].push(material);
+            }
+        }, this);
+
+        this._materialsMap = materialsMap;
     }
 };
 
@@ -283,7 +297,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 /**
  * Load glTF model resource
  * @param {string} url Model url
- * @param {Object} [opts] 
+ * @param {Object} [opts]
+ * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
  */
 Viewer.prototype.loadModel = function (url, opts) {
     opts = opts || {};
@@ -291,10 +306,11 @@ Viewer.prototype.loadModel = function (url, opts) {
     if (!url) {
         throw new Error('URL of model is not provided');
     }
+    var shaderName = opts.shader || 'lambert';
 
     var loader = new GLTF2Loader({
         rootNode: new Node(),
-        shaderName: 'qtek.' + this._shaderName,
+        shaderName: 'qtek.' + shaderName,
         textureRootPath: opts.textureRootPath,
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous'
@@ -320,7 +336,7 @@ Viewer.prototype.loadModel = function (url, opts) {
             }
         });
         meshNeedsSplit.forEach(function (mesh) {
-            meshUtil.splitByJoints(mesh, 15, true, loader.shaderLibrary, 'qtek.' + this._shaderName);
+            meshUtil.splitByJoints(mesh, 15, true, loader.shaderLibrary, 'qtek.' + shaderName);
         }, this);
         res.rootNode.traverse(function (mesh) {
             if (mesh.geometry) {
@@ -469,6 +485,30 @@ Viewer.prototype.setAmbientLight = function (opts) {
     if (opts.intensity != null) {
         this._ambientLight.intensity = opts.intensity;
     }
+};
+
+/**
+ * @param {string} name
+ * @param {Object} materialCfg
+ * @param {boolean} [materialCfg.transparent]
+ * @param {boolean} [materialCfg.alphaCutoff]
+ */
+Viewer.prototype.setMaterial = function (name, materialCfg) {
+    materialCfg = materialCfg || {};
+    var materials = this._materialsMap[name];
+    if (!materials) {
+        console.warn('Material %s not exits', name);
+        return;
+    }
+    materials.forEach(function (mat) {
+        if (materialCfg.transparent != null) {
+            mat.transparent = !!materialCfg.transparent;
+            mat.depthMask = !materialCfg.transparent;
+        }
+        if (materialCfg.alphaCutoff != null) {
+            mat.set('alphaCutoff', materialCfg.alphaCutoff);
+        }
+    }, this);
 };
 
 /**
