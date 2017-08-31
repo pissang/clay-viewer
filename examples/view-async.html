@@ -61,12 +61,11 @@
         var $status = document.getElementById('status');
         var viewer = new QMV.Viewer(document.getElementById('main'), {
             shadow: true,
-            shader: 'standard',
-            // renderDebugSkeleton: true
+            renderDebugSkeleton: true
         });
 
         var modelUrl = location.search.slice(1);
-        var baseUrl = 'asset/' + (modelUrl || 'dragon/dragon');
+        var baseUrl = (modelUrl || 'baidu_asset/dragon/dragon');
 
         $status.innerHTML = '加载模型中....';
         viewer.loadModel(baseUrl + '.gltf')
@@ -83,12 +82,12 @@
                 viewer.start();
 
                 $status.innerHTML = '加载动画中....';
-                // setTimeout(function () {
+                setTimeout(function () {
                     viewer.loadAnimation(baseUrl + '_ani.gltf')
                         .success(function () {
                             $status.innerHTML = '';
                         })
-                // }, 4000);
+                }, 1000);
 
                 console.log('Model loaded:');
                 console.log('三角面：', modelStat.triangleCount);

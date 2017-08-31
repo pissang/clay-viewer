@@ -37,23 +37,28 @@
 
     <script type="text/javascript">
         var viewer = new QMV.Viewer(document.getElementById('main'), {
-            shadow: true,
-            shader: 'standard',
+            shadow: false,
             // renderDebugSkeleton: true
         });
 
         var modelUrl = location.search.slice(1);
 
-        viewer.loadModel('asset/' + (modelUrl || 'dragon/dragon') + '.gltf')
+        viewer.loadModel((modelUrl || 'baidu_asset/dragon/dragon') + '.gltf', {
+            shader: 'basic'
+        })
             .on('loadmodel', function (modelStat) {
                 viewer.setCameraControl({
                     alpha: 20,
-                    beta: 30,
-                    // autoRotate: true
-                    // distance: 5,
-                    // minDistance: 1
-                    // center: [0, 0, 0]
+                    beta: 30
                 });
+                viewer.setMaterial('lambert3', {
+                    transparent: true,
+                    alphaCutoff: 0.
+                });
+                viewer.setMaterial('BDTWXK_yinhe_b_shader', {
+                    transparent: true,
+                    alphaCutoff: 0.
+                })
                 viewer.start();
 
                 var dom = viewer.addHotspot([5, 2, 0], `
@@ -100,7 +105,7 @@
         }
         gui.add(config, 'lightIntensity', 0, 4).onChange(updateLight);
         gui.addColor(config, 'lightColor').onChange(updateLight);
-        gui.add(config, 'lightAlpha', -90, 90).onChange(updateLight);
+        gui.add(config, 'lightAlpha', 0, 180).onChange(updateLight);
         gui.add(config, 'lightBeta', -180, 180).onChange(updateLight);
         gui.add(config, 'ambientIntensity', 0, 4).onChange(updateLight);
     </script>
