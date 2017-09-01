@@ -1,3 +1,5 @@
+// TODO Default parameter of postEffect
+
 var Scene = require('qtek/lib/Scene');
 var ShadowMapPass = require('qtek/lib/prePass/ShadowMap');
 var PerspectiveCamera = require('qtek/lib/camera/Perspective');

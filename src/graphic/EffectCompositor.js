@@ -76,7 +76,7 @@ function EffectCompositor() {
         return this._compositor.getNodeByName(name);
     }, this);
 
-    this._dofBlurKernel = 0;
+    this._dofBlurKernel = null;
     this._dofBlurKernelSize = new Float32Array(0);
 
     this._finalNodesChain = FINAL_NODES_CHAIN.map(function (name) {

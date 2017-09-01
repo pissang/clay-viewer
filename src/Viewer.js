@@ -29,6 +29,7 @@ var HotspotManager = require('./HotspotManager');
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
+ * @param {boolean} [opts.devicePixelRatio]
  * @param {boolean} [opts.shadow=false] If enable shadow
  * @param {Object} [opts.postEffect] 
  */
@@ -50,7 +51,9 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._animation = new Animation();
 
-    var renderer = new Renderer();
+    var renderer = new Renderer({
+        devicePixelRatio: opts.devicePixelRatio || window.devicePixelRatio
+    });
     dom.appendChild(renderer.canvas);
     renderer.canvas.style.cssText = 'position:absolute;left:0;top:0';
 
@@ -541,6 +544,7 @@ Viewer.prototype._loop = function (deltaTime) {
 
     this._renderMain.prepareRender();
     this._renderMain.render();
+    // this._renderer.render(this._renderMain.scene, this._renderMain.camera);
 
     this._startAccumulating();
 
