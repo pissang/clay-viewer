@@ -1,6 +1,5 @@
 var Renderer = require('qtek/lib/Renderer');
 var PerspectiveCamera = require('qtek/lib/camera/Perspective');
-var ShadowMapPass = require('qtek/lib/prePass/ShadowMap');
 var GLTF2Loader = require('qtek/lib/loader/GLTF2');
 var DirectionalLight = require('qtek/lib/light/Directional');
 var AmbientSHLight = require('qtek/lib/light/AmbientSH');
@@ -19,76 +18,19 @@ var Task = require('qtek/lib/async/Task');
 var TaskGroup = require('qtek/lib/async/TaskGroup');
 var util = require('qtek/lib/core/util');
 var colorUtil = require('zrender/lib/tool/color');
+var RenderMain = require('./graphic/RenderMain');
 
 var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var directionFromAlphaBeta = require('./util/directionFromAlphaBeta');
 var OrbitControl = require('./OrbitControl');
 var HotspotManager = require('./HotspotManager');
 
-function createSkeletonDebugScene(skeleton) {
-    var scene = new Scene();
-    var sphereGeo = new SphereGeo({
-        radius: 0.04
-    });
-    var sphereMat = new Material({
-        shader: new Shader({
-            vertex: Shader.source('qtek.basic.vertex'),
-            fragment: Shader.source('qtek.basic.fragment')
-        })
-    });
-    sphereMat.set('color', [0.3, 0.3, 0.3]);
-
-    var jointDebugSpheres = [];
-
-    var updates = [];
-    skeleton.joints.forEach(function(joint) {
-
-        var parentJoint = skeleton.joints[joint.parentIndex];
-        var sphere = new Mesh({
-            geometry: sphereGeo,
-            material: sphereMat
-        });
-        scene.add(sphere);
-
-        var lineGeo = new StaticGeometry({
-            dynamic: true
-        });
-        var lineGeoVertices = lineGeo.attributes.position;
-        lineGeoVertices.fromArray([0, 0, 0, 0, 0, 0]);
-        var line = new Mesh({
-            geometry: lineGeo,
-            material: sphereMat,
-            mode: Mesh.LINES,
-            lineWidth: 2
-        });
-        scene.add(line);
-
-        updates.push(function() {
-            sphere.localTransform.copy(joint.node.worldTransform);
-            sphere.decomposeLocalTransform();
-            sphere.scale.set(1, 1, 1);
-            if (parentJoint) {
-                lineGeoVertices.set(0, joint.node.getWorldPosition()._array);
-                lineGeoVertices.set(1, parentJoint.node.getWorldPosition()._array);
-            }
-            lineGeo.dirty();
-        });
-    });
-
-    scene.before('render', function() {
-        for (var i = 0; i < updates.length; i++) {
-            updates[i]();
-        }
-    });
-    return scene;
-}
-
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
  * @param {boolean} [opts.shadow=false] If enable shadow
- * @param {boolean} [opts.renderDebugSkeleton=false]
+ * @param {Object} [opts.postEffect] 
  */
 function Viewer(dom, opts) {
 
@@ -97,15 +39,6 @@ function Viewer(dom, opts) {
 
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
-
-    this._renderDebugSkeleton = opts.renderDebugSkeleton;
-
-    if (opts.shadow) {
-        /**
-         * @private
-         */
-        this._shadowMapPass = new ShadowMapPass();
-    }
 
     /**
      * @type {HTMLDivElement}
@@ -126,30 +59,20 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._renderer = renderer;
 
-    /**
-     * @private
-     */
-    this._scene = new Scene();
-    /**
-     * @private
-     */
-    this._camera = new PerspectiveCamera({
-        near: 0.1,
-        far: 100
-    });
+    this._renderMain = new RenderMain(renderer, opts.shadow, 'perspective');
 
     this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
         dom: dom
     });
-    this._cameraControl.setCamera(this._camera);
+    this._cameraControl.setCamera(this._renderMain.camera);
     this._cameraControl.init();
 
     this._hotspotManager = new HotspotManager({
         dom: dom,
         renderer: renderer,
-        camera: this._camera
+        camera: this._renderMain.camera
     });
 
     /**
@@ -174,6 +97,12 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._mainLightAlpha = 45;
     this._mainLightBeta = 45;
+
+    if (opts.postEffect) {
+        this.setPostEffect(opts.postEffect);
+    }
+
+    this._cameraControl.on('update', this.refresh, this);
 };
 
 Viewer.prototype._initLights = function () {
@@ -191,9 +120,8 @@ Viewer.prototype._initLights = function () {
 
     this._ambientLight = ambientLight;
 
-    this._scene.add(light);
-
-    this._scene.add(ambientLight);
+    this._renderMain.scene.add(light);
+    this._renderMain.scene.add(ambientLight);
 };
 
 Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
@@ -201,7 +129,7 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     var prevModelNode = this._modelNode;
     if (prevModelNode) {
         this._renderer.disposeNode(prevModelNode);
-        this._scene.remove(prevModelNode);
+        this._renderMain.scene.remove(prevModelNode);
     }
 
     this._skeletons.forEach(function (skeleton) {
@@ -210,13 +138,7 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
         }
     }, this);
 
-    this._scene.add(modelNode);
-
-    skeletons.forEach(function (skeleton) {
-        if (this._renderDebugSkeleton) {
-            skeleton.__debugScene = createSkeletonDebugScene(skeleton);
-        }
-    }, this);
+    this._renderMain.scene.add(modelNode);
 
     this._skeletons = skeletons.slice();
     this._modelNode = modelNode;
@@ -239,6 +161,8 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
 
         this._materialsMap = materialsMap;
     }
+
+    this._updateMaterialsSRGB();
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
@@ -247,12 +171,15 @@ Viewer.prototype._setAnimationClips = function (clips) {
         this._animation.removeClip(clip);
     }, this);
 
+    var self = this;
     clips.forEach(function (clip) {
         if (!clip.target) {
             clip.target = this._nodes[clip.targetNodeIndex];
         }
-        // Remove onframe;
-        clip.onframe = null;
+        // Override onframe.
+        clip.onframe = function () {
+            self.refresh();
+        };
 
         this._animation.addClip(clip);
     }, this);
@@ -263,7 +190,7 @@ Viewer.prototype._setAnimationClips = function (clips) {
 Viewer.prototype.resize = function () {
     var renderer = this._renderer;
     renderer.resize(this.root.clientWidth, this.root.clientHeight);
-    this._camera.aspect = renderer.canvas.width / renderer.canvas.height;
+    this._renderMain.setViewport(0, 0, renderer.getWidth(), renderer.getHeight(), renderer.getDevicePixelRatio());
 };
 
 /**
@@ -299,6 +226,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {string} url Model url
  * @param {Object} [opts]
  * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
+ * @param {boolean} [opts.includeTexture=true]
  */
 Viewer.prototype.loadModel = function (url, opts) {
     opts = opts || {};
@@ -313,7 +241,9 @@ Viewer.prototype.loadModel = function (url, opts) {
         shaderName: 'qtek.' + shaderName,
         textureRootPath: opts.textureRootPath,
         bufferRootPath: opts.bufferRootPath,
-        crossOrigin: 'Anonymous'
+        crossOrigin: 'Anonymous',
+        includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
+        textureFlipY: true
     });
     loader.load(url);
 
@@ -386,7 +316,10 @@ Viewer.prototype.loadModel = function (url, opts) {
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
             task.trigger('ready');
-        });
+            this.refresh();
+        }, this);
+
+        this.refresh();
     }, this);
     loader.error(function () {
         task.trigger('error');
@@ -448,6 +381,7 @@ Viewer.prototype.resumeAnimation = function () {
  */
 Viewer.prototype.setCameraControl = function (opts) {
     this._cameraControl.setOption(opts);
+    this.refresh();
 };
 
 /**
@@ -475,6 +409,7 @@ Viewer.prototype.setMainLight = function (opts) {
 
     this._mainLight.position.setArray(directionFromAlphaBeta(this._mainLightAlpha, this._mainLightBeta));
     this._mainLight.lookAt(Vector3.ZERO);
+    this.refresh();
 };
 
 /**
@@ -485,6 +420,7 @@ Viewer.prototype.setAmbientLight = function (opts) {
     if (opts.intensity != null) {
         this._ambientLight.intensity = opts.intensity;
     }
+    this.refresh();
 };
 
 /**
@@ -509,6 +445,17 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             mat.set('alphaCutoff', materialCfg.alphaCutoff);
         }
     }, this);
+    this.refresh();
+};
+
+/**
+ * @param {Object} opts
+ */
+Viewer.prototype.setPostEffect = function (opts) {
+    this._renderMain.setPostEffect(opts);
+
+    this._updateMaterialsSRGB();
+    this.refresh();
 };
 
 /**
@@ -544,6 +491,22 @@ Viewer.prototype.setPose = function (time) {
         clip.setTime(time);
     });
     this._updateClipAndSkeletons();
+
+    this.refresh();
+};
+
+Viewer.prototype.refresh = function () {
+    this._needsRefresh = true;
+};
+
+Viewer.prototype._updateMaterialsSRGB = function () {
+    var isLinearSpace = this._renderMain.isLinearSpace();
+    for (var name in this._materialsMap) {
+        var materials = this._materialsMap[name];
+        for (var i = 0; i < materials.length; i++) {
+            materials[i].shader[isLinearSpace ? 'define' : 'undefine']('fragment', 'SRGB_DECODE');
+        }
+    }
 };
 
 Viewer.prototype._updateClipAndSkeletons = function () {
@@ -568,23 +531,67 @@ Viewer.prototype._loop = function (deltaTime) {
     if (this._disposed) {
         return;
     }
+    if (!this._needsRefresh) {
+        return;
+    }
+
+    this._needsRefresh = false;
 
     this._updateClipAndSkeletons();
 
-    this._scene.update();
+    this._renderMain.prepareRender();
+    this._renderMain.render();
 
-    this._shadowMapPass && this._shadowMapPass.render(this._renderer, this._scene, this._camera);
-    this._renderer.render(this._scene, this._camera);
+    this._startAccumulating();
 
     this._hotspotManager.update();
+};
 
-    if (this._renderDebugSkeleton) {
-        this._renderer.saveClear();
-        this._renderer.clearBit = this._renderer.gl.DEPTH_BUFFER_BIT;
-        this._skeletons.forEach(function (skeleton) {
-            this._renderer.render(skeleton.__debugScene, this._camera);
-        }, this);
-        this._renderer.restoreClear();
+var accumulatingId = 1;
+Viewer.prototype._stopAccumulating = function () {
+    this._accumulatingId = 0;
+    clearTimeout(this._accumulatingTimeout);
+};
+
+Viewer.prototype._startAccumulating = function (immediate) {
+    var self = this;
+    this._stopAccumulating();
+
+    var needsAccumulate = self._renderMain.needsAccumulate();
+    if (!needsAccumulate) {
+        return;
+    }
+
+    function accumulate(id) {
+        if (!self._accumulatingId || id !== self._accumulatingId) {
+            return;
+        }
+
+        var isFinished = self._renderMain.isAccumulateFinished() && needsAccumulate;
+
+        if (!isFinished) {
+            self._renderMain.render(true);
+
+            if (immediate) {
+                accumulate(id);
+            }
+            else {
+                requestAnimationFrame(function () {
+                    accumulate(id);
+                });
+            }
+        }
+    }
+
+    this._accumulatingId = accumulatingId++;
+
+    if (immediate) {
+        accumulate(self._accumulatingId);
+    }
+    else {
+        this._accumulatingTimeout = setTimeout(function () {
+            accumulate(self._accumulatingId);
+        }, 50);
     }
 };
 
@@ -594,10 +601,9 @@ Viewer.prototype._loop = function (deltaTime) {
 Viewer.prototype.dispose = function () {
     this._disposed = true;
     
-    if (this._shadowMapPass) {
-        this._shadowMapPass.dispose(this._renderer);
-    }
-    this._renderer.disposeScene(this._scene);
+    this._renderer.disposeScene(this._renderMain.scene);
+    this._renderMain.dispose(this._renderer);
+
     this._renderer.dispose();
     this._cameraControl.dispose();
     this.root.innerHTML = '';
