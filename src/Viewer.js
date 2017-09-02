@@ -1,27 +1,17 @@
 var Renderer = require('qtek/lib/Renderer');
-var PerspectiveCamera = require('qtek/lib/camera/Perspective');
 var GLTF2Loader = require('qtek/lib/loader/GLTF2');
-var DirectionalLight = require('qtek/lib/light/Directional');
-var AmbientSHLight = require('qtek/lib/light/AmbientSH');
-var Scene = require('qtek/lib/Scene');
-var Node = require('qtek/lib/Node');
 var Vector3 = require('qtek/lib/math/Vector3');
 var Animation = require('qtek/lib/animation/Animation');
 var meshUtil = require('qtek/lib/util/mesh');
-var SphereGeo = require('qtek/lib/geometry/Sphere');
-var CubeGeo = require('qtek/lib/geometry/Cube');
-var Mesh = require('qtek/lib/Mesh');
-var Material = require('qtek/lib/Material');
-var Shader = require('qtek/lib/Shader');
-var StaticGeometry = require('qtek/lib/StaticGeometry');
 var Task = require('qtek/lib/async/Task');
 var TaskGroup = require('qtek/lib/async/TaskGroup');
 var util = require('qtek/lib/core/util');
-var colorUtil = require('zrender/lib/tool/color');
+var Node = require('qtek/lib/Node');
 var RenderMain = require('./graphic/RenderMain');
+var graphicHelper = require('./graphic/helper');
+var SceneHelper = require('./graphic/SceneHelper');
 
 var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
-var directionFromAlphaBeta = require('./util/directionFromAlphaBeta');
 var OrbitControl = require('./OrbitControl');
 var HotspotManager = require('./HotspotManager');
 
@@ -29,9 +19,12 @@ var HotspotManager = require('./HotspotManager');
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [opts]
+ * @param {Object} [opts.shadow]
  * @param {boolean} [opts.devicePixelRatio]
- * @param {boolean} [opts.shadow=false] If enable shadow
- * @param {Object} [opts.postEffect] 
+ * @param {Object} [opts.postEffect]
+ * @param {Object} [opts.mainLight]
+ * @param {Object} [opts.ambientLight]
+ * @param {Object} [opts.ambientCubemapLight]
  */
 function Viewer(dom, opts) {
 
@@ -91,40 +84,29 @@ Viewer.prototype.init = function (dom, opts) {
      */
     this._materialsMap = {};
 
-    this._initLights();
+    this._sceneHelper = new SceneHelper(this._renderMain.scene);
+    this._initLights(opts);
 
     this.resize();
-
-    /**
-     * Alpha and beta angle of main light.
-     */
-    this._mainLightAlpha = 45;
-    this._mainLightBeta = 45;
 
     if (opts.postEffect) {
         this.setPostEffect(opts.postEffect);
     }
-
+    if (opts.mainLight) {
+        this.setMainLight(opts.mainLight);
+    }
+    if (opts.ambientLight) {
+        this.setAmbientLight(opts.ambientLight);
+    }
+    if (opts.ambientCubemapLight) {
+        this.setAmbientCubemapLight(opts.ambientCubemapLight);
+    }
+    
     this._cameraControl.on('update', this.refresh, this);
 };
 
-Viewer.prototype._initLights = function () {
-    var light = new DirectionalLight({
-        intensity: 1,
-        shadowResolution: 1024,
-        shadowBias: 0.01
-    });
-    var ambientLight = new AmbientSHLight({
-        intensity : 0.8,
-        coefficients: [0.4901205003261566, 0.496532678604126, 0.7081291079521179, -0.0044515603221952915, 0.003780306549742818, 0.011885687708854675, -0.17520742118358612, -0.045615702867507935, 0.13985709846019745, 0.0018043766031041741, -0.005721535999327898, -0.00747253792360425, -0.013539238832890987, -0.009005839005112648, -0.0029368270188570023, -0.0036218082532286644, -0.0014644089387729764, 0.002722999081015587, 0.003975209314376116, -0.0012733691837638617, -0.006120394915342331, -0.010730908252298832, 0.02799658663570881, 0.05306524038314819, -0.0002291168348165229, 0.017803849652409554, 0.030858537182211876]
-    });
-
-    this._mainLight = light;
-
-    this._ambientLight = ambientLight;
-
-    this._renderMain.scene.add(light);
-    this._renderMain.scene.add(ambientLight);
+Viewer.prototype._initLights = function (opts) {
+    this._sceneHelper.initLight(this._renderMain.scene);
 };
 
 Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
@@ -217,9 +199,6 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         this._modelNode.scale.set(scale, scale, scale);
         this._modelNode.position.copy(center).scale(-scale);
 
-        this._mainLight.position.set(1, 3, 1);
-        this._mainLight.lookAt(Vector3.ZERO);
-
         this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
     }
 };
@@ -285,6 +264,11 @@ Viewer.prototype.loadModel = function (url, opts) {
                 mesh.material.shader.define('fragment', 'ALPHA_TEST');
                 mesh.material.shader.precision = 'mediump';
                 mesh.material.set('alphaCutoff', alphaCutoff);
+
+                // Transparent mesh not cast shadow
+                if (mesh.material.transparent) {
+                    mesh.castShadow = false;
+                }
             }
         });
 
@@ -393,36 +377,32 @@ Viewer.prototype.setCameraControl = function (opts) {
  * @param {string} [opts.color]
  * @param {number} [opts.alpha]
  * @param {number} [opts.beta]
+ * @param {number} [opts.shadow]
+ * @param {number} [opts.shadowQuality]
  */
 Viewer.prototype.setMainLight = function (opts) {
-    if (opts.intensity != null) {
-        this._mainLight.intensity = opts.intensity;
-    }
-    if (opts.color != null) {
-        this._mainLight.color = (colorUtil.parse(opts.color) || [0, 0, 0]).slice(0, 3).map(function (chanel) {
-            return chanel / 255;
-        });
-    }
-    if (opts.alpha != null) {
-        this._mainLightAlpha = opts.alpha;
-    }
-    if (opts.beta != null) {
-        this._mainLightBeta = opts.beta;
-    }
-
-    this._mainLight.position.setArray(directionFromAlphaBeta(this._mainLightAlpha, this._mainLightBeta));
-    this._mainLight.lookAt(Vector3.ZERO);
+    this._sceneHelper.updateMainLight(opts, this);
     this.refresh();
 };
 
 /**
  * @param {Object} [opts]
  * @param {number} [opts.intensity]
+ * @param {string} [opts.color]
  */
 Viewer.prototype.setAmbientLight = function (opts) {
-    if (opts.intensity != null) {
-        this._ambientLight.intensity = opts.intensity;
-    }
+    this._sceneHelper.updateAmbientLight(opts, this);
+    this.refresh();
+};
+/**
+ * @param {Object} [opts]
+ * @param {Object} [opts.texture]
+ * @param {Object} [opts.exposure]
+ * @param {number} [opts.diffuseIntensity]
+ * @param {number} [opts.specularIntensity]
+ */
+Viewer.prototype.setAmbientCubemapLight = function (opts) {
+    this._sceneHelper.updateAmbientCubemapLight(opts, this);
     this.refresh();
 };
 
@@ -500,6 +480,10 @@ Viewer.prototype.setPose = function (time) {
 
 Viewer.prototype.refresh = function () {
     this._needsRefresh = true;
+};
+
+Viewer.prototype.getRenderer = function () {
+    return this._renderer;
 };
 
 Viewer.prototype._updateMaterialsSRGB = function () {
@@ -607,6 +591,7 @@ Viewer.prototype.dispose = function () {
     
     this._renderer.disposeScene(this._renderMain.scene);
     this._renderMain.dispose(this._renderer);
+    this._sceneHelper.dispose(this._renderer);
 
     this._renderer.dispose();
     this._cameraControl.dispose();

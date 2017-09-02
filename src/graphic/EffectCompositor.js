@@ -1,4 +1,3 @@
-var Compositor = require('qtek/lib/compositor/Compositor');
 var Shader = require('qtek/lib/Shader');
 var Texture2D = require('qtek/lib/Texture2D');
 var Texture = require('qtek/lib/Texture');
@@ -10,6 +9,7 @@ var poissonKernel = require('./poissonKernel');
 var GBuffer = require('qtek/lib/deferred/GBuffer');
 var EdgePass = require('./EdgePass');
 var Matrix4 = require('qtek/lib/math/Matrix4');
+var graphicHelper = require('./helper');
 
 var effectJson = require('./composite.js');
 
@@ -330,10 +330,6 @@ EffectCompositor.prototype.setSSAOParameter = function (name, value) {
         case 'intensity':
             this._ssaoPass.setParameter(name, value);
             break;
-        default:
-            if (__DEV__) {
-                console.warn('Unkown SSAO parameter ' + name);
-            }
     }
 };
 
@@ -362,10 +358,6 @@ EffectCompositor.prototype.setDOFParameter = function (name, value) {
             }
             this._dofBlurKernel = new Float32Array(kernelSize * 2);
             break;
-        default:
-            if (__DEV__) {
-                console.warn('Unkown DOF parameter ' + name);
-            }
     }
 };
 
@@ -419,12 +411,11 @@ EffectCompositor.prototype.setExposure = function (value) {
 };
 
 EffectCompositor.prototype.setColorLookupTexture = function (image, api) {
-    this._compositeNode.pass.material.shader.disableTexture('lut');
-    // this._compositeNode.pass.material.setTextureImage('lut', this._enableColorCorrection ? image : 'none', api, {
-    //     minFilter: Texture.NEAREST,
-    //     magFilter: Texture.NEAREST,
-    //     flipY: false
-    // });
+    this._compositeNode.pass.material.setTextureImage('lut', this._enableColorCorrection ? image : 'none', api, {
+        minFilter: Texture.NEAREST,
+        magFilter: Texture.NEAREST,
+        flipY: false
+    });
 };
 EffectCompositor.prototype.setColorCorrection = function (type, value) {
     this._compositeNode.setParameter(type, value);
