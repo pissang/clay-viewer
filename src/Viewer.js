@@ -209,6 +209,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {Object} [opts]
  * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
  * @param {boolean} [opts.includeTexture=true]
+ * @param {boolean} [opts.zUpToYUp=false] Change model to y up
  */
 Viewer.prototype.loadModel = function (url, opts) {
     opts = opts || {};
@@ -228,6 +229,10 @@ Viewer.prototype.loadModel = function (url, opts) {
         textureFlipY: true
     });
     loader.load(url);
+
+    if (opts.zUpToYUp) {
+        loader.rootNode.rotation.rotateX(-Math.PI / 2);
+    }
 
     var task = new Task();
 
