@@ -162,19 +162,6 @@ RenderMain.prototype.prepareRender = function () {
     this.scene.update();
     this.camera.update();
 
-    this._needsSortProgressively = false;
-    // If has any transparent mesh needs sort triangles progressively.
-    for (var i = 0; i < this.scene.transparentQueue.length; i++) {
-        var renderable = this.scene.transparentQueue[i];
-        var geometry = renderable.geometry;
-        if (geometry.needsSortVerticesProgressively && geometry.needsSortVerticesProgressively()) {
-            this._needsSortProgressively = true;
-        }
-        if (geometry.needsSortTrianglesProgressively && geometry.needsSortTrianglesProgressively()) {
-            this._needsSortProgressively = true;
-        }
-    }
-
     this._frame = 0;
     this._temporalSS.resetFrame();
 };
@@ -212,8 +199,6 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     var renderer = this.renderer;
 
     accumFrame = accumFrame || 0;
-
-    this._updateTransparent(renderer, scene, camera, accumFrame);
 
     if (!accumulating && this._shadowMapPass) {
         this._shadowMapPass.kernelPCF = this._pcfKernels[0];
@@ -275,28 +260,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     }
 
     // this._shadowMapPass.renderDebug(renderer);
-    // this._compositor._normalPass.renderDebug(renderer);
-};
-
-RenderMain.prototype._updateTransparent = function (renderer, scene, camera, frame) {
-
-    var v3 = new Vector3();
-    var invWorldTransform = new Matrix4();
-    var cameraWorldPosition = camera.getWorldPosition();
-
-    // Sort transparent object.
-    for (var i = 0; i < scene.transparentQueue.length; i++) {
-        var renderable = scene.transparentQueue[i];
-        var geometry = renderable.geometry;
-        Matrix4.invert(invWorldTransform, renderable.worldTransform);
-        Vector3.transformMat4(v3, cameraWorldPosition, invWorldTransform);
-        if (geometry.needsSortTriangles && geometry.needsSortTriangles()) {
-            geometry.doSortTriangles(v3, frame);
-        }
-        if (geometry.needsSortVertices && geometry.needsSortVertices()) {
-            geometry.doSortVertices(v3, frame);
-        }
-    }
+    // this._compositor._gBufferPass.renderDebug(renderer);
 };
 
 RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {

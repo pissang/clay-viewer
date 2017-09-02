@@ -46,8 +46,10 @@ SceneHelper.prototype = {
         }
         if (this._currentCubemapLights) {
             this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            this._lightRoot.remove(this._currentCubemapLights.specular);
-            this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+            if (this._currentCubemapLights.specular) {
+                this._lightRoot.remove(this._currentCubemapLights.specular);
+                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+            }
         }
     },
 
@@ -96,20 +98,26 @@ SceneHelper.prototype = {
 
         if (this._currentCubemapLights && textureUrl !== this._currentCubemapLights.textureUrl) {
             this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            this._lightRoot.remove(this._currentCubemapLights.specular);
-            this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+            if (this._currentCubemapLights.specular) {
+                this._lightRoot.remove(this._currentCubemapLights.specular);
+                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+            }
         }
 
         if (textureUrl) {
             var lights = helper.createAmbientCubemap(opts, app, function () {
                 // Use prefitered cubemap
-                if (self._skybox instanceof Skybox) {
+                if (lights.specular && (self._skybox instanceof Skybox)) {
                     self._skybox.setEnvironmentMap(lights.specular.cubemap);
                 }
                 app.refresh();
             });
-            this._lightRoot.add(lights.diffuse);
-            this._lightRoot.add(lights.specular);
+            if (lights.diffuse) {
+                this._lightRoot.add(lights.diffuse);
+            }
+            if (lights.specular) {
+                this._lightRoot.add(lights.specular);
+            }
 
             this._currentCubemapLights = lights;
             this._currentCubemapLights.textureUrl = textureUrl;
@@ -148,8 +156,10 @@ SceneHelper.prototype = {
                 // Use environment in ambient cubemap
                 if (this._currentCubemapLights) {
                     var skybox = getSkybox();
-                    var cubemap = this._currentCubemapLights.specular.cubemap;
-                    skybox.setEnvironmentMap(cubemap);
+                    if (this._currentCubemapLights.specular) {
+                        var cubemap = this._currentCubemapLights.specular.cubemap;
+                        skybox.setEnvironmentMap(cubemap);
+                    }
                     if (this._scene) {
                         skybox.attachScene(this._scene);
                     }
@@ -162,7 +172,7 @@ SceneHelper.prototype = {
             else  {
                 // Panorama
                 var skydome = getSkydome();
-                var texture = helper.loadTexture(environmentUrl, api, {
+                var texture = helper.loadTexture(environmentUrl, app, {
                     anisotropic: 8,
                     flipY: false
                 });
