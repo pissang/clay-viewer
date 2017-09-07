@@ -101,6 +101,9 @@ Viewer.prototype.init = function (dom, opts) {
     if (opts.ambientCubemapLight) {
         this.setAmbientCubemapLight(opts.ambientCubemapLight);
     }
+    if (opts.environment) {
+        this.setEnvironment(opts.environment);
+    }
     
     this._cameraControl.on('update', this.refresh, this);
 };
@@ -412,10 +415,19 @@ Viewer.prototype.setAmbientCubemapLight = function (opts) {
 };
 
 /**
+ * @param {string} envUrl
+ */
+Viewer.prototype.setEnvironment = function (envUrl) {
+    this._sceneHelper.updateSkybox(envUrl, this._renderMain.isLinearSpace(), this);
+};
+
+/**
  * @param {string} name
  * @param {Object} materialCfg
  * @param {boolean} [materialCfg.transparent]
  * @param {boolean} [materialCfg.alphaCutoff]
+ * @param {boolean} [materialCfg.metalness]
+ * @param {boolean} [materialCfg.roughness]
  */
 Viewer.prototype.setMaterial = function (name, materialCfg) {
     materialCfg = materialCfg || {};
@@ -429,11 +441,20 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             mat.transparent = !!materialCfg.transparent;
             mat.depthMask = !materialCfg.transparent;
         }
-        if (materialCfg.alphaCutoff != null) {
-            mat.set('alphaCutoff', materialCfg.alphaCutoff);
-        }
+        ['alphaCutoff', 'metalness', 'roughness'].forEach(function (propName) {
+            if (materialCfg[propName] != null) {
+                mat.set(propName, materialCfg[propName]);
+            }
+        });
     }, this);
     this.refresh();
+};
+
+/**
+ * @return {Array.<string>}
+ */
+Viewer.prototype.getMaterialsNames = function () {
+    return Object.keys(this._materialsMap);
 };
 
 /**

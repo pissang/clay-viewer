@@ -6,6 +6,7 @@ var AmbientCubemapLight = require('qtek/lib/light/AmbientCubemap');
 var AmbientSHLight = require('qtek/lib/light/AmbientSH');
 var shUtil = require('qtek/lib/util/sh');
 var colorUtil = require('zrender/lib/tool/color');
+var Texture2D = require('qtek/lib/Texture2D');
 
 function isValueNone(value) {
     return !value || value === 'none';
@@ -106,7 +107,7 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
         var textureObj = textureCache.get(prefix + id);
         if (!textureObj) {
             textureObj = {
-                texture: new helper.Texture2D({
+                texture: new Texture2D({
                     image: imgValue
                 })
             };
@@ -155,7 +156,7 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
                 textureCache.put(prefix + imgValue, textureObj);
             }
             else {
-                var texture = new helper.Texture2D({
+                var texture = new Texture2D({
                     image: new Image()
                 });
                 for (var i = 0; i < keys.length; i++) {
