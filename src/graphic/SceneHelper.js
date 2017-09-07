@@ -175,6 +175,8 @@ SceneHelper.prototype = {
                 var texture = helper.loadTexture(environmentUrl, app, {
                     anisotropic: 8,
                     flipY: false
+                }, function () {
+                    app.refresh();
                 });
                 skydome.setEnvironmentMap(texture);
 
