@@ -6,15 +6,51 @@ Simple 3D model viewer based on [QTEK](https://github.com/pissang/qtek)
 
 ```js
 var viewer = new QMV.Viewer(document.getElementById('main'), {
+    devicePixelRatio: 1,
+    // If enable shadow
     shadow: true,
-    // Shading mode. 'standard'|'lambert'
-    shader: 'standard'
+    // Quality of shadow. 'low'|'medium'|'high'|'ultra'
+    shadowQuality: 'high',
+    // Environment panorama texture url.
+    environment: 'env.jpg',
+    // QMV provide three lights.
+    mainLight: {
+        intensity: 2.0
+    },
+    ambientLight: {
+        intensity: 0.
+    },
+    ambientCubemapLight: {
+        exposure: 1,
+        diffuseIntensity: 0.2,
+        texture: 'asset/texture/example1.jpg'
+    },
+    // Configuration about post effects.
+    postEffect: {
+        // If enable post effects.
+        enable: true,
+        // Configuration about bloom post effect
+        bloom: {
+            enable: true,
+            intensity: 0.5
+        },
+        // Configuration about SSAO
+        screenSpaceAmbientOcculusion: {
+            enable: true,
+            radius: 0.5,
+            // Quality of SSAO. 'low'|'medium'|'high'|'ultra'
+            quality: 'high'
+        }
+    }
 });
 
 // Load a glTF model
 // Model will be fit in 10x10x10 automatically after load.
 // Return an eventful object.
-viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
+viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf', {
+        // Shading mode. 'standard'|'lambert'
+        shader: 'standard'
+    })
     // Model loaded. not include textures.
     .on('loadmodel', function (modelStat) {
         // Set camera options.
@@ -73,15 +109,6 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
         viewer.pauseAnimation();
         viewer.resumeAnimation();
 
-        
-        // Add a hotspot with HTML. CSS needs to be stylized by yourself
-        var dom = viewer.addHotspot([5, 2, 0], `
-            <div class="tip">1</div>
-        `);
-        dom.addEventListener('click', function () {
-            alert('Do something');
-        });
-
         // Print model stat.
         console.log('Model loaded:');
         console.log('三角面：', modelStat.triangleCount);
@@ -102,12 +129,14 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf')
 
 ## Converter
 
-qtek provide a python tool for converting FBX to glTF.
+qtek provide a python tool for converting FBX to glTF 2.0.
 
-https://github.com/pissang/qtek/blob/master/tools/fbx2gltf.py
+https://github.com/pissang/qtek/blob/master/tools/fbx2gltf2.py
+
+Needs [python3.3](https://www.python.org/download/releases/3.3.0/) and [FBX SDK 2018.1.1](http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=26416130)
 
 ```
-usage: fbx2gltf.py [-h] [-e EXCLUDE] [-t TIMERANGE] [-o OUTPUT] [-f FRAMERATE]
+usage: fbx2gltf2.py [-h] [-e EXCLUDE] [-t TIMERANGE] [-o OUTPUT] [-f FRAMERATE]
                    [-p POSE]
                    file
 
@@ -128,6 +157,9 @@ optional arguments:
   -f FRAMERATE, --framerate FRAMERATE
                         Animation frame per sencond
   -p POSE, --pose POSE  Static pose time
+  -q, --quantize        Quantize accessors with WEB3D_quantized_attributes
+                        extension
+  -b, --beautify        Beautify json output.
 
 ```
 
@@ -138,14 +170,14 @@ Export scene
 
 ```bash
 # exclude animation
-fbx2gltf.py -e animation -p 0 xxx.fbx
+fbx2gltf2.py -e animation -p 0 xxx.fbx
 ```
 
 Export animation
 
 ```bash
 # exclude scene, 0 to 20 second, 20 framerate.
-fbx2gltf.py -e scene -t 0,20 -f 20 -o xxx_ani.gltf xxx.fbx
+fbx2gltf2.py -e scene -t 0,20 -f 20 -o xxx_ani.gltf xxx.fbx
 ```
 
 Load scene and animation asynchronously
