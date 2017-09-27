@@ -10,6 +10,8 @@ var Node = require('qtek/lib/Node');
 var RenderMain = require('./graphic/RenderMain');
 var graphicHelper = require('./graphic/helper');
 var SceneHelper = require('./graphic/SceneHelper');
+var defaultSceneConfig = require('./defaultSceneConfig');
+var zrUtil = require('zrender/lib/core/util');
 
 var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var OrbitControl = require('./OrbitControl');
@@ -18,17 +20,20 @@ var HotspotManager = require('./HotspotManager');
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
- * @param {Object} [opts]
- * @param {Object} [opts.shadow]
- * @param {boolean} [opts.devicePixelRatio]
- * @param {Object} [opts.postEffect]
- * @param {Object} [opts.mainLight]
- * @param {Object} [opts.ambientLight]
- * @param {Object} [opts.ambientCubemapLight]
+ * @param {Object} [sceneConfig]
+ * @param {Object} [sceneConfig.shadow]
+ * @param {boolean} [sceneConfig.devicePixelRatio]
+ * @param {Object} [sceneConfig.postEffect]
+ * @param {Object} [sceneConfig.mainLight]
+ * @param {Object} [sceneConfig.ambientLight]
+ * @param {Object} [sceneConfig.ambientCubemapLight]
  */
-function Viewer(dom, opts) {
+function Viewer(dom, sceneConfig) {
 
-    this.init(dom, opts);
+    sceneConfig = zrUtil.clone(sceneConfig);
+    zrUtil.merge(sceneConfig, defaultSceneConfig);
+
+    this.init(dom, sceneConfig);
 }
 
 Viewer.prototype.init = function (dom, opts) {
@@ -95,11 +100,17 @@ Viewer.prototype.init = function (dom, opts) {
     if (opts.mainLight) {
         this.setMainLight(opts.mainLight);
     }
-    if (opts.ambientLight) {
-        this.setAmbientLight(opts.ambientLight);
+    if (opts.secondaryLight) {
+        this.setSecondaryLight(opts.secondaryLight);
+    }
+    if (opts.tertiaryLight) {
+        this.setTertiaryLight(opts.tertiaryLight);
     }
     if (opts.ambientCubemapLight) {
         this.setAmbientCubemapLight(opts.ambientCubemapLight);
+    }
+    if (opts.ambientLight) {
+        this.setAmbientLight(opts.ambientLight);
     }
     if (opts.environment) {
         this.setEnvironment(opts.environment);
@@ -390,6 +401,34 @@ Viewer.prototype.setCameraControl = function (opts) {
  */
 Viewer.prototype.setMainLight = function (opts) {
     this._sceneHelper.updateMainLight(opts, this);
+    this.refresh();
+};
+
+/**
+ * @param {Object} [opts]
+ * @param {number} [opts.intensity]
+ * @param {string} [opts.color]
+ * @param {number} [opts.alpha]
+ * @param {number} [opts.beta]
+ * @param {number} [opts.shadow]
+ * @param {number} [opts.shadowQuality]
+ */
+Viewer.prototype.setSecondaryLight = function (opts) {
+    this._sceneHelper.updateSecondaryLight(opts, this);
+    this.refresh();
+};
+
+/**
+ * @param {Object} [opts]
+ * @param {number} [opts.intensity]
+ * @param {string} [opts.color]
+ * @param {number} [opts.alpha]
+ * @param {number} [opts.beta]
+ * @param {number} [opts.shadow]
+ * @param {number} [opts.shadowQuality]
+ */
+Viewer.prototype.setTertiaryLight = function (opts) {
+    this._sceneHelper.updateTertiaryLight(opts, this);
     this.refresh();
 };
 

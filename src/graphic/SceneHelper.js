@@ -29,14 +29,23 @@ SceneHelper.prototype = {
         this.mainLight = new DirectionalLight({
             shadowBias: 0.005
         });
+        /**
+         * @type {qtek.light.Directional}
+         */
+        this.secondaryLight = new DirectionalLight({
+            shadowBias: 0.005
+        });
+        /**
+         * @type {qtek.light.Directional}
+         */
+        this.tertiaryLight = new DirectionalLight({
+            shadowBias: 0.005
+        });
 
         /**
          * @type {qtek.light.Ambient}
          */
         this.ambientLight = new AmbientLight();
-
-        rootNode.add(this.mainLight);
-        rootNode.add(this.ambientLight);
     },
 
     dispose: function (renderer) {
@@ -54,19 +63,31 @@ SceneHelper.prototype = {
     },
 
     updateMainLight: function (opts, app) {
+        this._updateDirectionalLight(this.mainLight, opts, app);
+    },
+
+    updateSecondaryLight: function (opts, app) {
+        this._updateDirectionalLight(this.secondaryLight, opts, app);
+    },
+
+    updateTertiaryLight: function (opts, app) {
+        this._updateDirectionalLight(this.tertiaryLight, opts, app);
+    },
+
+    _updateDirectionalLight: function (light, opts, app) {
         opts = opts || {};
         if (opts.intensity != null) {
-            this.mainLight.intensity = opts.intensity;
-            this._lightRoot[opts.intensity ? 'add' : 'remove'](this.mainLight);
+            light.intensity = opts.intensity;
+            this._lightRoot[opts.intensity ? 'add' : 'remove'](light);
         }
         if (opts.color != null) {
-            this.mainLight.color = helper.parseColor(opts.color).slice(0, 3);
+            light.color = helper.parseColor(opts.color).slice(0, 3);
         }
         var alpha = helper.firstNotNull(opts.alpha, 45);
         var beta = helper.firstNotNull(opts.beta, 45);
 
-        this.mainLight.position.setArray(helper.directionFromAlphaBeta(alpha, beta));
-        this.mainLight.lookAt(Vector3.ZERO);
+        light.position.setArray(helper.directionFromAlphaBeta(alpha, beta));
+        light.lookAt(Vector3.ZERO);
 
         var shadowResolution = ({
             'low': 512,
@@ -75,8 +96,8 @@ SceneHelper.prototype = {
             'ultra': 4096
         })[opts.quality] || 1024;
 
-        this.mainLight.castShadow = helper.firstNotNull(opts.shadow, true);
-        this.mainLight.shadowResolution = shadowResolution;
+        light.castShadow = helper.firstNotNull(opts.shadow, true);
+        light.shadowResolution = shadowResolution;
     },
 
     updateAmbientLight: function (opts, app) {
