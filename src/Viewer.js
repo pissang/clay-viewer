@@ -7,6 +7,11 @@ var Task = require('qtek/lib/async/Task');
 var TaskGroup = require('qtek/lib/async/TaskGroup');
 var util = require('qtek/lib/core/util');
 var Node = require('qtek/lib/Node');
+var Mesh = require('qtek/lib/Mesh');
+var Material = require('qtek/lib/Material');
+var PlaneGeometry = require('qtek/lib/geometry/Plane');
+var Shader = require('qtek/lib/Shader');
+
 var RenderMain = require('./graphic/RenderMain');
 var graphicHelper = require('./graphic/helper');
 var SceneHelper = require('./graphic/SceneHelper');
@@ -16,6 +21,8 @@ var zrUtil = require('zrender/lib/core/util');
 var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
 var OrbitControl = require('./OrbitControl');
 var HotspotManager = require('./HotspotManager');
+
+Shader.import(require('./graphic/ground.glsl.js'));
 
 /**
  * @constructor
@@ -90,7 +97,7 @@ Viewer.prototype.init = function (dom, opts) {
     this._materialsMap = {};
 
     this._sceneHelper = new SceneHelper(this._renderMain.scene);
-    this._initLights(opts);
+    this._sceneHelper.initLight(this._renderMain.scene);
 
     this.resize();
 
@@ -115,12 +122,30 @@ Viewer.prototype.init = function (dom, opts) {
     if (opts.environment) {
         this.setEnvironment(opts.environment);
     }
+
+    if (opts.showGround) {
+        this._createGround();
+    }
     
     this._cameraControl.on('update', this.refresh, this);
 };
 
-Viewer.prototype._initLights = function (opts) {
-    this._sceneHelper.initLight(this._renderMain.scene);
+Viewer.prototype._createGround = function () {
+    var groundMesh = new Mesh({
+        material: new Material({
+            shader: new Shader({
+                vertex: Shader.source('qmv.ground.vertex'),
+                fragment: Shader.source('qmv.ground.fragment')
+            })
+        }),
+        castShadow: false,
+        geometry: new PlaneGeometry()
+    });
+    groundMesh.scale.set(50, 50, 1);
+    groundMesh.rotation.rotateX(-Math.PI / 2);
+    this._groundMesh = groundMesh;
+
+    this._renderMain.scene.add(groundMesh);
 };
 
 Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
@@ -214,6 +239,9 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         this._modelNode.position.copy(center).scale(-scale);
 
         this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
+
+        // Fit the ground
+        this._groundMesh.position.y = -size.y * scale / 2;
     }
 };
 

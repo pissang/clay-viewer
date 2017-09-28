@@ -42,8 +42,8 @@ module.exports = {
         intensity: 0,
         // Color of tertiary light.
         color: '#fff',
-        alpha: 60,
-        beta: -50
+        alpha: 89,
+        beta: 0
     },
     // Configuration of constant ambient light.
     // Which will add a constant color on any surface.
