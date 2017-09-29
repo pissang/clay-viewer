@@ -1,0 +1,16 @@
+
+body {
+    margin: 0;
+    background: #000;
+}
+#main {
+    position: absolute;
+    left: 0px;
+    right: 250px;
+    top: 0;
+    bottom: 0;
+}
+
+#controlKit .panel .group-list .group .sub-group-list .sub-group {
+    padding: 5px;
+}

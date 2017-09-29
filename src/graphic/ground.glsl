@@ -15,6 +15,14 @@ uniform float gridSize2: 1;
 uniform vec4 gridColor: [0, 0, 0, 1];
 uniform vec4 gridColor2: [0.3, 0.3, 0.3, 1];
 
+uniform float roughness: 0;
+
+#ifdef SSAOMAP_ENABLED
+// For ssao prepass
+uniform sampler2D ssaoMap;
+uniform vec4 viewport : VIEWPORT;
+#endif
+
 #ifdef AMBIENT_LIGHT_COUNT
 @import qtek.header.ambient_light
 #endif
@@ -45,6 +53,7 @@ void main()
         diffuseColor += calcAmbientSHLight(_idx_, v_Normal) * ambientSHLightColor[_idx_];
     }}
 #endif
+
 #ifdef DIRECTIONAL_LIGHT_COUNT
 #if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)
     float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];
@@ -70,6 +79,10 @@ void main()
 
         diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * shadowContrib;
     }
+#endif
+
+#ifdef SSAOMAP_ENABLED
+    diffuseColor *= texture2D(ssaoMap, (gl_FragCoord.xy - viewport.xy) / viewport.zw).r;
 #endif
 
     float wx = v_WorldPosition.x;

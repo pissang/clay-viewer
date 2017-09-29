@@ -78,11 +78,11 @@ module.exports = {
         depthOfField: {
             enable: false,
             // Focal distance of camera in word space.
-            focalDistance: 50,
+            focalDistance: 5,
             // Focal range of camera in word space. in this range image will be absolutely sharp.
-            focalRange: 20,
+            focalRange: 3,
             // Max out of focus blur radius.
-            blurRadius: 10,
+            blurRadius: 5,
             // fstop of camera. Smaller fstop will have shallow depth of field
             fstop: 2.8,
             // Blur quality. 'low'|'medium'|'high'|'ultra'

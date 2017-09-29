@@ -75,6 +75,7 @@ function getBoundingBoxWithSkinning(node, out) {
     if (node.geometry) {
         if (node.skeleton && node.joints && node.joints.length) {
             getBoundingBoxOfSkinningMesh(node, tmpBBox);
+            node.geometry.boundingBox.copy(tmpBBox);
             out.union(tmpBBox);
         }
         else {

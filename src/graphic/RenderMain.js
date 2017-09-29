@@ -41,7 +41,9 @@ function RenderMain(renderer, enableShadow, projection) {
     this._temporalSS = new TemporalSuperSampling();
 
     if (enableShadow) {
-        this._shadowMapPass = new ShadowMapPass();
+        this._shadowMapPass = new ShadowMapPass({
+            lightFrustumBias: 20
+        });
     }
 
     var pcfKernels = [];
