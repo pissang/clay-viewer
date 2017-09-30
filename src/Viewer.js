@@ -19,7 +19,7 @@ var defaultSceneConfig = require('./defaultSceneConfig');
 var zrUtil = require('zrender/lib/core/util');
 
 var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
-var OrbitControl = require('./OrbitControl');
+var OrbitControl = require('qtek/lib/plugin/OrbitControl');
 var HotspotManager = require('./HotspotManager');
 
 Shader.import(require('./graphic/ground.glsl.js'));
@@ -72,9 +72,9 @@ Viewer.prototype.init = function (dom, opts) {
     this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
-        dom: dom
+        domElement: dom
     });
-    this._cameraControl.setCamera(this._renderMain.camera);
+    this._cameraControl.target = this._renderMain.camera;
     this._cameraControl.init();
 
     this._hotspotManager = new HotspotManager({
