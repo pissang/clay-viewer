@@ -247,19 +247,32 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
 /**
  * Load glTF model resource
- * @param {string} url Model url
+ * @param {string|Object} gltfFile Model url or json
  * @param {Object} [opts]
  * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
  * @param {boolean} [opts.includeTexture=true]
+ * @param {Object} [opts.files] Pre-read files map
  * @param {boolean} [opts.zUpToYUp=false] Change model to y up
  */
-Viewer.prototype.loadModel = function (url, opts) {
+Viewer.prototype.loadModel = function (gltfFile, opts) {
     opts = opts || {};
-    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
-    if (!url) {
+    if (!gltfFile) {
         throw new Error('URL of model is not provided');
     }
-    var shaderName = opts.shader || 'lambert';
+    var shaderName = opts.shader || 'standard';
+
+    var pathResolver = null;
+    if (opts.files) {
+        pathResolver = function (uri) {
+            if (uri.match(/^data:(.*?)base64,/)) {
+                return uri;
+            }
+            var fileName = uri.substr(uri.lastIndexOf('/') + 1);
+            if (opts.files[fileName]) {
+                return opts.files[fileName];
+            }
+        };
+    }
 
     var loader = new GLTF2Loader({
         rootNode: new Node(),
@@ -268,9 +281,16 @@ Viewer.prototype.loadModel = function (url, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: true
+        textureFlipY: true,
+        resolveTexturePath: pathResolver,
+        resolveBinaryPath: pathResolver
     });
-    loader.load(url);
+    if (typeof url === 'string') {
+        loader.load(gltfFile);
+    }
+    else {
+        loader.parse(gltfFile);
+    }
 
     if (opts.zUpToYUp) {
         loader.rootNode.rotation.rotateX(-Math.PI / 2);
@@ -283,41 +303,14 @@ Viewer.prototype.loadModel = function (url, opts) {
     var nodeCount = 0;
 
     loader.success(function (res) {
-        var meshNeedsSplit = [];
         res.rootNode.traverse(function (mesh) {
             nodeCount++;
-            if (mesh.skeleton) {
-                meshNeedsSplit.push(mesh);
-            }
             if (mesh.geometry) {
                 triangleCount += mesh.geometry.triangleCount;
                 vertexCount += mesh.geometry.vertexCount;
             }
         });
-        meshNeedsSplit.forEach(function (mesh) {
-            meshUtil.splitByJoints(mesh, 15, true, loader.shaderLibrary, 'qtek.' + shaderName);
-        }, this);
-        res.rootNode.traverse(function (mesh) {
-            if (mesh.geometry) {
-                mesh.geometry.updateBoundingBox();
-                mesh.culling = false;
-            }
-            if (mesh.skeleton) {
-                // Avoid wrong culling when skinning matrices transforms alot.
-                mesh.frustumCulling = false;
-            }
-            if (mesh.material) {
-                mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
-                mesh.material.shader.define('fragment', 'ALPHA_TEST');
-                mesh.material.shader.precision = 'mediump';
-                mesh.material.set('alphaCutoff', alphaCutoff);
-
-                // Transparent mesh not cast shadow
-                if (mesh.material.transparent) {
-                    mesh.castShadow = false;
-                }
-            }
-        });
+        this._preprocessModel(res.rootNode, loader.shaderLibrary, opts);
 
         this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
@@ -360,6 +353,44 @@ Viewer.prototype.loadModel = function (url, opts) {
     });
 
     return task;
+};
+
+Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
+
+    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
+    var shaderName = opts.shader || 'standard';
+
+    var meshNeedsSplit = [];
+    rootNode.traverse(function (mesh) {
+        if (mesh.skeleton) {
+            meshNeedsSplit.push(mesh);
+        }
+    });
+    meshNeedsSplit.forEach(function (mesh) {
+        meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+    }, this);
+    rootNode.traverse(function (mesh) {
+        if (mesh.geometry) {
+            mesh.geometry.updateBoundingBox();
+            mesh.culling = false;
+        }
+        if (mesh.skeleton) {
+            // Avoid wrong culling when skinning matrices transforms alot.
+            mesh.frustumCulling = false;
+        }
+        if (mesh.material) {
+            mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
+            mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            mesh.material.shader.precision = 'mediump';
+            mesh.material.set('alphaCutoff', alphaCutoff);
+
+            // Transparent mesh not cast shadow
+            if (mesh.material.transparent) {
+                mesh.castShadow = false;
+            }
+        }
+    });
+
 };
 
 /**

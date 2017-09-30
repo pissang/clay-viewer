@@ -1,11 +1,7 @@
-function alphaBetaFromPadAngle() {
-    
-}
-
 var config = {
     showGround: true,
-
     shadow: true,
+    
     mainLight: {
         // If enable shadow of main light.
         shadow: true,
@@ -142,18 +138,16 @@ var config = {
 
 
 var viewer = new QMV.Viewer(document.getElementById('main'), config);
-viewer.loadModel('../examples/baidu_asset/dragon/dragon.gltf', {
-// viewer.loadModel('../examples/sample_asset/busterDrone/busterDrone.gltf', {
-        shader: 'standard'
-    })
-    .on('loadmodel', function () {
-        viewer.setCameraControl({
-            alpha: 20,
-            beta: 30,
-            distance: 8
-        });
-        viewer.start();
-    });
+viewer.setCameraControl({
+    alpha: 20,
+    beta: 30,
+    distance: 8
+});
+viewer.start();
+// viewer.loadModel('../examples/sample_asset/audi/audi.gltf', {
+//     })
+//     .on('loadmodel', function () {
+//     });
 
 
 
@@ -229,3 +223,51 @@ var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 })
 window.addEventListener('resize', function () { viewer.resize(); });
 //  var postProcessGroup = scenePanel.getGroups()[scenePanel.getGroups().length - 1];
 //  postProcessGroup.disable();
+
+
+
+FileAPI.event.dnd(document.getElementById('main'), function (files) {
+    files = files.filter(function (file) {
+        return file.name.match(/.(gltf|bin)$/)
+            || file.type.match(/image/);
+    });
+    var glTFFile = files.find(function (file) {
+        return file.name.match(/.gltf$/);
+    });
+    if (!glTFFile) {
+        alert('glTF file nout found');
+    }
+    console.log(files);
+
+    function readAllFiles(cb) {
+        var count = 0;
+        var filesMap = {};
+        files.forEach(function (file) {
+            if (file !== glTFFile) {
+                count++;
+                FileAPI.readAsDataURL(file, function (evt) {
+                    if (evt.type === 'load') {
+                        count--;
+                        filesMap[file.name] = evt.result;
+                        if (count === 0) {
+                            cb && cb(filesMap);
+                        }
+                    }
+                });
+            }
+        });
+    }
+    FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
+        if (evt.type == 'load') {
+            // Success
+             var json = JSON.parse(evt.result);
+             readAllFiles(function (filesMap) {
+                viewer.loadModel(json, {
+                    files: filesMap
+                });
+             });
+        } else if(evt.type =='progress'){
+            var pr = evt.loaded / evt.total * 100;
+        }
+    });
+});
