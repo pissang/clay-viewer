@@ -1,4 +1,6 @@
 var config = {
+    textureFlipY: false,
+
     showGround: true,
     shadow: true,
     
@@ -130,7 +132,7 @@ var config = {
         },
         FXAA: {
             // If enable FXAA
-            enable: false
+            enable: true
         }
     }
 };
@@ -173,26 +175,29 @@ function updatePostEffect() {
 }
 
 var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 })
-    .addGroup({ label: 'Light' })
-        .addSubGroup({ label: 'Main' })
-            .addCheckbox(config.mainLight, 'shadow', { label: 'Cast Shadow', onChange: updateLight })
-            .addNumberInput(config.mainLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
-            .addColor(config.mainLight, 'color', { label: 'Color', onChange: updateLight })
-            .addPad(config.mainLight, '$padAngle', { label: 'Direction', onChange: updateLight })
+scenePanel.addSubGroup({ label: 'Global' })
+    .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' });
 
-        .addSubGroup({ label: 'Secondary' })
-            .addNumberInput(config.secondaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
-            .addColor(config.secondaryLight, 'color', { label: 'Color', onChange: updateLight })
-            .addPad(config.secondaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
-            
-        .addSubGroup({ label: 'Tertiary' })
-            .addNumberInput(config.tertiaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
-            .addColor(config.tertiaryLight, 'color', { label: 'Color', onChange: updateLight })
-            .addPad(config.tertiaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
+scenePanel.addGroup({ label: 'Light' })
+    .addSubGroup({ label: 'Main' })
+        .addCheckbox(config.mainLight, 'shadow', { label: 'Cast Shadow', onChange: updateLight })
+        .addNumberInput(config.mainLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
+        .addColor(config.mainLight, 'color', { label: 'Color', onChange: updateLight })
+        .addPad(config.mainLight, '$padAngle', { label: 'Direction', onChange: updateLight })
 
-        .addSubGroup({ label: 'Ambient' })
-            .addNumberInput(config.ambientLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
-            .addColor(config.ambientLight, 'color', { label: 'Color', onChange: updateLight });
+    .addSubGroup({ label: 'Secondary' })
+        .addNumberInput(config.secondaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
+        .addColor(config.secondaryLight, 'color', { label: 'Color', onChange: updateLight })
+        .addPad(config.secondaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
+        
+    .addSubGroup({ label: 'Tertiary' })
+        .addNumberInput(config.tertiaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
+        .addColor(config.tertiaryLight, 'color', { label: 'Color', onChange: updateLight })
+        .addPad(config.tertiaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
+
+    .addSubGroup({ label: 'Ambient' })
+        .addNumberInput(config.ambientLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
+        .addColor(config.ambientLight, 'color', { label: 'Color', onChange: updateLight });
 
  var lightGroup = scenePanel.getGroups()[scenePanel.getGroups().length - 1];
  lightGroup.disable();
@@ -263,7 +268,8 @@ FileAPI.event.dnd(document.getElementById('main'), function (files) {
              var json = JSON.parse(evt.result);
              readAllFiles(function (filesMap) {
                 viewer.loadModel(json, {
-                    files: filesMap
+                    files: filesMap,
+                    textureFlipY: config.textureFlipY
                 });
              });
         } else if(evt.type =='progress'){

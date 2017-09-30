@@ -11,6 +11,7 @@ var Mesh = require('qtek/lib/Mesh');
 var Material = require('qtek/lib/Material');
 var PlaneGeometry = require('qtek/lib/geometry/Plane');
 var Shader = require('qtek/lib/Shader');
+var RayPicking = require('qtek/lib/picking/RayPicking');
 
 var RenderMain = require('./graphic/RenderMain');
 var graphicHelper = require('./graphic/helper');
@@ -253,6 +254,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {boolean} [opts.includeTexture=true]
  * @param {Object} [opts.files] Pre-read files map
  * @param {boolean} [opts.zUpToYUp=false] Change model to y up
+ * @param {boolean} [opts.textureFlipY=false]
  */
 Viewer.prototype.loadModel = function (gltfFile, opts) {
     opts = opts || {};
@@ -271,6 +273,9 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
             if (opts.files[fileName]) {
                 return opts.files[fileName];
             }
+            else {
+                return fileName;
+            }
         };
     }
 
@@ -281,7 +286,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: true,
+        textureFlipY: opts.textureFlipY,
         resolveTexturePath: pathResolver,
         resolveBinaryPath: pathResolver
     });

@@ -340,7 +340,6 @@ RenderMain.prototype.setPostEffect = function (opts, api) {
     ['brightness', 'contrast', 'saturation'].forEach(function (name) {
         compositor.setColorCorrection(name, colorCorrOpts[name]);
     });
-    
 };
 
 RenderMain.prototype.setDOFFocusOnPoint = function (depth) {
