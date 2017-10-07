@@ -342,6 +342,10 @@ RenderMain.prototype.setPostEffect = function (opts, api) {
     });
 };
 
+RenderMain.prototype.isDOFEnabled = function () {
+    return this._enablePostEffect && this._enableDOF;
+}
+
 RenderMain.prototype.setDOFFocusOnPoint = function (depth) {
     if (this._enablePostEffect) {
 

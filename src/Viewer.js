@@ -127,7 +127,9 @@ Viewer.prototype.init = function (dom, opts) {
     if (opts.showGround) {
         this._createGround();
     }
-    
+
+    this._initHandlers();
+
     this._cameraControl.on('update', this.refresh, this);
 };
 
@@ -210,6 +212,26 @@ Viewer.prototype._setAnimationClips = function (clips) {
     }, this);
 
     this._clips = clips.slice();
+};
+
+Viewer.prototype._initHandlers = function () {
+
+    this._picking = new RayPicking({
+        renderer: this._renderer,
+        scene: this._renderMain.scene,
+        camera: this._renderMain.camera
+    });
+
+    this._focus = this._focus.bind(this);
+    this.root.addEventListener('click', this._focus);
+};
+
+Viewer.prototype._focus = function (e) {
+    var result = this._picking.pick(e.clientX, e.clientY, true);
+    if (result) {
+        this._renderMain.setDOFFocusOnPoint(result.distance);
+        this.refresh();
+    }    
 };
 
 Viewer.prototype.resize = function () {
