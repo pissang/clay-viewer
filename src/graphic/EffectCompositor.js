@@ -246,6 +246,7 @@ EffectCompositor.prototype.enableFXAA = function () {
  */
 EffectCompositor.prototype.enableBloom = function () {
     this._compositeNode.inputs.bloom = 'bloom_composite';
+    this._compositor.dirty();
 };
 
 /**
@@ -253,6 +254,7 @@ EffectCompositor.prototype.enableBloom = function () {
  */
 EffectCompositor.prototype.disableBloom = function () {
     this._compositeNode.inputs.bloom = null;
+    this._compositor.dirty();
 };
 
 /**
@@ -260,12 +262,14 @@ EffectCompositor.prototype.disableBloom = function () {
  */
 EffectCompositor.prototype.enableDOF = function () {
     this._compositeNode.inputs.texture = 'dof_composite';
+    this._compositor.dirty();
 };
 /**
  * Disable depth of field effect
  */
 EffectCompositor.prototype.disableDOF = function () {
     this._compositeNode.inputs.texture = 'source';
+    this._compositor.dirty();
 };
 
 /**
