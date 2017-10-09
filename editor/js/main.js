@@ -244,16 +244,12 @@ window.addEventListener('resize', function () { viewer.resize(); });
 //  postProcessGroup.disable();
 
 
-function loadFiles(files) {
-    files = files.filter(function (file) {
-        return file.name.match(/.(gltf|bin)$/)
-            || file.type.match(/image/);
-    });
+function loadSceneFiles(files, cb) {
     var glTFFile = files.find(function (file) {
         return file.name.match(/.gltf$/);
     });
     if (!glTFFile) {
-        alert('glTF file nout found');
+        swal('glTF file nout found');
     }
 
     var filesMap = {};
@@ -281,7 +277,7 @@ function loadFiles(files) {
                     for (var name in filesMap) {
                         URL.revokeObjectURL(filesMap[name]);
                     }
-                });
+                })
              });
         } else if(evt.type =='progress'){
             var pr = evt.loaded / evt.total * 100;
@@ -291,7 +287,12 @@ function loadFiles(files) {
 
 ///////////// Drag and drop
 FileAPI.event.dnd(document.getElementById('main'), function (files) {
-    loadFiles(files);
+    files = files.filter(function (file) {
+        return file.name.match(/.(gltf|bin)$/)
+            || file.type.match(/image/);
+    });
+    loadSceneFiles(files);
+    saveSceneFiles(files);
 });
 
 ///////////// Save and restore
@@ -300,13 +301,68 @@ var filerInited = false;
 
 filer.init({
     persistent: true,
-    size: 1024 * 1024 * 100
+    size: 1024 * 1024 * 200
 }, function (fs) {
     filerInited = true;
 
+    loadScene();
 }, function (err) {
-    alert(err);
+    swal(err.toString());
 });
 
-function saveFiles() {
+function saveSceneFiles(files) {
+    if (!filerInited) {
+        swal('Not inited yet.');
+    }
+    function doSave() {
+        filer.mkdir('/project/scene', false, function () {
+            var count = files.length;
+            files.forEach(function (file) {
+                filer.write('/project/scene/' + file.name, { data: file, type: file.type }, function () {
+                    count--;
+                    if (count == 0) {
+                        swal('Saved files');
+                    }
+                }, function (err) {
+                    swal(err.toString());
+                });
+            });
+        }, function (err) {
+            swal(err.toString());
+        });
+    }
+    filer.ls('/project/scene', function (entries) {
+        var count = entries.length;
+        if (count === 0) {
+            doSave();
+        }
+        entries.forEach(function (entry) {
+            filer.rm(entry, function () {
+                count--;
+                if (count === 0) {
+                    doSave();
+                }
+            });
+        });
+    }, function (err) {
+        doSave();
+    });
+}
+
+function loadScene() {
+    filer.ls('/project/scene', function (entries) {
+        var files = [];
+        entries = entries.filter(function (entry) {
+            return entry.isFile;
+        });
+        entries.forEach(function (entry) {
+            filer.open(entry, function (file) {
+                files.push(file);
+                if (files.length === entries.length) {
+                    loadSceneFiles(files);
+                }
+            });
+        });
+    }, function (err) {
+    });
 }

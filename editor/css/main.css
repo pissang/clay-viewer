@@ -14,3 +14,25 @@ body {
 #controlKit .panel .group-list .group .sub-group-list .sub-group {
     padding: 5px;
 }
+
+.pace {
+-webkit-pointer-events: none;
+pointer-events: none;
+-webkit-user-select: none;
+-moz-user-select: none;
+user-select: none;
+}
+
+.pace-inactive {
+display: none;
+}
+
+.pace .pace-progress {
+background-color: rgba(0, 0, 0, 0.4);
+position: fixed;
+z-index: 1000;
+top: 0;
+right: 100%;
+bottom: 0;
+width: 100%;
+}
