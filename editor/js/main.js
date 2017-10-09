@@ -256,23 +256,19 @@ function loadFiles(files) {
         alert('glTF file nout found');
     }
 
+    var filesMap = {};
+
     function readAllFiles(cb) {
         var count = 0;
         var filesMap = {};
         files.forEach(function (file) {
             if (file !== glTFFile) {
                 count++;
-                FileAPI.readAsDataURL(file, function (evt) {
-                    if (evt.type === 'load') {
-                        count--;
-                        filesMap[file.name] = evt.result;
-                        if (count === 0) {
-                            cb && cb(filesMap);
-                        }
-                    }
-                });
+                filesMap[file.name] = URL.createObjectURL(file);
             }
         });
+        cb && cb(filesMap);
+
     }
     FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
         if (evt.type == 'load') {
@@ -282,6 +278,11 @@ function loadFiles(files) {
                 viewer.loadModel(json, {
                     files: filesMap,
                     textureFlipY: config.textureFlipY
+                }).on('ready', function () {
+                    // Unload urls after use
+                    for (var name in filesMap) {
+                        URL.revokeObjectURL(filesMap[name]);
+                    }
                 });
              });
         } else if(evt.type =='progress'){
@@ -295,15 +296,19 @@ FileAPI.event.dnd(document.getElementById('main'), function (files) {
     loadFiles(files);
 });
 
-
 ///////////// Save and restore
 var filer = new Filer();
+var filerInited = false;
 
 filer.init({
     persistent: true,
     size: 1024 * 1024 * 100
 }, function (fs) {
-    console.log(fs);
+    filerInited = true;
+
 }, function (err) {
     alert(err);
 });
+
+function saveFiles() {
+}
