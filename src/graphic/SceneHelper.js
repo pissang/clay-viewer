@@ -117,37 +117,49 @@ SceneHelper.prototype = {
         var textureUrl = opts.texture;
         var self = this;
 
-        if (this._currentCubemapLights && textureUrl !== this._currentCubemapLights.textureUrl) {
-            this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            if (this._currentCubemapLights.specular) {
-                this._lightRoot.remove(this._currentCubemapLights.specular);
-                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
-            }
-        }
-
-        if (textureUrl) {
-            var lights = helper.createAmbientCubemap(opts, app, function () {
-                // Use prefitered cubemap
-                if (lights.specular && (self._skybox instanceof Skybox)) {
-                    self._skybox.setEnvironmentMap(lights.specular.cubemap);
+        // TODO Change exposure
+        if (!this._currentCubemapLights || textureUrl !== this._currentCubemapLights.textureUrl) {
+            if (this._currentCubemapLights) {
+                this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                if (this._currentCubemapLights.specular) {
+                    this._lightRoot.remove(this._currentCubemapLights.specular);
+                    this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
                 }
-                app.refresh();
-            });
-            if (lights.diffuse) {
-                this._lightRoot.add(lights.diffuse);
             }
-            if (lights.specular) {
-                this._lightRoot.add(lights.specular);
+            if (textureUrl) {
+                var lights = helper.createAmbientCubemap(opts, app, function () {
+                    // Use prefitered cubemap
+                    if (lights.specular && (self._skybox instanceof Skybox)) {
+                        self._skybox.setEnvironmentMap(lights.specular.cubemap);
+                    }
+                    app.refresh();
+                });
+                if (lights.diffuse) {
+                    this._lightRoot.add(lights.diffuse);
+                }
+                if (lights.specular) {
+                    this._lightRoot.add(lights.specular);
+                }
+    
+                this._currentCubemapLights = lights;
+                this._currentCubemapLights.textureUrl = textureUrl;
             }
+            else if (this._currentCubemapLights) {
+                this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                this._lightRoot.remove(this._currentCubemapLights.specular);
+                this._currentCubemapLights = null;
+            }
+        }
 
-            this._currentCubemapLights = lights;
-            this._currentCubemapLights.textureUrl = textureUrl;
+        if (this._currentCubemapLights) {
+            if (opts.specularIntensity != null) {
+                this._currentCubemapLights.specular.intensity = opts.specularIntensity;
+            }
+            if (opts.diffuseIntensity != null) {
+                this._currentCubemapLights.diffuse.intensity = opts.diffuseIntensity;
+            }
         }
-        else if (this._currentCubemapLights) {
-            this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            this._lightRoot.remove(this._currentCubemapLights.specular);
-            this._currentCubemapLights = null;
-        }
+        
     },
 
     updateSkybox: function (environmentUrl, isLinearSpace, app) {

@@ -1,3 +1,5 @@
+var ENV_TEXTURE_ROOT = '../examples/asset/texture/';
+
 var config = {
     textureFlipY: false,
 
@@ -60,13 +62,19 @@ var config = {
     },
     ambientCubemapLight: {
         // Environment panorama texture url for cubemap lighting
-        texture: '../examples/asset/texture/pisa.hdr',
+        texture: ENV_TEXTURE_ROOT + 'pisa.hdr',
+
+        $texture: 'pisa',
+        $textureOptions: ['pisa', 'Barce_Rooftop_C', 'Factory_Catwalk', 'Grand_Canyon_C', 'Ice_Lake', 'Old_Industrial_Hall'],
+
         // Exposure factor when parsing hdr format.
         exposure: 1,
         // Intensity of diffuse radiance.
         diffuseIntensity: 0.5,
         // Intensity of specular radiance.
-        specularIntensity: 0.5
+        specularIntensity: 0.5,
+
+        $intensity: 0.5
     },
     // Configuration about post effects.
     postEffect: {
@@ -148,11 +156,6 @@ viewer.setCameraControl({
     distance: 8
 });
 viewer.start();
-// viewer.loadModel('../examples/sample_asset/audi/audi.gltf', {
-//     })
-//     .on('loadmodel', function () {
-//     });
-
 
 
 var controlKit = new ControlKit({
@@ -176,9 +179,18 @@ function updatePostEffect() {
     viewer.setPostEffect(config.postEffect);
 }
 
+function updateEnvironment() {
+    config.ambientCubemapLight.texture = ENV_TEXTURE_ROOT + config.ambientCubemapLight.$texture + '.hdr';
+    config.ambientCubemapLight.diffuseIntensity = config.ambientCubemapLight.specularIntensity = config.ambientCubemapLight.$intensity;
+    viewer.setAmbientCubemapLight(config.ambientCubemapLight);
+}
+
 var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 })
-scenePanel.addSubGroup({ label: 'Global' })
-    .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' });
+scenePanel.addGroup({ label: 'Global' })
+    .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
+    .addSubGroup({ label: 'Environment' })
+    .addSelect(config.ambientCubemapLight, '$textureOptions', { label: 'HDR Texture', onChange: updateEnvironment, target: '$texture' })
+    .addNumberInput(config.ambientCubemapLight, '$intensity', { label: 'Intensity', onChange: updateEnvironment, step: 0.1 });
 
 scenePanel.addGroup({ label: 'Light' })
     .addSubGroup({ label: 'Main' })

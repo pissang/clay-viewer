@@ -201,21 +201,28 @@ helper.createAmbientCubemap = function (opt, app, cb) {
     var exposure = helper.firstNotNull(opt.exposure, 1.0);
 
     var ambientCubemap, ambientSH;
-    if (opt.specularIntensity !== 0) {
-        var ambientCubemap = new AmbientCubemapLight({
-            intensity: helper.firstNotNull(opt.specularIntensity, 0.5)
+    if (opt.diffuseIntensity !== 0) {
+        ambientSH = new AmbientSHLight({
+            coefficients: [0.844, 0.712, 0.691, -0.037, 0.083, 0.167, 0.343, 0.288, 0.299, -0.041, -0.021, -0.009, -0.003, -0.041, -0.064, -0.011, -0.007, -0.004, -0.031, 0.034, 0.081, -0.060, -0.049, -0.060, 0.046, 0.056, 0.050]
         });
+    }
+
+    if (opt.specularIntensity !== 0) {
+        ambientCubemap = new AmbientCubemapLight();
         ambientCubemap.cubemap = helper.loadTexture(textureUrl, app, {
             exposure: exposure
-        }, function () {
+        }, function (cubemap) {
+            ambientCubemap.cubemap = cubemap;
             // TODO Performance when multiple view
-            ambientCubemap.cubemap.flipY = false;
+            cubemap.flipY = false;
             ambientCubemap.prefilter(renderer, 32);
             ambientSH.coefficients = shUtil.projectEnvironmentMap(renderer, ambientCubemap.cubemap, {
                 lod: 1
             });
-    
-            cb && cb();
+
+            setTimeout(function () {
+                cb && cb(); 
+            });
             // TODO Refresh ?
         });
     }
@@ -224,13 +231,6 @@ helper.createAmbientCubemap = function (opt, app, cb) {
             cb && cb();
         });
     }
-    if (opt.diffuseIntensity !== 0) {
-        var ambientSH = new AmbientSHLight({
-            intensity: helper.firstNotNull(opt.diffuseIntensity, 0.5),
-            coefficients: [0.844, 0.712, 0.691, -0.037, 0.083, 0.167, 0.343, 0.288, 0.299, -0.041, -0.021, -0.009, -0.003, -0.041, -0.064, -0.011, -0.007, -0.004, -0.031, 0.034, 0.081, -0.060, -0.049, -0.060, 0.046, 0.056, 0.050]
-        });
-    }
-
     return {
         specular: ambientCubemap,
         diffuse: ambientSH
