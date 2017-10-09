@@ -260,7 +260,6 @@ function loadFiles(files) {
 
     function readAllFiles(cb) {
         var count = 0;
-        var filesMap = {};
         files.forEach(function (file) {
             if (file !== glTFFile) {
                 count++;
@@ -268,7 +267,6 @@ function loadFiles(files) {
             }
         });
         cb && cb(filesMap);
-
     }
     FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
         if (evt.type == 'load') {
