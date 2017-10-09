@@ -175,19 +175,18 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Not save if glTF has only animation info
     if (nodes && nodes.length) {
         this._nodes = nodes;
-        var materialsMap = {};
-        // Save material
-        nodes.forEach(function (node) {
-            if (node.material) {
-                var material = node.material;
-                // Avoid name duplicate
-                materialsMap[material.name] = materialsMap[material.name] || [];
-                materialsMap[material.name].push(material);
-            }
-        }, this);
-
-        this._materialsMap = materialsMap;
     }
+    var materialsMap = {};
+    modelNode.traverse(function (node) {
+        // Save material
+        if (node.material) {
+            var material = node.material;
+            // Avoid name duplicate
+            materialsMap[material.name] = materialsMap[material.name] || [];
+            materialsMap[material.name].push(material);
+        }
+    }, this);
+    this._materialsMap = materialsMap;
 
     this._updateMaterialsSRGB();
 };
@@ -238,6 +237,8 @@ Viewer.prototype.resize = function () {
     var renderer = this._renderer;
     renderer.resize(this.root.clientWidth, this.root.clientHeight);
     this._renderMain.setViewport(0, 0, renderer.getWidth(), renderer.getHeight(), renderer.getDevicePixelRatio());
+
+    this.refresh();
 };
 
 /**
@@ -407,7 +408,7 @@ Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
-            mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            // mesh.material.shader.define('fragment', 'ALPHA_TEST');
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 

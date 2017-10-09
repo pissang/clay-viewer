@@ -287,7 +287,9 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
     for (var i = 0; i < opaqueQueue.length; i++) {
         if (opaqueQueue[i].receiveShadow) {
             opaqueQueue[i].material.set('pcfKernel', pcfKernel);
-            opaqueQueue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+            if (opaqueQueue[i].material.shader) {
+                opaqueQueue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+            }
         }
     }
 };

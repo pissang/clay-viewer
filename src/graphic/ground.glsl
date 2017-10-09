@@ -15,7 +15,7 @@ uniform float gridSize2: 1;
 uniform vec4 gridColor: [0, 0, 0, 1];
 uniform vec4 gridColor2: [0.3, 0.3, 0.3, 1];
 
-uniform float roughness: 0;
+uniform float glossiness: 0.7;
 
 #ifdef SSAOMAP_ENABLED
 // For ssao prepass
