@@ -13955,21 +13955,28 @@ helper.createAmbientCubemap = function (opt, app, cb) {
     var exposure = helper.firstNotNull(opt.exposure, 1.0);
 
     var ambientCubemap, ambientSH;
-    if (opt.specularIntensity !== 0) {
-        var ambientCubemap = new AmbientCubemapLight({
-            intensity: helper.firstNotNull(opt.specularIntensity, 0.5)
+    if (opt.diffuseIntensity !== 0) {
+        ambientSH = new AmbientSHLight({
+            coefficients: [0.844, 0.712, 0.691, -0.037, 0.083, 0.167, 0.343, 0.288, 0.299, -0.041, -0.021, -0.009, -0.003, -0.041, -0.064, -0.011, -0.007, -0.004, -0.031, 0.034, 0.081, -0.060, -0.049, -0.060, 0.046, 0.056, 0.050]
         });
+    }
+
+    if (opt.specularIntensity !== 0) {
+        ambientCubemap = new AmbientCubemapLight();
         ambientCubemap.cubemap = helper.loadTexture(textureUrl, app, {
             exposure: exposure
-        }, function () {
+        }, function (cubemap) {
+            ambientCubemap.cubemap = cubemap;
             // TODO Performance when multiple view
-            ambientCubemap.cubemap.flipY = false;
+            cubemap.flipY = false;
             ambientCubemap.prefilter(renderer, 32);
             ambientSH.coefficients = shUtil.projectEnvironmentMap(renderer, ambientCubemap.cubemap, {
                 lod: 1
             });
-    
-            cb && cb();
+
+            setTimeout(function () {
+                cb && cb(); 
+            });
             // TODO Refresh ?
         });
     }
@@ -13978,13 +13985,6 @@ helper.createAmbientCubemap = function (opt, app, cb) {
             cb && cb();
         });
     }
-    if (opt.diffuseIntensity !== 0) {
-        var ambientSH = new AmbientSHLight({
-            intensity: helper.firstNotNull(opt.diffuseIntensity, 0.5),
-            coefficients: [0.844, 0.712, 0.691, -0.037, 0.083, 0.167, 0.343, 0.288, 0.299, -0.041, -0.021, -0.009, -0.003, -0.041, -0.064, -0.011, -0.007, -0.004, -0.031, 0.034, 0.081, -0.060, -0.049, -0.060, 0.046, 0.056, 0.050]
-        });
-    }
-
     return {
         specular: ambientCubemap,
         diffuse: ambientSH
@@ -18476,7 +18476,7 @@ module.exports = "\n@export qtek.compositor.upsample\n\n#define HIGH_QUALITY\n\n
 /***/ (function(module, exports) {
 
 
-module.exports = "@export qtek.deferred.gbuffer.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\n\nuniform vec2 uvRepeat;\nuniform vec2 uvOffset;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\n#ifdef FIRST_PASS\nattribute vec3 normal : NORMAL;\n#endif\n\n@import qtek.chunk.skinning_header\n\n\n#ifdef FIRST_PASS\nvarying vec3 v_Normal;\n\nattribute vec4 tangent : TANGENT;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n#endif\n\n\nvarying vec2 v_Texcoord;\nvarying vec4 v_ProjPos;\n\nvoid main()\n{\n\n vec3 skinnedPosition = position;\n\n#ifdef FIRST_PASS\n vec3 skinnedNormal = normal;\n vec3 skinnedTangent = tangent.xyz;\n bool hasTangent = dot(tangent, tangent) > 0.0;\n#endif\n\n#ifdef SKINNING\n\n @import qtek.chunk.skin_matrix\n\n skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n\n #ifdef FIRST_PASS\n skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n if (hasTangent) {\n skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n }\n #endif\n#endif\n\n gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n\n v_Texcoord = texcoord * uvRepeat + uvOffset;\n\n#ifdef FIRST_PASS\n v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n\n if (hasTangent) {\n v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n }\n#endif\n\n v_ProjPos = gl_Position;\n}\n\n\n@end\n\n\n@export qtek.deferred.gbuffer1.fragment\n\nuniform float glossiness;\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\n\nuniform sampler2D normalMap;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n\nuniform sampler2D roughnessMap;\n\nuniform bool useRoughnessMap;\n\nvarying vec4 v_ProjPos;\n\nvoid main()\n{\n vec3 N = v_Normal;\n\n if (dot(v_Tangent, v_Tangent) > 0.0) {\n vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n if (dot(normalTexel, normalTexel) > 0.0) { N = normalTexel * 2.0 - 1.0;\n mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n N = normalize(tbn * N);\n }\n }\n\n gl_FragColor.rgb = (N + 1.0) * 0.5;\n\n \n float g = glossiness;\n\n if (useRoughnessMap) {\n vec4 glossTexel = texture2D(roughnessMap, v_Texcoord);\n g = clamp(-glossTexel.r + g * 2.0, 0.0, 1.0);\n }\n\n\n gl_FragColor.a = g;\n\n }\n@end\n\n@export qtek.deferred.gbuffer2.fragment\n\nuniform sampler2D diffuseMap;\nuniform sampler2D metalnessMap;\n\nuniform vec3 color;\nuniform float metalness;\n\nuniform bool useMetalnessMap;\nuniform bool linear;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.srgb\n\nvoid main ()\n{\n float m = metalness;\n\n if (useMetalnessMap) {\n vec4 metalnessTexel = texture2D(metalnessMap, v_Texcoord);\n m = clamp(metalnessTexel.r + (m * 2.0 - 1.0), 0.0, 1.0);\n }\n vec4 texel = texture2D(diffuseMap, v_Texcoord);\n if (linear) {\n texel = sRGBToLinear(texel);\n }\n\n gl_FragColor.rgb = texel.rgb * color;\n\n gl_FragColor.a = m;\n}\n\n@end\n\n\n@export qtek.deferred.gbuffer.debug\n\n@import qtek.deferred.chunk.light_head\nuniform int debug: 0;\n\nvoid main ()\n{\n @import qtek.deferred.chunk.gbuffer_read\n\n if (debug == 0) {\n gl_FragColor = vec4(N, 1.0);\n }\n else if (debug == 1) {\n gl_FragColor = vec4(vec3(z), 1.0);\n }\n else if (debug == 2) {\n gl_FragColor = vec4(position, 1.0);\n }\n else if (debug == 3) {\n gl_FragColor = vec4(vec3(glossiness), 1.0);\n }\n else if (debug == 4) {\n gl_FragColor = vec4(vec3(metalness), 1.0);\n }\n else {\n gl_FragColor = vec4(albedo, 1.0);\n }\n}\n@end";
+module.exports = "@export qtek.deferred.gbuffer.vertex\n\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\n\nuniform vec2 uvRepeat;\nuniform vec2 uvOffset;\n\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n\n#ifdef FIRST_PASS\nattribute vec3 normal : NORMAL;\n#endif\n\n@import qtek.chunk.skinning_header\n\n\n#ifdef FIRST_PASS\nvarying vec3 v_Normal;\n\nattribute vec4 tangent : TANGENT;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n#endif\n\n\nvarying vec2 v_Texcoord;\nvarying vec4 v_ProjPos;\n\nvoid main()\n{\n\n vec3 skinnedPosition = position;\n\n#ifdef FIRST_PASS\n vec3 skinnedNormal = normal;\n vec3 skinnedTangent = tangent.xyz;\n bool hasTangent = dot(tangent, tangent) > 0.0;\n#endif\n\n#ifdef SKINNING\n\n @import qtek.chunk.skin_matrix\n\n skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n\n #ifdef FIRST_PASS\n skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n if (hasTangent) {\n skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n }\n #endif\n#endif\n\n gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n\n v_Texcoord = texcoord * uvRepeat + uvOffset;\n\n#ifdef FIRST_PASS\n v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n\n if (hasTangent) {\n v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n }\n#endif\n\n v_ProjPos = gl_Position;\n}\n\n\n@end\n\n\n@export qtek.deferred.gbuffer1.fragment\n\nuniform float glossiness;\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\n\nuniform sampler2D normalMap;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n\nuniform sampler2D roughGlossMap;\n\nuniform bool useRoughGlossMap;\nuniform bool useRoughness;\n\nuniform int roughGlossChannel: 0;\n\nvarying vec4 v_ProjPos;\n\nfloat indexingTexel(in vec4 texel, in int idx) {\n if (idx == 3) return texel.a;\n else if (idx == 1) return texel.g;\n else if (idx == 2) return texel.b;\n else return texel.r;\n}\n\nvoid main()\n{\n vec3 N = v_Normal;\n\n if (dot(v_Tangent, v_Tangent) > 0.0) {\n vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n if (dot(normalTexel, normalTexel) > 0.0) { N = normalTexel * 2.0 - 1.0;\n mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n N = normalize(tbn * N);\n }\n }\n\n gl_FragColor.rgb = (N + 1.0) * 0.5;\n\n \n float g = glossiness;\n\n if (useRoughGlossMap) {\n float g2 = indexingTexel(texture2D(roughGlossMap, v_Texcoord), roughGlossChannel);\n if (useRoughness) {\n g2 = 1.0 - g2;\n }\n g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n }\n\n gl_FragColor.a = g;\n\n }\n@end\n\n@export qtek.deferred.gbuffer2.fragment\n\nuniform sampler2D diffuseMap;\nuniform sampler2D metalnessMap;\n\nuniform vec3 color;\nuniform float metalness;\n\nuniform bool useMetalnessMap;\nuniform bool linear;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.srgb\n\nvoid main ()\n{\n float m = metalness;\n\n if (useMetalnessMap) {\n vec4 metalnessTexel = texture2D(metalnessMap, v_Texcoord);\n m = clamp(metalnessTexel.r + (m * 2.0 - 1.0), 0.0, 1.0);\n }\n vec4 texel = texture2D(diffuseMap, v_Texcoord);\n if (linear) {\n texel = sRGBToLinear(texel);\n }\n\n gl_FragColor.rgb = texel.rgb * color;\n\n gl_FragColor.a = m;\n}\n\n@end\n\n\n@export qtek.deferred.gbuffer.debug\n\n@import qtek.deferred.chunk.light_head\nuniform int debug: 0;\n\nvoid main ()\n{\n @import qtek.deferred.chunk.gbuffer_read\n\n if (debug == 0) {\n gl_FragColor = vec4(N, 1.0);\n }\n else if (debug == 1) {\n gl_FragColor = vec4(vec3(z), 1.0);\n }\n else if (debug == 2) {\n gl_FragColor = vec4(position, 1.0);\n }\n else if (debug == 3) {\n gl_FragColor = vec4(vec3(glossiness), 1.0);\n }\n else if (debug == 4) {\n gl_FragColor = vec4(vec3(metalness), 1.0);\n }\n else {\n gl_FragColor = vec4(albedo, 1.0);\n }\n}\n@end";
 
 
 /***/ }),
@@ -18734,19 +18734,18 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Not save if glTF has only animation info
     if (nodes && nodes.length) {
         this._nodes = nodes;
-        var materialsMap = {};
-        // Save material
-        nodes.forEach(function (node) {
-            if (node.material) {
-                var material = node.material;
-                // Avoid name duplicate
-                materialsMap[material.name] = materialsMap[material.name] || [];
-                materialsMap[material.name].push(material);
-            }
-        }, this);
-
-        this._materialsMap = materialsMap;
     }
+    var materialsMap = {};
+    modelNode.traverse(function (node) {
+        // Save material
+        if (node.material) {
+            var material = node.material;
+            // Avoid name duplicate
+            materialsMap[material.name] = materialsMap[material.name] || [];
+            materialsMap[material.name].push(material);
+        }
+    }, this);
+    this._materialsMap = materialsMap;
 
     this._updateMaterialsSRGB();
 };
@@ -18797,6 +18796,8 @@ Viewer.prototype.resize = function () {
     var renderer = this._renderer;
     renderer.resize(this.root.clientWidth, this.root.clientHeight);
     this._renderMain.setViewport(0, 0, renderer.getWidth(), renderer.getHeight(), renderer.getDevicePixelRatio());
+
+    this.refresh();
 };
 
 /**
@@ -18966,7 +18967,7 @@ Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
-            mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            // mesh.material.shader.define('fragment', 'ALPHA_TEST');
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
@@ -21564,7 +21565,9 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
     for (var i = 0; i < opaqueQueue.length; i++) {
         if (opaqueQueue[i].receiveShadow) {
             opaqueQueue[i].material.set('pcfKernel', pcfKernel);
-            opaqueQueue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+            if (opaqueQueue[i].material.shader) {
+                opaqueQueue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+            }
         }
     }
 };
@@ -22136,37 +22139,49 @@ SceneHelper.prototype = {
         var textureUrl = opts.texture;
         var self = this;
 
-        if (this._currentCubemapLights && textureUrl !== this._currentCubemapLights.textureUrl) {
-            this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            if (this._currentCubemapLights.specular) {
-                this._lightRoot.remove(this._currentCubemapLights.specular);
-                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
-            }
-        }
-
-        if (textureUrl) {
-            var lights = helper.createAmbientCubemap(opts, app, function () {
-                // Use prefitered cubemap
-                if (lights.specular && (self._skybox instanceof Skybox)) {
-                    self._skybox.setEnvironmentMap(lights.specular.cubemap);
+        // TODO Change exposure
+        if (!this._currentCubemapLights || textureUrl !== this._currentCubemapLights.textureUrl) {
+            if (this._currentCubemapLights) {
+                this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                if (this._currentCubemapLights.specular) {
+                    this._lightRoot.remove(this._currentCubemapLights.specular);
+                    this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
                 }
-                app.refresh();
-            });
-            if (lights.diffuse) {
-                this._lightRoot.add(lights.diffuse);
             }
-            if (lights.specular) {
-                this._lightRoot.add(lights.specular);
+            if (textureUrl) {
+                var lights = helper.createAmbientCubemap(opts, app, function () {
+                    // Use prefitered cubemap
+                    if (lights.specular && (self._skybox instanceof Skybox)) {
+                        self._skybox.setEnvironmentMap(lights.specular.cubemap);
+                    }
+                    app.refresh();
+                });
+                if (lights.diffuse) {
+                    this._lightRoot.add(lights.diffuse);
+                }
+                if (lights.specular) {
+                    this._lightRoot.add(lights.specular);
+                }
+    
+                this._currentCubemapLights = lights;
+                this._currentCubemapLights.textureUrl = textureUrl;
             }
+            else if (this._currentCubemapLights) {
+                this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                this._lightRoot.remove(this._currentCubemapLights.specular);
+                this._currentCubemapLights = null;
+            }
+        }
 
-            this._currentCubemapLights = lights;
-            this._currentCubemapLights.textureUrl = textureUrl;
+        if (this._currentCubemapLights) {
+            if (opts.specularIntensity != null) {
+                this._currentCubemapLights.specular.intensity = opts.specularIntensity;
+            }
+            if (opts.diffuseIntensity != null) {
+                this._currentCubemapLights.diffuse.intensity = opts.diffuseIntensity;
+            }
         }
-        else if (this._currentCubemapLights) {
-            this._lightRoot.remove(this._currentCubemapLights.diffuse);
-            this._lightRoot.remove(this._currentCubemapLights.specular);
-            this._currentCubemapLights = null;
-        }
+        
     },
 
     updateSkybox: function (environmentUrl, isLinearSpace, app) {
@@ -23002,7 +23017,7 @@ module.exports = "@export ecgl.edge\n\nuniform sampler2D texture;\n\nuniform sam
 /* 81 */
 /***/ (function(module, exports) {
 
-module.exports = "@export qmv.ground.vertex\n@import qtek.lambert.vertex\n@end\n\n\n@export qmv.ground.fragment\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\n\nuniform vec4 color : [1.0, 1.0, 1.0, 1.0];\nuniform float gridSize: 5;\nuniform float gridSize2: 1;\nuniform vec4 gridColor: [0, 0, 0, 1];\nuniform vec4 gridColor2: [0.3, 0.3, 0.3, 1];\n\nuniform float roughness: 0;\n\n#ifdef SSAOMAP_ENABLED\nuniform sampler2D ssaoMap;\nuniform vec4 viewport : VIEWPORT;\n#endif\n\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n\n@import qtek.plugin.compute_shadow_map\n\nvoid main()\n{\n gl_FragColor = color;\n\n float wx = v_WorldPosition.x;\n float wz = v_WorldPosition.z;\n float x0 = abs(fract(wx / gridSize - 0.5) - 0.5) / fwidth(wx) * gridSize / 1.5;\n float z0 = abs(fract(wz / gridSize - 0.5) - 0.5) / fwidth(wz) * gridSize / 1.5;\n\n float x1 = abs(fract(wx / gridSize2 - 0.5) - 0.5) / fwidth(wx) * gridSize2;\n float z1 = abs(fract(wz / gridSize2 - 0.5) - 0.5) / fwidth(wz) * gridSize2;\n\n float v0 = 1.0 - clamp(min(x0, z0), 0.0, 1.0);\n float v1 = 1.0 - clamp(min(x1, z1), 0.0, 1.0);\n if (v0 > 0.1) {\n gl_FragColor = mix(gl_FragColor, gridColor, v0);\n }\n else {\n gl_FragColor = mix(gl_FragColor, gridColor2, v1);\n }\n\n vec3 diffuseColor = vec3(0.0, 0.0, 0.0);\n\n#ifdef AMBIENT_LIGHT_COUNT\n for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n {\n diffuseColor += ambientLightColor[_idx_];\n }\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n {{\n diffuseColor += calcAmbientSHLight(_idx_, v_Normal) * ambientSHLightColor[_idx_];\n }}\n#endif\n\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n if(shadowEnabled)\n {\n computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n }\n#endif\n for(int i = 0; i < DIRECTIONAL_LIGHT_COUNT; i++)\n {\n vec3 lightDirection = -directionalLightDirection[i];\n vec3 lightColor = directionalLightColor[i];\n\n float ndl = dot(v_Normal, normalize(lightDirection));\n\n float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n if( shadowEnabled )\n {\n shadowContrib = shadowContribsDir[i];\n }\n#endif\n\n diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * shadowContrib;\n }\n#endif\n\n#ifdef SSAOMAP_ENABLED\n diffuseColor *= texture2D(ssaoMap, (gl_FragCoord.xy - viewport.xy) / viewport.zw).r;\n#endif\n\n gl_FragColor.rgb *= diffuseColor;\n}\n\n@end";
+module.exports = "@export qmv.ground.vertex\n@import qtek.lambert.vertex\n@end\n\n\n@export qmv.ground.fragment\n\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\n\nuniform vec4 color : [1.0, 1.0, 1.0, 1.0];\nuniform float gridSize: 5;\nuniform float gridSize2: 1;\nuniform vec4 gridColor: [0, 0, 0, 1];\nuniform vec4 gridColor2: [0.3, 0.3, 0.3, 1];\n\nuniform float glossiness: 0.7;\n\n#ifdef SSAOMAP_ENABLED\nuniform sampler2D ssaoMap;\nuniform vec4 viewport : VIEWPORT;\n#endif\n\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n\n@import qtek.plugin.compute_shadow_map\n\nvoid main()\n{\n gl_FragColor = color;\n\n float wx = v_WorldPosition.x;\n float wz = v_WorldPosition.z;\n float x0 = abs(fract(wx / gridSize - 0.5) - 0.5) / fwidth(wx) * gridSize / 1.5;\n float z0 = abs(fract(wz / gridSize - 0.5) - 0.5) / fwidth(wz) * gridSize / 1.5;\n\n float x1 = abs(fract(wx / gridSize2 - 0.5) - 0.5) / fwidth(wx) * gridSize2;\n float z1 = abs(fract(wz / gridSize2 - 0.5) - 0.5) / fwidth(wz) * gridSize2;\n\n float v0 = 1.0 - clamp(min(x0, z0), 0.0, 1.0);\n float v1 = 1.0 - clamp(min(x1, z1), 0.0, 1.0);\n if (v0 > 0.1) {\n gl_FragColor = mix(gl_FragColor, gridColor, v0);\n }\n else {\n gl_FragColor = mix(gl_FragColor, gridColor2, v1);\n }\n\n vec3 diffuseColor = vec3(0.0, 0.0, 0.0);\n\n#ifdef AMBIENT_LIGHT_COUNT\n for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n {\n diffuseColor += ambientLightColor[_idx_];\n }\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n {{\n diffuseColor += calcAmbientSHLight(_idx_, v_Normal) * ambientSHLightColor[_idx_];\n }}\n#endif\n\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n if(shadowEnabled)\n {\n computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n }\n#endif\n for(int i = 0; i < DIRECTIONAL_LIGHT_COUNT; i++)\n {\n vec3 lightDirection = -directionalLightDirection[i];\n vec3 lightColor = directionalLightColor[i];\n\n float ndl = dot(v_Normal, normalize(lightDirection));\n\n float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n if( shadowEnabled )\n {\n shadowContrib = shadowContribsDir[i];\n }\n#endif\n\n diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * shadowContrib;\n }\n#endif\n\n#ifdef SSAOMAP_ENABLED\n diffuseColor *= texture2D(ssaoMap, (gl_FragCoord.xy - viewport.xy) / viewport.zw).r;\n#endif\n\n gl_FragColor.rgb *= diffuseColor;\n}\n\n@end";
 
 
 /***/ }),
@@ -26731,7 +26746,7 @@ module.exports = getBoundingBoxWithSkinning;
     function getBeforeRenderHook1 (gl, defaultNormalMap, defaultRoughnessMap) {
 
         var previousNormalMap;
-        var previousRougnessMap;
+        var previousRougGlossMap;
         var previousRenderable;
 
         return function (renderable, prevMaterial, prevShader) {
@@ -26743,36 +26758,52 @@ module.exports = getBoundingBoxWithSkinning;
             var standardMaterial = renderable.__standardMat;
             var gBufferMat = renderable.material;
 
-            var roughness = standardMaterial.get('roughness');
+            var glossiness;
+            var roughGlossMap;
+            var useRoughnessWorkflow = standardMaterial.shader.isDefined('fragment', 'USE_ROUGHNESS');
+            var roughGlossChannel;
+            if (useRoughnessWorkflow) {
+                glossiness = 1.0 - standardMaterial.get('roughness');
+                roughGlossMap = standardMaterial.get('roughnessMap');
+                roughGlossChannel = standardMaterial.shader.getDefine('fragment', 'ROUGHNESS_CHANNEL');
+            }
+            else {
+                glossiness = standardMaterial.get('glossiness');
+                roughGlossMap = standardMaterial.get('glossinessMap');
+                roughGlossChannel = standardMaterial.shader.getDefine('fragment', 'GLOSSINESS_CHANNEL');
+            }
+            var useRoughGlossMap = !!roughGlossMap;
 
             var normalMap = standardMaterial.get('normalMap') || defaultNormalMap;
-            var roughnessMap = standardMaterial.get('roughnessMap');
             var uvRepeat = standardMaterial.get('uvRepeat');
             var uvOffset = standardMaterial.get('uvOffset');
-            var useRoughnessMap = !!roughnessMap;
 
-            roughnessMap = roughnessMap || defaultRoughnessMap;
+            roughGlossMap = roughGlossMap || defaultRoughnessMap;
 
             if (prevMaterial !== gBufferMat) {
-                gBufferMat.set('glossiness', 1.0 - roughness);
+                gBufferMat.set('glossiness', glossiness);
                 gBufferMat.set('normalMap', normalMap);
-                gBufferMat.set('roughnessMap', roughnessMap);
-                gBufferMat.set('useRoughnessMap', +useRoughnessMap);
+                gBufferMat.set('roughGlossMap', roughGlossMap);
+                gBufferMat.set('useRoughGlossMap', +useRoughGlossMap);
+                gBufferMat.set('useRoughness', +useRoughnessWorkflow);
+                gBufferMat.set('roughGlossChannel', +roughGlossChannel || 0);
                 gBufferMat.set('uvRepeat', uvRepeat);
                 gBufferMat.set('uvOffset', uvOffset);
             }
             else {
                 gBufferMat.shader.setUniform(
-                    gl, '1f', 'glossiness', 1.0 - roughness
+                    gl, '1f', 'glossiness', glossiness
                 );
 
                 if (previousNormalMap !== normalMap) {
                     attachTextureToSlot(gl, gBufferMat.shader, 'normalMap', normalMap, 0);
                 }
-                if (previousRougnessMap !== roughnessMap) {
-                    attachTextureToSlot(gl, gBufferMat.shader, 'roughnessMap', roughnessMap, 1);
+                if (previousRougGlossMap !== roughGlossMap) {
+                    attachTextureToSlot(gl, gBufferMat.shader, 'roughGlossMap', roughGlossMap, 1);
                 }
-                gBufferMat.shader.setUniform(gl, '1i', 'useRoughnessMap', +useRoughnessMap);
+                gBufferMat.shader.setUniform(gl, '1i', 'useRoughGlossMap', +useRoughGlossMap);
+                gBufferMat.shader.setUniform(gl, '1i', 'useRoughness', +useRoughnessWorkflow);
+                gBufferMat.shader.setUniform(gl, '1i', 'roughGlossChannel', +roughGlossChannel || 0);
                 if (uvRepeat != null) {
                     gBufferMat.shader.setUniform(gl, '2f', 'uvRepeat', uvRepeat);
                 }
@@ -26782,7 +26813,7 @@ module.exports = getBoundingBoxWithSkinning;
             }
 
             previousNormalMap = normalMap;
-            previousRougnessMap = roughnessMap;
+            previousRougGlossMap = roughGlossMap;
 
             previousRenderable = renderable;
         };
@@ -26975,6 +27006,12 @@ module.exports = getBoundingBoxWithSkinning;
             var opaqueQueue = scene.opaqueQueue;
             var oldBeforeRender = renderer.beforeRenderObject;
 
+            // StandardMaterial needs updateShader method so shader can be created on demand.
+            for (var i = 0; i < opaqueQueue.length; i++) {
+                var material = opaqueQueue[i].material;
+                material.updateShader && material.updateShader(renderer.gl);
+            }
+
             gl.clearColor(0, 0, 0, 0);
             gl.depthMask(true);
             gl.colorMask(true, true, true, true);
@@ -27014,7 +27051,6 @@ module.exports = getBoundingBoxWithSkinning;
 
                 this._replaceGBufferMat(opaqueQueue, 1);
                 opaqueQueue.sort(ForwardRenderer.opaqueSortFunc);
-
 
                 // FIXME Use MRT if possible
                 // Pass 1
@@ -28885,6 +28921,7 @@ module.exports = getBoundingBoxWithSkinning;
                 emissiveMap = lib.textures[materialInfo.emissiveTexture.index] || null;
                 enabledTextures.push('emissiveMap');
             }
+            var baseColor = metallicRoughnessMatInfo.baseColorFactor || [1, 1, 1, 1];
 
             var commonProperties = {
                 diffuseMap: diffuseMap || null,
@@ -28892,10 +28929,12 @@ module.exports = getBoundingBoxWithSkinning;
                 metalnessMap: metalnessMap || null,
                 normalMap: normalMap || null,
                 emissiveMap: emissiveMap || null,
-                color: metallicRoughnessMatInfo.baseColorFactor || [1, 1, 1],
+                color: baseColor.slice(0, 3),
+                alpha: baseColor[3],
                 metalness: metallicRoughnessMatInfo.metallicFactor || 0,
                 roughness: metallicRoughnessMatInfo.roughnessFactor || 0,
-                emission: materialInfo.emissiveFactor || [0, 0, 0]
+                emission: materialInfo.emissiveFactor || [0, 0, 0],
+                alphaCutoff: materialInfo.alphaCutoff == null ? 0.9 : materialInfo.alphaCutoff
             };
             if (commonProperties.roughnessMap) {
                 // In glTF metallicFactor will do multiply, which is different from StandardMaterial.
@@ -28973,6 +29012,7 @@ module.exports = getBoundingBoxWithSkinning;
                 emissiveMap = lib.textures[materialInfo.emissiveTexture.index] || null;
                 enabledTextures.push('emissiveMap');
             }
+            var baseColor = specularGlossinessMatInfo.baseColorFactor || [1, 1, 1, 1];
 
             var commonProperties = {
                 diffuseMap: diffuseMap || null,
@@ -28980,10 +29020,12 @@ module.exports = getBoundingBoxWithSkinning;
                 specularMap: specularMap || null,
                 normalMap: normalMap || null,
                 emissiveMap: emissiveMap || null,
-                color: specularGlossinessMatInfo.diffuseFactor || [1, 1, 1],
+                color: baseColor.slice(0, 3),
+                alpha: baseColor[3],
                 specularColor: specularGlossinessMatInfo.specularFactor || [1, 1, 1],
                 glossiness: specularGlossinessMatInfo.glossinessFactor || 0,
-                emission: materialInfo.emissiveFactor || [0, 0, 0]
+                emission: materialInfo.emissiveFactor || [0, 0, 0],
+                alphaCutoff: materialInfo.alphaCutoff == null ? 0.9 : materialInfo.alphaCutoff
             };
             if (commonProperties.glossinessMap) {
                 // Ignore specularFactor
