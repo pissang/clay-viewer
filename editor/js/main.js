@@ -54,7 +54,7 @@ var config = {
     // Which will add a constant color on any surface.
     ambientLight: {
         // ambient light intensity.
-        intensity: 0.3,
+        intensity: 0.0,
         // ambient light color.
         color: '#fff'
     },
@@ -213,27 +213,26 @@ scenePanel.addGroup({ label: 'Light' })
         .addCheckbox(config.postEffect.screenSpaceAmbientOcclusion, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceAmbientOcclusion, 'radius', { label: 'Radius', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceAmbientOcclusion, 'intensity', { label: 'Intensity', step: 0.1, onChange: updatePostEffect })
-        .addSelect(config.postEffect.screenSpaceAmbientOcclusion, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, selectTarget: 'quality' })
+        .addSelect(config.postEffect.screenSpaceAmbientOcclusion, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
 
     .addSubGroup({ label: 'Screen Space Reflection' })
         .addCheckbox(config.postEffect.screenSpaceReflection, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceReflection, 'maxRoughness', { label: 'Max Roughness', step: 0.01, onChange: updatePostEffect })
-        .addSelect(config.postEffect.screenSpaceReflection, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, selectTarget: 'quality' })
+        .addSelect(config.postEffect.screenSpaceReflection, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
     
     .addSubGroup({ label: 'Depth of Field' })
         .addCheckbox(config.postEffect.depthOfField, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.depthOfField, 'fstop', { label: 'f-stop', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.depthOfField, 'focalRange', { label: 'Focal Range', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.depthOfField, 'blurRadius', { label: 'Blur Radius', step: 0.1, onChange: updatePostEffect })
-        .addSelect(config.postEffect.screenSpaceAmbientOcclusion, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, selectTarget: 'quality' })
+        .addSelect(config.postEffect.depthOfField, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
     
 window.addEventListener('resize', function () { viewer.resize(); });
 //  var postProcessGroup = scenePanel.getGroups()[scenePanel.getGroups().length - 1];
 //  postProcessGroup.disable();
 
 
-
-FileAPI.event.dnd(document.getElementById('main'), function (files) {
+function loadFiles(files) {
     files = files.filter(function (file) {
         return file.name.match(/.(gltf|bin)$/)
             || file.type.match(/image/);
@@ -244,7 +243,6 @@ FileAPI.event.dnd(document.getElementById('main'), function (files) {
     if (!glTFFile) {
         alert('glTF file nout found');
     }
-    console.log(files);
 
     function readAllFiles(cb) {
         var count = 0;
@@ -278,4 +276,22 @@ FileAPI.event.dnd(document.getElementById('main'), function (files) {
             var pr = evt.loaded / evt.total * 100;
         }
     });
+}
+
+///////////// Drag and drop
+FileAPI.event.dnd(document.getElementById('main'), function (files) {
+    loadFiles(files);
+});
+
+
+///////////// Save and restore
+var filer = new Filer();
+
+filer.init({
+    persistent: true,
+    size: 1024 * 1024 * 100
+}, function (fs) {
+    console.log(fs);
+}, function (err) {
+    alert(err);
 });
