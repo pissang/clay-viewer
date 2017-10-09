@@ -3,6 +3,8 @@ var config = {
 
     showGround: true,
     shadow: true,
+
+    environment: 'auto',
     
     mainLight: {
         // If enable shadow of main light.
@@ -58,7 +60,7 @@ var config = {
     },
     ambientCubemapLight: {
         // Environment panorama texture url for cubemap lighting
-        texture: '',
+        texture: '../examples/asset/texture/pisa.hdr',
         // Exposure factor when parsing hdr format.
         exposure: 1,
         // Intensity of diffuse radiance.
