@@ -12,6 +12,7 @@ var Material = require('qtek/lib/Material');
 var PlaneGeometry = require('qtek/lib/geometry/Plane');
 var Shader = require('qtek/lib/Shader');
 var RayPicking = require('qtek/lib/picking/RayPicking');
+var notifier = require('qtek/lib/core/mixin/notifier');
 
 var RenderMain = require('./graphic/RenderMain');
 var graphicHelper = require('./graphic/helper');
@@ -136,6 +137,7 @@ Viewer.prototype.init = function (dom, opts) {
 
 Viewer.prototype._createGround = function () {
     var groundMesh = new Mesh({
+        isGround: true,
         material: new Material({
             shader: new Shader({
                 vertex: Shader.source('qmv.ground.vertex'),
@@ -222,16 +224,27 @@ Viewer.prototype._initHandlers = function () {
         camera: this._renderMain.camera
     });
 
-    this._focus = this._focus.bind(this);
-    this.root.addEventListener('click', this._focus);
+    this._clickHandler = this._clickHandler.bind(this);
+    this.root.addEventListener('click', this._clickHandler);
 };
 
-Viewer.prototype._focus = function (e) {
+Viewer.prototype._clickHandler = function (e) {
     var result = this._picking.pick(e.clientX, e.clientY, true);
     if (result) {
         this._renderMain.setDOFFocusOnPoint(result.distance);
         this.refresh();
-    }    
+    }
+
+    if (result && !result.target.isGround) {
+        this._selectResult = result;
+        this.trigger('select', result);
+    }
+    else {
+        if (this._selectResult) {
+            this.trigger('unselect', this._selectResult);
+        }
+        this._selectResult = null;
+    }
 };
 
 Viewer.prototype.resize = function () {
@@ -303,19 +316,22 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
             }
         };
     }
-
-    var loader = new GLTF2Loader({
+    var loaderOpts = {
         rootNode: new Node(),
         shaderName: 'qtek.' + shaderName,
         textureRootPath: opts.textureRootPath,
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: opts.textureFlipY,
-        resolveTexturePath: pathResolver,
-        resolveBinaryPath: pathResolver
-    });
-    if (typeof url === 'string') {
+        textureFlipY: opts.textureFlipY
+    };
+    if (pathResolver) {
+        loaderOpts.resolveTexturePath =
+        loaderOpts.resolveBinaryPath = pathResolver;
+    }
+
+    var loader = new GLTF2Loader(loaderOpts);
+    if (typeof gltfFile === 'string') {
         loader.load(gltfFile);
     }
     else {
@@ -385,6 +401,10 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     return task;
 };
 
+Viewer.prototype.getScene = function () {
+    return this._renderMain.scene;
+};
+
 Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
 
     var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
@@ -410,7 +430,7 @@ Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
-            // mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            mesh.material.shader.define('fragment', 'ALPHA_TEST');
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
@@ -762,6 +782,8 @@ Viewer.prototype.dispose = function () {
 
     this.stop();
 };
+
+util.extend(Viewer.prototype, notifier);
 
 module.exports = Viewer;
 
