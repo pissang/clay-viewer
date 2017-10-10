@@ -192,47 +192,44 @@ scenePanel.addGroup({ label: 'Global' })
     .addSelect(config.ambientCubemapLight, '$textureOptions', { label: 'HDR Texture', onChange: updateEnvironment, target: '$texture' })
     .addNumberInput(config.ambientCubemapLight, '$intensity', { label: 'Intensity', onChange: updateEnvironment, step: 0.1 });
 
-scenePanel.addGroup({ label: 'Light' })
-    .addSubGroup({ label: 'Main' })
+scenePanel.addGroup({ label: 'Light', enable: false })
+    .addSubGroup({ label: 'Main', enable: false })
         .addCheckbox(config.mainLight, 'shadow', { label: 'Cast Shadow', onChange: updateLight })
         .addNumberInput(config.mainLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
         .addColor(config.mainLight, 'color', { label: 'Color', onChange: updateLight })
         .addPad(config.mainLight, '$padAngle', { label: 'Direction', onChange: updateLight })
 
-    .addSubGroup({ label: 'Secondary' })
+    .addSubGroup({ label: 'Secondary', enable: false })
         .addNumberInput(config.secondaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
         .addColor(config.secondaryLight, 'color', { label: 'Color', onChange: updateLight })
         .addPad(config.secondaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
         
-    .addSubGroup({ label: 'Tertiary' })
+    .addSubGroup({ label: 'Tertiary', enable: false })
         .addNumberInput(config.tertiaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
         .addColor(config.tertiaryLight, 'color', { label: 'Color', onChange: updateLight })
         .addPad(config.tertiaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
 
-    .addSubGroup({ label: 'Ambient' })
+    .addSubGroup({ label: 'Ambient', enable: false })
         .addNumberInput(config.ambientLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
         .addColor(config.ambientLight, 'color', { label: 'Color', onChange: updateLight });
 
- var lightGroup = scenePanel.getGroups()[scenePanel.getGroups().length - 1];
- lightGroup.disable();
-
- scenePanel.addGroup({ label: 'Post Effect'})
-    .addSubGroup({ label: 'Bloom' })
+scenePanel.addGroup({ label: 'Post Effect', enable: false})
+    .addSubGroup({ label: 'Bloom', enable: false })
         .addCheckbox(config.postEffect.bloom, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.bloom, 'intensity', { label: 'Intensity', step: 0.1, onChange: updatePostEffect })
-    
-    .addSubGroup({ label: 'Screen Space Ambient Occulusion' })
+
+    .addSubGroup({ label: 'Screen Space Ambient Occulusion', enable: false })
         .addCheckbox(config.postEffect.screenSpaceAmbientOcclusion, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceAmbientOcclusion, 'radius', { label: 'Radius', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceAmbientOcclusion, 'intensity', { label: 'Intensity', step: 0.1, onChange: updatePostEffect })
         .addSelect(config.postEffect.screenSpaceAmbientOcclusion, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
 
-    .addSubGroup({ label: 'Screen Space Reflection' })
+    .addSubGroup({ label: 'Screen Space Reflection', enable: false })
         .addCheckbox(config.postEffect.screenSpaceReflection, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.screenSpaceReflection, 'maxRoughness', { label: 'Max Roughness', step: 0.01, onChange: updatePostEffect })
         .addSelect(config.postEffect.screenSpaceReflection, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
-    
-    .addSubGroup({ label: 'Depth of Field' })
+
+    .addSubGroup({ label: 'Depth of Field', enable: false })
         .addCheckbox(config.postEffect.depthOfField, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addNumberInput(config.postEffect.depthOfField, 'fstop', { label: 'f-stop', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.depthOfField, 'focalRange', { label: 'Focal Range', step: 0.1, onChange: updatePostEffect })
@@ -320,8 +317,7 @@ function saveSceneFiles(files) {
             files.forEach(function (file) {
                 filer.write('/project/scene/' + file.name, { data: file, type: file.type }, function () {
                     count--;
-                    if (count == 0) {
-                        swal('Saved files');
+                    if (count === 0) {
                     }
                 }, function (err) {
                     swal(err.toString());
