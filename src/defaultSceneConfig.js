@@ -4,6 +4,12 @@ module.exports = {
     shadow: true,
     // Environment panorama texture url.
     environment: '',
+
+    // Configuration abount ground
+    ground: {
+        show: false
+    },
+    
     // QMV provide three directional lights and two ambient lights.
 
     // Configuration of main light

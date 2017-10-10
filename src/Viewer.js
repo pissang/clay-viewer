@@ -124,8 +124,9 @@ Viewer.prototype.init = function (dom, opts) {
         this.setEnvironment(opts.environment);
     }
 
-    if (opts.showGround) {
-        this._createGround();
+    this._createGround();
+    if (opts.ground) {
+        this.setGround(opts.ground);
     }
 
     this._initHandlers();
@@ -573,6 +574,15 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             }
         });
     }, this);
+    this.refresh();
+};
+
+/**
+ * @param {Object} opts
+ * @param {boolean} [opts.show]
+ */
+Viewer.prototype.setGround = function (opts) {
+    this._groundMesh.invisible = !opts.show;
     this.refresh();
 };
 

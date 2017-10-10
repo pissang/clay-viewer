@@ -3,10 +3,13 @@ var ENV_TEXTURE_ROOT = '../examples/asset/texture/';
 var config = {
     textureFlipY: false,
 
-    showGround: true,
     shadow: true,
 
     environment: 'auto',
+
+    ground: {
+        show: true
+    },
     
     mainLight: {
         // If enable shadow of main light.
@@ -184,11 +187,18 @@ function updateEnvironment() {
     config.ambientCubemapLight.diffuseIntensity = config.ambientCubemapLight.specularIntensity = config.ambientCubemapLight.$intensity;
     viewer.setAmbientCubemapLight(config.ambientCubemapLight);
 }
+function updateGround() {
+    viewer.setGround(config.ground);
+}
 
 var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 })
 scenePanel.addGroup({ label: 'Global' })
-    .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
-    .addSubGroup({ label: 'Environment' })
+    .addSubGroup( { label: 'Load Option'})
+        .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
+    .addSubGroup( { label: 'Ground' })
+        .addCheckbox(config.ground, 'show', { label: 'Show', onChange: updateGround });
+
+scenePanel.addGroup({ label: 'Environment' })
     .addSelect(config.ambientCubemapLight, '$textureOptions', { label: 'HDR Texture', onChange: updateEnvironment, target: '$texture' })
     .addNumberInput(config.ambientCubemapLight, '$intensity', { label: 'Intensity', onChange: updateEnvironment, step: 0.1 });
 
