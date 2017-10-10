@@ -251,6 +251,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         this.setPose(0);
         this._modelNode.update();
         var bbox = getBoundingBoxWithSkinning(this._modelNode);
+        bbox.applyTransform(this._modelNode.localTransform);
 
         var size = new Vector3();
         size.copy(bbox.max).sub(bbox.min);
