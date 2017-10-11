@@ -13,19 +13,30 @@ import graphicHelper from './helper';
 
 import effectJson from './composite.js';
 
-Shader['import'](require('qtek/src/shader/source/compositor/blur.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/output.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/bright.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/downsample.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/upsample.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/hdr.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/blend.glsl.js'));
-Shader['import'](require('qtek/src/shader/source/compositor/fxaa.glsl.js'));
+import blurGLSL from 'qtek/src/shader/source/compositor/blur.glsl.js';
+import outputGLSL from 'qtek/src/shader/source/compositor/output.glsl.js';
+import brightGLSL from 'qtek/src/shader/source/compositor/bright.glsl.js';
+import downsampleGLSL from 'qtek/src/shader/source/compositor/downsample.glsl.js';
+import upsampleGLSL from 'qtek/src/shader/source/compositor/upsample.glsl.js';
+import hdrGLSL from 'qtek/src/shader/source/compositor/hdr.glsl.js';
+import blendGLSL from 'qtek/src/shader/source/compositor/blend.glsl.js';
+import fxaaGLSL from 'qtek/src/shader/source/compositor/fxaa.glsl.js';
 
-Shader['import'](require('qtek/src/shader/source/deferred/gbuffer.glsl.js'));
+import gbufferGLSL from 'qtek/src/shader/source/deferred/gbuffer.glsl.js';
+import dofGLSL from './DOF.glsl.js';
+import edgeGLSL from './edge.glsl.js';
 
-Shader['import'](require('./DOF.glsl.js'));
-Shader['import'](require('./edge.glsl.js'));
+Shader['import'](blurGLSL);
+Shader['import'](outputGLSL);
+Shader['import'](brightGLSL);
+Shader['import'](downsampleGLSL);
+Shader['import'](upsampleGLSL);
+Shader['import'](hdrGLSL);
+Shader['import'](blendGLSL);
+Shader['import'](fxaaGLSL);
+Shader['import'](gbufferGLSL);
+Shader['import'](dofGLSL);
+Shader['import'](edgeGLSL);
 
 
 var commonOutputs = {

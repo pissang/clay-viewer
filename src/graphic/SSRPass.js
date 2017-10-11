@@ -1,11 +1,11 @@
-var Matrix4 = require('qtek/src/math/Matrix4');
-var Vector3 = require('qtek/src/math/Vector3');
-var Texture2D = require('qtek/src/Texture2D');
-var Texture = require('qtek/src/Texture');
-var Pass = require('qtek/src/compositor/Pass');
-var Shader = require('qtek/src/Shader');
-var FrameBuffer = require('qtek/src/FrameBuffer');
-var halton = require('./halton');
+import Matrix4 from 'qtek/src/math/Matrix4';
+import Vector3 from 'qtek/src/math/Vector3';
+import Texture2D from 'qtek/src/Texture2D';
+import Texture from 'qtek/src/Texture';
+import Pass from 'qtek/src/compositor/Pass';
+import Shader from 'qtek/src/Shader';
+import FrameBuffer from 'qtek/src/FrameBuffer';
+import halton from './halton';
 
 import SSRGLSLCode from './SSR.glsl.js';
 
