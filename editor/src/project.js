@@ -108,8 +108,5 @@ function loadSceneFiles(files, cb) {
     });
 }
 
-module.exports = {
-    init: init,
-    saveSceneFiles: saveSceneFiles,
-    loadSceneFiles: loadSceneFiles
-};
+
+export { init, saveSceneFiles, loadSceneFiles };

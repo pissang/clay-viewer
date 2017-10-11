@@ -1,8 +1,8 @@
-var Mesh = require('qtek/lib/Mesh');
-var BoundingBox = require('qtek/lib/math/BoundingBox');
-var StaticGeometry = require('qtek/lib/StaticGeometry');
-var Material = require('qtek/lib/Material');
-var Shader = require('qtek/lib/Shader');
+import Mesh from 'qtek/src/Mesh';
+import BoundingBox from 'qtek/src/math/BoundingBox';
+import StaticGeometry from 'qtek/src/StaticGeometry';
+import Material from 'qtek/src/Material';
+import Shader from 'qtek/src/Shader';
 
 var BOX_POINTS = [
     [-1, 1, 1], [1, 1, 1],
@@ -67,4 +67,4 @@ var BoundingGzimo = Mesh.extend(function () {
     }
 });
 
-module.exports = BoundingGzimo;
+export default BoundingGzimo;

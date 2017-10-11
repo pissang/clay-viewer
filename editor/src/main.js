@@ -1,8 +1,10 @@
-var QMV = require('../../index');
-var getDefaultConfig = require('./getDefaultConfig');
-var project = require('./project');
-var env = require('./env');
+import QMV from '../../index';
+import getDefaultConfig from './getDefaultConfig';
+import * as project from './project';
+import env from './env';
+import BoundingBoxGizmo from './debug/BoundingBoxGizmo';
 
+var boundingBoxGizmo = new BoundingBoxGizmo();
 
 var config = getDefaultConfig();
 
@@ -105,11 +107,17 @@ scenePanel.addGroup({ label: 'Post Effect', enable: false})
         .addNumberInput(config.postEffect.colorCorrection, 'brightness', { label: 'Brightness', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
-    
-    
+
 window.addEventListener('resize', function () { viewer.resize(); });
-//  var postProcessGroup = scenePanel.getGroups()[scenePanel.getGroups().length - 1];
-//  postProcessGroup.disable();
+
+viewer.on('select', function (result) {
+    viewer.getScene().add(boundingBoxGizmo);
+    boundingBoxGizmo.target = result.target;
+});
+viewer.on('unselect', function () {
+    viewer.getScene().remove(boundingBoxGizmo);
+    boundingBoxGizmo.target = null;
+});
 
 ///////////// Drag and drop
 FileAPI.event.dnd(document.getElementById('main'), function (files) {

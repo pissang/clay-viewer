@@ -1,6 +1,6 @@
-var env = require('./env');
+import env from './env';
 
-module.exports = function () {
+export default function () {
     return {
         textureFlipY: false,
     
