@@ -1,13 +1,15 @@
-var Matrix4 = require('qtek/lib/math/Matrix4');
-var Vector3 = require('qtek/lib/math/Vector3');
-var Texture2D = require('qtek/lib/Texture2D');
-var Texture = require('qtek/lib/Texture');
-var Pass = require('qtek/lib/compositor/Pass');
-var Shader = require('qtek/lib/Shader');
-var FrameBuffer = require('qtek/lib/FrameBuffer');
+var Matrix4 = require('qtek/src/math/Matrix4');
+var Vector3 = require('qtek/src/math/Vector3');
+var Texture2D = require('qtek/src/Texture2D');
+var Texture = require('qtek/src/Texture');
+var Pass = require('qtek/src/compositor/Pass');
+var Shader = require('qtek/src/Shader');
+var FrameBuffer = require('qtek/src/FrameBuffer');
 var halton = require('./halton');
 
-Shader.import(require('./SSR.glsl.js'));
+import SSRGLSLCode from './SSR.glsl.js';
+
+Shader.import(SSRGLSLCode);
 
 function SSRPass(opt) {
     opt = opt || {};
@@ -106,4 +108,4 @@ SSRPass.prototype.dispose = function (gl) {
     this._frameBuffer.dispose(gl);
 };
 
-module.exports = SSRPass;
+export default SSRPass;

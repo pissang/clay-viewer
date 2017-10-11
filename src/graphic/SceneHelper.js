@@ -1,9 +1,9 @@
-var helper = require('./helper');
-var Skybox = require('qtek/lib/plugin/Skybox');
-var Skydome = require('qtek/lib/plugin/Skydome');
-var Vector3 = require('qtek/lib/math/Vector3');
-var DirectionalLight = require('qtek/lib/light/Directional');
-var AmbientLight = require('qtek/lib/light/Ambient');
+import helper from './helper';
+import Skybox from 'qtek/src/plugin/Skybox';
+import Skydome from 'qtek/src/plugin/Skydome';
+import Vector3 from 'qtek/src/math/Vector3';
+import DirectionalLight from 'qtek/src/light/Directional';
+import AmbientLight from 'qtek/src/light/Ambient';
 
 function SceneHelper(scene) {
     this.setScene(scene);
@@ -237,4 +237,4 @@ SceneHelper.prototype = {
     }
 };
 
-module.exports = SceneHelper;
+export default SceneHelper;

@@ -1,30 +1,31 @@
-var Renderer = require('qtek/lib/Renderer');
-var GLTF2Loader = require('qtek/lib/loader/GLTF2');
-var Vector3 = require('qtek/lib/math/Vector3');
-var Animation = require('qtek/lib/animation/Animation');
-var meshUtil = require('qtek/lib/util/mesh');
-var Task = require('qtek/lib/async/Task');
-var TaskGroup = require('qtek/lib/async/TaskGroup');
-var util = require('qtek/lib/core/util');
-var Node = require('qtek/lib/Node');
-var Mesh = require('qtek/lib/Mesh');
-var Material = require('qtek/lib/Material');
-var PlaneGeometry = require('qtek/lib/geometry/Plane');
-var Shader = require('qtek/lib/Shader');
-var RayPicking = require('qtek/lib/picking/RayPicking');
-var notifier = require('qtek/lib/core/mixin/notifier');
+import Renderer from 'qtek/src/Renderer';
+import GLTF2Loader from 'qtek/src/loader/GLTF2';
+import Vector3 from 'qtek/src/math/Vector3';
+import Animation from 'qtek/src/animation/Animation';
+import meshUtil from 'qtek/src/util/mesh';
+import Task from 'qtek/src/async/Task';
+import TaskGroup from 'qtek/src/async/TaskGroup';
+import util from 'qtek/src/core/util';
+import Node from 'qtek/src/Node';
+import Mesh from 'qtek/src/Mesh';
+import Material from 'qtek/src/Material';
+import PlaneGeometry from 'qtek/src/geometry/Plane';
+import Shader from 'qtek/src/Shader';
+import RayPicking from 'qtek/src/picking/RayPicking';
+import notifier from 'qtek/src/core/mixin/notifier';
 
-var RenderMain = require('./graphic/RenderMain');
-var graphicHelper = require('./graphic/helper');
-var SceneHelper = require('./graphic/SceneHelper');
-var defaultSceneConfig = require('./defaultSceneConfig');
-var zrUtil = require('zrender/lib/core/util');
+import RenderMain from './graphic/RenderMain';
+import graphicHelper from './graphic/helper';
+import SceneHelper from './graphic/SceneHelper';
+import defaultSceneConfig from './defaultSceneConfig';
+import zrUtil from 'zrender/lib/core/util';
 
-var getBoundingBoxWithSkinning = require('./util/getBoundingBoxWithSkinning');
-var OrbitControl = require('qtek/lib/plugin/OrbitControl');
-var HotspotManager = require('./HotspotManager');
+import getBoundingBoxWithSkinning from './util/getBoundingBoxWithSkinning';
+import OrbitControl from 'qtek/src/plugin/OrbitControl';
+import HotspotManager from './HotspotManager';
 
-Shader.import(require('./graphic/ground.glsl.js'));
+import groundGLSLCode from './graphic/ground.glsl.js';
+Shader.import(groundGLSLCode);
 
 /**
  * @constructor
@@ -785,7 +786,7 @@ Viewer.prototype.dispose = function () {
 
 util.extend(Viewer.prototype, notifier);
 
-module.exports = Viewer;
+export default Viewer;
 
 
 

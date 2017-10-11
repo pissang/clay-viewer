@@ -1,13 +1,15 @@
-var Matrix4 = require('qtek/lib/math/Matrix4');
-var Vector3 = require('qtek/lib/math/Vector3');
-var Texture2D = require('qtek/lib/Texture2D');
-var Texture = require('qtek/lib/Texture');
-var Pass = require('qtek/lib/compositor/Pass');
-var Shader = require('qtek/lib/Shader');
-var FrameBuffer = require('qtek/lib/FrameBuffer');
-var halton = require('./halton');
+import Matrix4 from 'qtek/src/math/Matrix4';
+import Vector3 from 'qtek/src/math/Vector3';
+import Texture2D from 'qtek/src/Texture2D';
+import Texture from 'qtek/src/Texture';
+import Pass from 'qtek/src/compositor/Pass';
+import Shader from 'qtek/src/Shader';
+import FrameBuffer from 'qtek/src/FrameBuffer';
+import halton from './halton';
 
-Shader.import(require('./SSAO.glsl.js'));
+import SSAOGLSLCode from './SSAO.glsl.js';
+
+Shader.import(SSAOGLSLCode);
 
 function generateNoiseData(size) {
     var data = new Uint8Array(size * size * 4);
@@ -206,4 +208,4 @@ SSAOPass.prototype.dispose = function (gl) {
     this._ssaoTexture.dispose(gl);
 };
 
-module.exports = SSAOPass;
+export default SSAOPass;

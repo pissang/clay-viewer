@@ -1,5 +1,5 @@
-var BoundingBox = require('qtek/lib/math/BoundingBox');
-var glmatrix = require('qtek/lib/dep/glmatrix');
+import BoundingBox from 'qtek/src/math/BoundingBox';
+import glmatrix from 'qtek/src/dep/glmatrix';
 var vec3 = glmatrix.vec3;
 
 function getBoundingBoxOfSkinningMesh(mesh, out) {
@@ -85,4 +85,4 @@ function getBoundingBoxWithSkinning(node, out) {
     return out;
 }
 
-module.exports = getBoundingBoxWithSkinning;
+export default getBoundingBoxWithSkinning;

@@ -1,12 +1,12 @@
-var Texture = require('qtek/lib/Texture');
-var Material = require('qtek/lib/Material');
-var LRUCache = require('zrender/lib/core/LRU');
-var textureUtil = require('qtek/lib/util/texture');
-var AmbientCubemapLight = require('qtek/lib/light/AmbientCubemap');
-var AmbientSHLight = require('qtek/lib/light/AmbientSH');
-var shUtil = require('qtek/lib/util/sh');
-var colorUtil = require('zrender/lib/tool/color');
-var Texture2D = require('qtek/lib/Texture2D');
+import Texture from 'qtek/src/Texture';
+import Material from 'qtek/src/Material';
+import LRUCache from 'zrender/lib/core/LRU';
+import textureUtil from 'qtek/src/util/texture';
+import AmbientCubemapLight from 'qtek/src/light/AmbientCubemap';
+import AmbientSHLight from 'qtek/src/light/AmbientSH';
+import shUtil from 'qtek/src/util/sh';
+import colorUtil from 'zrender/lib/tool/color';
+import Texture2D from 'qtek/src/Texture2D';
 
 function isValueNone(value) {
     return !value || value === 'none';
@@ -303,4 +303,4 @@ helper.directionFromAlphaBeta = function (alpha, beta) {
     return dir;
 };
 
-module.exports = helper;
+export default helper;

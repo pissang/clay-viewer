@@ -1,6 +1,6 @@
-var Base = require('qtek/lib/core/Base');
-var Vector4 = require('qtek/lib/math/Vector4');
-var BoundingBox = require('qtek/lib/math/BoundingBox');
+import Base from 'qtek/src/core/Base';
+import Vector4 from 'qtek/src/math/Vector4';
+import BoundingBox from 'qtek/src/math/BoundingBox';
 
 var DEFAULT_FAR_ALPHA = 0.1;
 var DEFAULT_NEAR_ALPHA = 1.0;
@@ -120,4 +120,4 @@ var HotspotManger = Base.extend(function () {
     }
 });
 
-module.exports = HotspotManger;
+export default HotspotManger;

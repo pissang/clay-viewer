@@ -108,4 +108,4 @@ var recognizers = {
     }
 };
 
-module.exports = GestureMgr;
+export default GestureMgr;

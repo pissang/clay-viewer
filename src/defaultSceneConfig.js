@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     devicePixelRatio: null,
     // If enable shadow
     shadow: true,

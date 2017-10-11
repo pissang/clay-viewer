@@ -1,3 +1,2 @@
-module.exports = {
-    Viewer: require('./src/Viewer')
-};
+import Viewer from './src/Viewer';
+export { Viewer };

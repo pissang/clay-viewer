@@ -1,18 +1,18 @@
 // TODO Default parameter of postEffect
 
-var Scene = require('qtek/lib/Scene');
-var ShadowMapPass = require('qtek/lib/prePass/ShadowMap');
-var PerspectiveCamera = require('qtek/lib/camera/Perspective');
-var OrthographicCamera = require('qtek/lib/camera/Orthographic');
-var Matrix4 = require('qtek/lib/math/Matrix4');
-var Vector3 = require('qtek/lib/math/Vector3');
-var Vector2 = require('qtek/lib/math/Vector2');
+import Scene from 'qtek/src/Scene';
+import ShadowMapPass from 'qtek/src/prePass/ShadowMap';
+import PerspectiveCamera from 'qtek/src/camera/Perspective';
+import OrthographicCamera from 'qtek/src/camera/Orthographic';
+import Matrix4 from 'qtek/src/math/Matrix4';
+import Vector3 from 'qtek/src/math/Vector3';
+import Vector2 from 'qtek/src/math/Vector2';
 
-var notifier = require('qtek/lib/core/mixin/notifier');
+import notifier from 'qtek/src/core/mixin/notifier';
 
-var EffectCompositor = require('./EffectCompositor');
-var TemporalSuperSampling = require('./TemporalSuperSampling');
-var halton = require('./halton');
+import EffectCompositor from './EffectCompositor';
+import TemporalSuperSampling from './TemporalSuperSampling';
+import halton from './halton';
 
 function RenderMain(renderer, enableShadow, projection) {
 
@@ -394,4 +394,4 @@ RenderMain.prototype.removeAll = function (node3D) {
     this.rootNode.removeAll(node3D);
 };
 
-module.exports = RenderMain;
+export default RenderMain;
