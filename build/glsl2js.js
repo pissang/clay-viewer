@@ -1,9 +1,7 @@
 var glob = require('glob');
 var fs = require('fs');
 
-var ROOT = __dirname + '/../src/';
-
-glob(ROOT + '**/*.glsl', function (err, files) {
+glob(__dirname + '/../{src,editor}/**/*.glsl', function (err, files) {
     files.forEach(function (filePath) {
         var esslCode = fs.readFileSync(filePath, 'utf-8');
         // TODO Remove comment

@@ -4,6 +4,11 @@ import StaticGeometry from 'qtek/src/StaticGeometry';
 import Material from 'qtek/src/Material';
 import Shader from 'qtek/src/Shader';
 
+import Lines3DGeometry from './Lines3DGeometry';
+import lines3DGLSL from './lines3d.glsl.js';
+
+Shader.import(lines3DGLSL);
+
 var BOX_POINTS = [
     [-1, 1, 1], [1, 1, 1],
     [1, 1, 1], [1, -1, 1],
@@ -26,8 +31,6 @@ var BoundingGzimo = Mesh.extend(function () {
     return {
         target: null,
 
-        mode: Mesh.LINES,
-
         lineWidth: 3,
 
         ignorePicking: true,
@@ -36,19 +39,21 @@ var BoundingGzimo = Mesh.extend(function () {
     };
 }, function () {
     if (!this.geometry) {
-        var geometry = this.geometry = new StaticGeometry();
-        var attributes = geometry.attributes;
-
-        attributes.position.init(24);
-        for (var i = 0; i < BOX_POINTS.length; i++) {
-            attributes.position.set(i, BOX_POINTS[i]);
+        var geometry = this.geometry = new Lines3DGeometry({
+            useNativeLine: false
+        });
+        geometry.setVertexCount(geometry.getLineVertexCount() * 12);
+        geometry.setTriangleCount(geometry.getLineTriangleCount() * 12);
+        geometry.resetOffset();
+        for (var i = 0; i < BOX_POINTS.length; i += 2) {
+            geometry.addLine(BOX_POINTS[i], BOX_POINTS[i + 1], [1, 1, 1, 1], this.lineWidth);
         }
     }
     if (!this.material) {
         this.material = new Material({
             shader: new Shader({
-                vertex: Shader.source('qtek.basic.vertex'),
-                fragment: Shader.source('qtek.basic.fragment')
+                vertex: Shader.source('ecgl.meshLines3D.vertex'),
+                fragment: Shader.source('ecgl.meshLines3D.fragment')
             })
         });
     }
