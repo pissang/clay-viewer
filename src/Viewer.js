@@ -143,7 +143,8 @@ Viewer.prototype._createGround = function () {
             shader: new Shader({
                 vertex: Shader.source('qmv.ground.vertex'),
                 fragment: Shader.source('qmv.ground.fragment')
-            })
+            }),
+            transparent: true
         }),
         castShadow: false,
         geometry: new PlaneGeometry()
@@ -226,10 +227,24 @@ Viewer.prototype._initHandlers = function () {
     });
 
     this._clickHandler = this._clickHandler.bind(this);
+    this._mouseDownHandler = this._mouseDownHandler.bind(this);
+
+    this.root.addEventListener('mousedown', this._mouseDownHandler);
     this.root.addEventListener('click', this._clickHandler);
 };
 
+Viewer.prototype._mouseDownHandler = function (e) {
+    this._startX = e.clientX;
+    this._startY = e.clientY;
+};
+
 Viewer.prototype._clickHandler = function (e) {
+    var dx = e.clientX - this._startX;
+    var dy = e.clientY - this._startY;
+    if (Math.sqrt(dx * dx + dy * dy) >= 10) {
+        return;
+    }
+
     var result = this._picking.pick(e.clientX, e.clientY, true);
     if (result) {
         this._renderMain.setDOFFocusOnPoint(result.distance);
