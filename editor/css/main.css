@@ -14,6 +14,14 @@ body {
 #controlKit .panel .group-list .group .sub-group-list .sub-group {
     padding: 5px;
 }
+#controlKit .panel .group-list .group .sub-group-list .sub-group .wrap .label {
+    width: 45%;
+}
+#controlKit .panel .group-list .group .sub-group-list .sub-group .wrap .wrap,
+#controlKit .panel .svg-wrap, #controlKit .panel .canvas-wrap,
+#controlKit .panel .wrap-slider {
+    width: 55%;
+}
 
 .pace {
 -webkit-pointer-events: none;

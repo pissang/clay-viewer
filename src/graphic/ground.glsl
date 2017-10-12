@@ -104,7 +104,7 @@ void main()
 
     gl_FragColor.rgb *= diffuseColor;
 
-    gl_FragColor.a *= 1.0 - clamp(length(v_WorldPosition.xz) / 40.0, 0.0, 1.0);
+    gl_FragColor.a *= 1.0 - clamp(length(v_WorldPosition.xz) / 30.0, 0.0, 1.0);
 
 }
 

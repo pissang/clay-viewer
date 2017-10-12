@@ -285,6 +285,21 @@ helper.parseColor = function (colorStr, rgba) {
 };
 
 /**
+ * @param {Array.<number>} colorArr
+ * @return {string}
+ */
+helper.stringifyColor = function (colorArr, type) {
+    colorArr = colorArr.slice();
+    colorArr[0] = Math.round(colorArr[0] * 255);
+    colorArr[1] = Math.round(colorArr[1] * 255);
+    colorArr[2] = Math.round(colorArr[2] * 255);
+    if (type === 'hex') {
+        return '#' + ((1 << 24) + (colorArr[0] << 16) + (colorArr[1] << 8) + colorArr[2]).toString(16).slice(1);
+    }
+    return colorUtil.stringify(colorArr, type);
+};
+
+/**
  * Convert alpha beta rotation to direction.
  * @param {number} alpha
  * @param {number} beta

@@ -1,20 +1,19 @@
+import Scene from 'qtek/src/Scene';
 import QMV from '../../index';
-import getDefaultConfig from './getDefaultConfig';
+import getDefaultSceneConfig from './getDefaultSceneConfig';
+import getDefaultMaterialConfig from './getDefaultMaterialConfig';
 import * as project from './project';
 import env from './env';
 import BoundingBoxGizmo from './debug/BoundingBoxGizmo';
+import util from 'qtek/src/core/util';
 
 var boundingBoxGizmo = new BoundingBoxGizmo();
+var gizmoScene = new Scene();
 
-var config = getDefaultConfig();
+var config = getDefaultSceneConfig();
+var materialConfig = getDefaultMaterialConfig();
 
-var viewer = new QMV.Viewer(document.getElementById('main'), config);
-viewer.setCameraControl({
-    alpha: 20,
-    beta: 30,
-    distance: 8
-});
-viewer.start();
+var viewer;
 
 var controlKit = new ControlKit({
     loadAndSave: true,
@@ -46,7 +45,17 @@ function updateGround() {
     viewer.setGround(config.ground);
 }
 
-var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 })
+function updateMaterial() {
+    viewer.setMaterial(materialConfig.name, materialConfig);
+}
+
+function selectMaterial(mat) {
+    materialConfig.name = mat.name;
+    util.extend(materialConfig, viewer.getMaterial(mat.name));
+    controlKit.update();
+}
+
+var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 });
 scenePanel.addGroup({ label: 'Global' })
     .addSubGroup( { label: 'Load Option'})
         .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
@@ -108,39 +117,76 @@ scenePanel.addGroup({ label: 'Post Effect', enable: false})
         .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
         .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
 
+
+var materialPanel = controlKit.addPanel({ label: 'Material', width: 200, fixed: false, align: 'left' });
+materialPanel
+    .addStringOutput(materialConfig, 'name', { label: 'Name' })
+    .addColor(materialConfig, 'color', { label: 'Albedo', onChange: updateMaterial })
+    .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
+    .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
+    .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+materialPanel.disable();
+
 window.addEventListener('resize', function () { viewer.resize(); });
 
-viewer.on('select', function (result) {
-    viewer.getScene().add(boundingBoxGizmo);
-    boundingBoxGizmo.target = result.target;
-});
-viewer.on('unselect', function () {
-    viewer.getScene().remove(boundingBoxGizmo);
-    boundingBoxGizmo.target = null;
-});
+function init(loadedSceneCfg) {
+    viewer = new QMV.Viewer(document.getElementById('main'), loadedSceneCfg || config);
+    viewer.setCameraControl(config.viewControl);
+    viewer.start();
 
-///////////// Drag and drop
-FileAPI.event.dnd(document.getElementById('main'), function (files) {
-    files = files.filter(function (file) {
-        return file.name.match(/.(gltf|bin)$/)
-            || file.type.match(/image/);
+    viewer.on('select', function (result) {
+        gizmoScene.add(boundingBoxGizmo);
+        boundingBoxGizmo.target = result.target;
+
+        materialPanel.enable();
+        selectMaterial(result.target.material);
     });
-    project.loadSceneFiles(files, function (glTF, filesMap) {
-        viewer.loadModel(glTF, {
-            files: filesMap,
-            textureFlipY: config.textureFlipY,
-            zUpToYUp: config.zUpToYUp
+    viewer.on('unselect', function () {
+        gizmoScene.remove(boundingBoxGizmo);
+        boundingBoxGizmo.target = null;
+        materialPanel.disable();
+    });
+
+    viewer.on('renderscene', function (renderer, scene, camera) {
+        renderer.saveClear();
+        renderer.clearBit = 0;
+        renderer.render(gizmoScene, camera);
+        renderer.restoreClear();
+    });
+
+    ///////////// Drag and drop
+    FileAPI.event.dnd(document.getElementById('main'), function (files) {
+        files = files.filter(function (file) {
+            return file.name.match(/.(gltf|bin)$/)
+                || file.type.match(/image/);
         });
+        project.loadModelFiles(files, function (glTF, filesMap) {
+            viewer.loadModel(glTF, {
+                files: filesMap,
+                textureFlipY: config.textureFlipY,
+                zUpToYUp: config.zUpToYUp
+            });
+        });
+        project.saveModelFiles(files);
     });
-    project.saveSceneFiles(files);
-});
+}
 
-project.init(function (glTF, filesMap) {
+
+project.init(function (glTF, filesMap, loadedSceneCfg) {
+
+    init(loadedSceneCfg);
+
     if (glTF) {
         viewer.loadModel(glTF, {
             files: filesMap,
             textureFlipY: config.textureFlipY,
             zUpToYUp: config.zUpToYUp
-        });
+        });        
     }
 });
+
+setInterval(function () {
+    if (viewer) {
+        project.saveSceneConfig(config);
+    }
+}, 5000);

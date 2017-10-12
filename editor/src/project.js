@@ -1,3 +1,5 @@
+import Filer from 'filer.js';
+
 var filer = new Filer();
 var filerInited = false;
 
@@ -7,21 +9,26 @@ function init(cb) {
         size: 1024 * 1024 * 200
     }, function (fs) {
         filerInited = true;
-        loadScene(cb);
+        Promise.all([
+            loadModelFromFS(),
+            loadSceneFromFS()
+        ]).then(function (result) {
+            cb && cb(result[0][0], result[0][1], result[1]);
+        });
     }, function (err) {
         swal(err.toString());
     });
 }
 
-function saveSceneFiles(files) {
+function saveModelFiles(files) {
     if (!filerInited) {
         swal('Not inited yet.');
     }
     function doSave() {
-        filer.mkdir('/project/scene', false, function () {
+        filer.mkdir('/project/model', false, function () {
             var count = files.length;
             files.forEach(function (file) {
-                filer.write('/project/scene/' + file.name, { data: file, type: file.type }, function () {
+                filer.write('/project/model/' + file.name, { data: file, type: file.type }, function () {
                     count--;
                     if (count === 0) {
                     }
@@ -33,7 +40,7 @@ function saveSceneFiles(files) {
             swal(err.toString());
         });
     }
-    filer.ls('/project/scene', function (entries) {
+    filer.ls('/project/model', function (entries) {
         var count = entries.length;
         if (count === 0) {
             doSave();
@@ -51,27 +58,56 @@ function saveSceneFiles(files) {
     });
 }
 
-function loadScene(cb) {
-    filer.ls('/project/scene', function (entries) {
-        var files = [];
-        entries = entries.filter(function (entry) {
-            return entry.isFile;
-        });
-        entries.forEach(function (entry) {
-            filer.open(entry, function (file) {
-                files.push(file);
-                if (files.length === entries.length) {
-                    loadSceneFiles(files, cb);
-                }
+function saveSceneConfig(sceneCfg) {
+    filer.write('/project/scene.json', {
+        data: JSON.stringify(sceneCfg),
+        type: 'application/json'
+    }, function () {
+        console.log('Saved scene');
+    }, function () {
+        console.error('Failed to save scene');
+    });
+}
+
+function loadSceneFromFS() {
+    // return new Promise(function (resolve, reject) {
+    //     filer.open('/project/scene.json', function (file) {
+    //         FileAPI.readAsText(file, 'utf-8', function (evt) {
+    //             if (evt.type === 'load') {
+    //                 resolve(evt.result);
+    //             }
+    //         });
+    //     }, function (err) {
+    //         resolve(null);
+    //     });
+    // });
+}
+
+function loadModelFromFS() {
+    return new Promise(function (resolve, reject) {
+        filer.ls('/project/model', function (entries) {
+            var files = [];
+            entries = entries.filter(function (entry) {
+                return entry.isFile;
             });
+            entries.forEach(function (entry) {
+                filer.open(entry, function (file) {
+                    files.push(file);
+                    if (files.length === entries.length) {
+                        loadModelFiles(files, function (glTF, filesMap) {
+                            resolve([glTF, filesMap]);
+                        });
+                    }
+                });
+            });
+        }, function (err) {
+            resolve([]);
         });
-    }, function (err) {
-        cb();
     });
 }
 
 var filesMap = {};
-function loadSceneFiles(files, cb) {
+function loadModelFiles(files, cb) {
     var glTFFile = files.find(function (file) {
         return file.name.match(/.gltf$/);
     });
@@ -109,4 +145,4 @@ function loadSceneFiles(files, cb) {
 }
 
 
-export { init, saveSceneFiles, loadSceneFiles };
+export { init, saveModelFiles, loadModelFiles, saveSceneConfig };

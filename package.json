@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
+    "glob": "^7.1.2",
     "qtek": "^0.4.0",
     "rollup-plugin-commonjs": "^8.2.1",
     "rollup-plugin-node-resolve": "^3.0.0",

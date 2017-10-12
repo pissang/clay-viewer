@@ -9,6 +9,12 @@ export default function () {
         shadow: true,
     
         environment: 'auto',
+
+        viewControl: {
+            alpha: 20,
+            beta: 30,
+            distance: 8
+        },
     
         ground: {
             show: true
@@ -89,7 +95,7 @@ export default function () {
             // Configuration about bloom post effect
             bloom: {
                 // If enable bloom
-                enable: true,
+                enable: false,
                 // Intensity of bloom
                 intensity: 0.1
             },
@@ -116,7 +122,7 @@ export default function () {
                 // Sampling radius in work space.
                 // Larger will produce more soft concat shadow.
                 // But also needs higher quality or it will have more obvious artifacts
-                radius: 0.5,
+                radius: 1.5,
                 // Quality of SSAO. 'low'|'medium'|'high'|'ultra'
                 quality: 'medium',
                 // Intensity of SSAO

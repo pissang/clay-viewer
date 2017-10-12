@@ -1,6 +1,5 @@
 import Mesh from 'qtek/src/Mesh';
 import BoundingBox from 'qtek/src/math/BoundingBox';
-import StaticGeometry from 'qtek/src/StaticGeometry';
 import Material from 'qtek/src/Material';
 import Shader from 'qtek/src/Shader';
 
@@ -46,7 +45,7 @@ var BoundingGzimo = Mesh.extend(function () {
         geometry.setTriangleCount(geometry.getLineTriangleCount() * 12);
         geometry.resetOffset();
         for (var i = 0; i < BOX_POINTS.length; i += 2) {
-            geometry.addLine(BOX_POINTS[i], BOX_POINTS[i + 1], [1, 1, 1, 1], this.lineWidth);
+            geometry.addLine(BOX_POINTS[i], BOX_POINTS[i + 1], [1, 1, 1, 1], this.lineWidth * window.devicePixelRatio);
         }
     }
     if (!this.material) {

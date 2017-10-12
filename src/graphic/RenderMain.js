@@ -230,6 +230,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         frameBuffer.bind(renderer);
         renderer.gl.clear(renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT);
         renderer.render(scene, camera, true, true);
+        this.afterRenderScene(renderer, scene, camera);
         frameBuffer.unbind(renderer);
 
         if (this.needsTemporalSS() && accumulating) {
@@ -249,15 +250,16 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
             renderer.saveClear();
             renderer.clearBit = renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT;
             renderer.render(scene, camera, true, true);
+            this.afterRenderScene(renderer, scene, camera);
             renderer.restoreClear();
             frameBuffer.unbind(renderer);
-
             renderer.setViewport(this.viewport);
             this._temporalSS.render(renderer);
         }
         else {
             renderer.setViewport(this.viewport);
             renderer.render(scene, camera, true, true);
+            this.afterRenderScene(renderer, scene, camera);
         }
     }
 
@@ -265,33 +267,42 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     // this._compositor._gBufferPass.renderDebug(renderer);
 };
 
+RenderMain.prototype.afterRenderScene = function (renderer, scene, camera) {};
+
 RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {
     var ifEnableSSAO = this._enableSSAO && this._enablePostEffect;
+    var compositor = this._compositor;
     if (ifEnableSSAO) {
         this._compositor.updateSSAO(renderer, scene, camera, this._temporalSS.getFrame());
     }
 
-    // PENDING transparent queue?
-    for (var i = 0; i < scene.opaqueQueue.length; i++) {
-        var renderable = scene.opaqueQueue[i];
-        renderable.material.shader[ifEnableSSAO ? 'enableTexture' : 'disableTexture']('ssaoMap');
-        if (ifEnableSSAO) {
-            renderable.material.set('ssaoMap', this._compositor.getSSAOTexture());
+    function updateQueue(queue) {
+        for (var i = 0; i < queue.length; i++) {
+            var renderable = queue[i];
+            renderable.material.shader[ifEnableSSAO ? 'enableTexture' : 'disableTexture']('ssaoMap');
+            if (ifEnableSSAO) {
+                renderable.material.set('ssaoMap', compositor.getSSAOTexture());
+            }
         }
     }
+    updateQueue(scene.opaqueQueue);
+    updateQueue(scene.transparentQueue);
 };
 
 RenderMain.prototype._updateShadowPCFKernel = function (frame) {
     var pcfKernel = this._pcfKernels[frame % this._pcfKernels.length];
-    var opaqueQueue = this.scene.opaqueQueue;
-    for (var i = 0; i < opaqueQueue.length; i++) {
-        if (opaqueQueue[i].receiveShadow) {
-            opaqueQueue[i].material.set('pcfKernel', pcfKernel);
-            if (opaqueQueue[i].material.shader) {
-                opaqueQueue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+    function updateQueue(queue) {
+        for (var i = 0; i < queue.length; i++) {
+            if (queue[i].receiveShadow) {
+                queue[i].material.set('pcfKernel', pcfKernel);
+                if (queue[i].material.shader) {
+                    queue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+                }
             }
         }
     }
+    updateQueue(this.scene.opaqueQueue);
+    updateQueue(this.scene.transparentQueue);
 };
 
 RenderMain.prototype.dispose = function (renderer) {

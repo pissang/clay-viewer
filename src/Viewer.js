@@ -71,6 +71,9 @@ Viewer.prototype.init = function (dom, opts) {
     this._renderer = renderer;
 
     this._renderMain = new RenderMain(renderer, opts.shadow, 'perspective');
+    this._renderMain.afterRenderScene = (function (renderer, scene, camera) {
+        this.trigger('renderscene', renderer, scene, camera);
+    }).bind(this);
 
     this._cameraControl = new OrbitControl({
         renderer: renderer,
@@ -149,6 +152,7 @@ Viewer.prototype._createGround = function () {
         castShadow: false,
         geometry: new PlaneGeometry()
     });
+    groundMesh.material.set('color', [1, 1, 1, 1]);
     groundMesh.scale.set(50, 50, 1);
     groundMesh.rotation.rotateX(-Math.PI / 2);
     this._groundMesh = groundMesh;
@@ -605,13 +609,38 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             mat.transparent = !!materialCfg.transparent;
             mat.depthMask = !materialCfg.transparent;
         }
-        ['alphaCutoff', 'metalness', 'roughness'].forEach(function (propName) {
+        ['color', 'emission'].forEach(function (propName) {
+            if (materialCfg[propName] != null) {
+                mat.set(propName, graphicHelper.parseColor(materialCfg[propName]));
+            }
+        });
+        ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
     }, this);
     this.refresh();
+};
+
+/**
+ * @param {string} name
+ */
+Viewer.prototype.getMaterial = function (name) {
+    var materials = this._materialsMap[name];
+    if (!materials) {
+        console.warn('Material %s not exits', name);
+        return;
+    }
+    var mat = materials[0];
+    var materialCfg = {};
+    ['color', 'emission'].forEach(function (propName) {
+        materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
+    });
+    ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
+        materialCfg[propName] = mat.get(propName);
+    });
+    return materialCfg;
 };
 
 /**

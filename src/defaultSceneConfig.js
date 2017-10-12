@@ -76,7 +76,7 @@ export default {
         // Configuration about bloom post effect
         bloom: {
             // If enable bloom
-            enable: true,
+            enable: false,
             // Intensity of bloom
             intensity: 0.1
         },
