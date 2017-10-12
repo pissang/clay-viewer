@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
+    "filer.js": "^0.4.5",
     "glob": "^7.1.2",
     "qtek": "^0.4.0",
     "rollup-plugin-commonjs": "^8.2.1",
@@ -17,7 +18,9 @@
     "zrender": "^3.5.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/QMV.js > dist/QMV.min.js",
+    "dev": "rollup -c -w",
+    "glsl2js": "node build/glsl2js.js"
   },
   "author": "Yi Shen",
   "license": "ISC"
