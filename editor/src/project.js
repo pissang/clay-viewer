@@ -9,14 +9,19 @@ function init(cb) {
         size: 1024 * 1024 * 200
     }, function (fs) {
         filerInited = true;
-        Promise.all([
-            loadModelFromFS(),
-            loadSceneFromFS()
-        ]).then(function (result) {
-            cb && cb(result[0][0], result[0][1], result[1]);
+
+        filer.mkdir('/project', false, function () {
+            Promise.all([
+                loadModelFromFS(),
+                loadSceneFromFS()
+            ]).then(function (result) {
+                cb && cb(result[0][0], result[0][1], result[1]);
+            });
+        }, function (err) {
+            swal('Create project error.' + err.toString());
         });
     }, function (err) {
-        swal(err.toString());
+        swal('Init error.' + err.toString());
     });
 }
 
@@ -70,17 +75,22 @@ function saveSceneConfig(sceneCfg) {
 }
 
 function loadSceneFromFS() {
-    // return new Promise(function (resolve, reject) {
-    //     filer.open('/project/scene.json', function (file) {
-    //         FileAPI.readAsText(file, 'utf-8', function (evt) {
-    //             if (evt.type === 'load') {
-    //                 resolve(evt.result);
-    //             }
-    //         });
-    //     }, function (err) {
-    //         resolve(null);
-    //     });
-    // });
+    return new Promise(function (resolve, reject) {
+        filer.create('/project/scene.json', true, function () {
+
+        }, function () {
+            // FIXME it will throw async error if file not exists
+            filer.open('/project/scene.json', function (file) {
+                FileAPI.readAsText(file, 'utf-8', function (evt) {
+                    if (evt.type === 'load') {
+                        resolve(JSON.parse(evt.result || '{}'));
+                    }
+                });
+            }, function (err) {
+                resolve(null);
+            });
+        });
+    });
 }
 
 function loadModelFromFS() {
