@@ -1,45 +1,37 @@
 # qtek-model-viewer
 
-Simple 3D model viewer based on [QTEK](https://github.com/pissang/qtek)
+3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer based on [QTEK](https://github.com/pissang/qtek)
 
 ## Loader
 
 ```js
 var viewer = new QMV.Viewer(document.getElementById('main'), {
+    // Full config at
+    // https://github.com/pissang/qtek-model-viewer/blob/master/src/defaultSceneConfig.js
     devicePixelRatio: 1,
-    // If enable shadow
+    // Enable shadow
     shadow: true,
-    // Quality of shadow. 'low'|'medium'|'high'|'ultra'
     shadowQuality: 'high',
     // Environment panorama texture url.
     environment: 'env.jpg',
-    // QMV provide three lights.
     mainLight: {
         intensity: 2.0
-    },
-    ambientLight: {
-        intensity: 0.
     },
     ambientCubemapLight: {
         exposure: 1,
         diffuseIntensity: 0.2,
         texture: 'asset/texture/example1.jpg'
     },
-    // Configuration about post effects.
     postEffect: {
-        // If enable post effects.
+        // Enable post effect
         enable: true,
-        // Configuration about bloom post effect
         bloom: {
-            enable: true,
-            intensity: 0.5
+            // Enable bloom
+            enable: true
         },
-        // Configuration about SSAO
         screenSpaceAmbientOcculusion: {
-            enable: true,
-            radius: 0.5,
-            // Quality of SSAO. 'low'|'medium'|'high'|'ultra'
-            quality: 'high'
+            // Enable screen space ambient occulusion
+            enable: true
         }
     }
 });
@@ -126,6 +118,8 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf', {
     });
 
 ```
+
+[Here](https://github.com/pissang/qtek-model-viewer/blob/master/src/defaultSceneConfig.js) is the full graphic configuration
 
 ## Converter
 
