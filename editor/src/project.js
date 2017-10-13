@@ -65,7 +65,7 @@ function saveModelFiles(files) {
 
 function saveSceneConfig(sceneCfg) {
     filer.write('/project/scene.json', {
-        data: JSON.stringify(sceneCfg),
+        data: JSON.stringify(sceneCfg, null, 2),
         type: 'application/json'
     }, function () {
         console.log('Saved scene');

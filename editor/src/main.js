@@ -131,7 +131,7 @@ window.addEventListener('resize', function () { viewer.resize(); });
 
 function init(loadedSceneCfg) {
     viewer = new QMV.Viewer(document.getElementById('main'), loadedSceneCfg || config);
-    viewer.setCameraControl(config.viewControl);
+    viewer.setCameraControl(loadedSceneCfg.viewControl);
     viewer.start();
 
     viewer.on('select', function (result) {
@@ -152,6 +152,15 @@ function init(loadedSceneCfg) {
         renderer.clearBit = 0;
         renderer.render(gizmoScene, camera);
         renderer.restoreClear();
+    });
+
+    viewer.on('updatecamera', function (params) {
+        config.viewControl = {
+            center: params.center,
+            alpha: params.alpha,
+            beta: params.beta,
+            distance: params.distance
+        };
     });
 
     ///////////// Drag and drop
@@ -189,4 +198,4 @@ setInterval(function () {
     if (viewer) {
         project.saveSceneConfig(config);
     }
-}, 5000);
+}, 2000);
