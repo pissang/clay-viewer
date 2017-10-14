@@ -52,12 +52,22 @@ function updateMaterial() {
 
 function selectMaterial(mat) {
     materialConfig.name = mat.name;
-    util.extend(materialConfig, viewer.getMaterial(mat.name));
+    var matConfig = viewer.getMaterial(mat.name);
+    util.extend(materialConfig, matConfig);
+    if (matConfig.specularColor == null) {
+        pbrRoughnessMetallicPanel.enable();
+        pbrSpecularGlossinessPanel.disable();
+    }
+    else {
+        pbrSpecularGlossinessPanel.enable();
+        pbrRoughnessMetallicPanel.disable();
+    }
     controlKit.update();
 }
 
 var scenePanel;
-var materialPanel;
+var pbrRoughnessMetallicPanel;
+var pbrSpecularGlossinessPanel;
 
 window.addEventListener('resize', function () { viewer.resize(); });
 
@@ -70,13 +80,12 @@ function init() {
         gizmoScene.add(boundingBoxGizmo);
         boundingBoxGizmo.target = result.target;
 
-        materialPanel.enable();
         selectMaterial(result.target.material);
     });
     viewer.on('unselect', function () {
         gizmoScene.remove(boundingBoxGizmo);
         boundingBoxGizmo.target = null;
-        materialPanel.disable();
+        pbrRoughnessMetallicPanel.disable();
     });
 
     viewer.on('renderscene', function (renderer, scene, camera) {
@@ -176,14 +185,22 @@ function initUI() {
             .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
 
-    materialPanel = controlKit.addPanel({ label: 'Material', width: 200, fixed: false, align: 'left' });
-    materialPanel
+    pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 220, fixed: false, align: 'left' });
+    pbrRoughnessMetallicPanel
         .addStringOutput(materialConfig, 'name', { label: 'Name' })
-        .addColor(materialConfig, 'color', { label: 'Albedo', onChange: updateMaterial })
+        .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-    materialPanel.disable();
+    pbrRoughnessMetallicPanel.disable();
+
+    pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 220, fixed: false, align: 'left' });
+    pbrSpecularGlossinessPanel
+        .addStringOutput(materialConfig, 'name', { label: 'Name' })
+        .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
+        .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
+        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial });
+    pbrSpecularGlossinessPanel.disable();
 }
 
 project.init(function (glTF, filesMap, loadedSceneCfg) {

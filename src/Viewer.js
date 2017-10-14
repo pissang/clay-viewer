@@ -75,13 +75,13 @@ Viewer.prototype.init = function (dom, opts) {
         this.trigger('renderscene', renderer, scene, camera);
     }).bind(this);
 
-    this._cameraControl = new OrbitControl({
+    var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
         domElement: dom
     });
-    this._cameraControl.target = this._renderMain.camera;
-    this._cameraControl.init();
+    cameraControl.target = this._renderMain.camera;
+    cameraControl.init();
 
     this._hotspotManager = new HotspotManager({
         dom: dom,
@@ -134,9 +134,25 @@ Viewer.prototype.init = function (dom, opts) {
         this.setGround(opts.ground);
     }
 
+    this.setCameraControl({
+        distance: 20,
+        minDisntance: 2,
+        maxDistance: 100,
+        center: [0, 0, 0]
+    });
+
     this._initHandlers();
 
-    this._cameraControl.on('update', this.refresh, this);
+    cameraControl.on('update', function () {
+        this.trigger('updatecamera', {
+            center: cameraControl.getCenter(),
+            alpha: cameraControl.getAlpha(),
+            beta: cameraControl.getBeta(),
+            distance: cameraControl.getDistance()
+        });
+
+        this.refresh();
+    }, this);
 };
 
 Viewer.prototype._createGround = function () {
@@ -198,6 +214,8 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._materialsMap = materialsMap;
 
     this._updateMaterialsSRGB();
+    
+    this._stopAccumulating();
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
@@ -381,13 +399,6 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
         this.autoFitModel();
-
-        this.setCameraControl({
-            distance: 20,
-            minDisntance: 2,
-            maxDistance: 100,
-            center: [0, 0, 0]
-        });
 
         var stat = {
             triangleCount: triangleCount,
@@ -609,12 +620,12 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             mat.transparent = !!materialCfg.transparent;
             mat.depthMask = !materialCfg.transparent;
         }
-        ['color', 'emission'].forEach(function (propName) {
+        ['color', 'emission', 'specularColor'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, graphicHelper.parseColor(materialCfg[propName]));
             }
         });
-        ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
+        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
@@ -633,13 +644,24 @@ Viewer.prototype.getMaterial = function (name) {
         return;
     }
     var mat = materials[0];
-    var materialCfg = {};
+    var materialCfg = {
+        name: name
+    };
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
+    ['alphaCutoff', 'emissionIntensity'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
+    if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
+        ['metalness', 'roughness'].forEach(function (propName) {
+            materialCfg[propName] = mat.get(propName);
+        });
+    }
+    else {
+        materialCfg.specularColor = graphicHelper.stringifyColor(mat.get('specularColor'), 'hex');
+        materialCfg.glossiness = mat.get('glossiness');
+    }
     return materialCfg;
 };
 
