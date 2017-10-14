@@ -18,7 +18,7 @@ var viewer;
 
 var controlKit = new ControlKit({
     loadAndSave: true,
-    useExternalStyle:true
+    useExternalStyle: true
     // history: true
 });
 
@@ -56,9 +56,8 @@ function selectMaterial(mat) {
     controlKit.update();
 }
 
-var scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 });
-var materialPanel = controlKit.addPanel({ label: 'Material', width: 200, fixed: false, align: 'left' });
-materialPanel.disable();
+var scenePanel;
+var materialPanel;
 
 window.addEventListener('resize', function () { viewer.resize(); });
 
@@ -114,6 +113,7 @@ function init() {
 }
 
 function initUI() {
+    scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 });
 
     scenePanel.addGroup({ label: 'Global' })
         .addSubGroup( { label: 'Load Option'})
@@ -176,12 +176,14 @@ function initUI() {
             .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
 
+    materialPanel = controlKit.addPanel({ label: 'Material', width: 200, fixed: false, align: 'left' });
     materialPanel
         .addStringOutput(materialConfig, 'name', { label: 'Name' })
         .addColor(materialConfig, 'color', { label: 'Albedo', onChange: updateMaterial })
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+    materialPanel.disable();
 }
 
 project.init(function (glTF, filesMap, loadedSceneCfg) {
@@ -201,12 +203,21 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
             files: filesMap,
             textureFlipY: config.textureFlipY,
             zUpToYUp: config.zUpToYUp
-        });        
+        }).on('loadmodel', function () {
+            if (loadedSceneCfg && loadedSceneCfg.materials) {
+                loadedSceneCfg.materials.forEach(function (matConfig) {
+                    viewer.setMaterial(matConfig.name, matConfig);
+                });
+            }
+        });
     }
 });
 
 setInterval(function () {
     if (viewer) {
+        config.materials = viewer.getMaterialsNames().map(function (matName) {
+            return viewer.getMaterial(matName);
+        });
         project.saveSceneConfig(config);
     }
-}, 2000);
+}, 5000);
