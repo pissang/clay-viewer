@@ -11184,7 +11184,7 @@ var Renderer = Base.extend(function () {
             if (node.dispose) {
                 node.dispose(this);
             }
-        });
+        }, this);
         for (var guid in materials) {
             var mat = materials[guid];
             mat.dispose(this, disposeTexture);
@@ -16391,7 +16391,7 @@ TransformClip.prototype._interpolateField = function (time, fieldName) {
     }
 
     if (start && end) {
-        var percent = (time-start.time) / (end.time-start.time);
+        var percent = (time - start.time) / (end.time - start.time);
         percent = Math.max(Math.min(percent, 1), 0);
         if (fieldName === 'rotation') {
             quat$4.slerp(this[fieldName], start[fieldName], end[fieldName], percent);
@@ -16685,7 +16685,8 @@ SamplerClip.prototype.setTime = function (time) {
         var end = key + 1;
         var startTime = channels.time[start];
         var endTime = channels.time[end];
-        var percent = (time - startTime) / (endTime - startTime);
+        var range = endTime - startTime;
+        var percent = range === 0 ? 0 : (time - startTime) / range;
 
         if (channels.rotation) {
             quatSlerp(this.rotation, channels.rotation, channels.rotation, percent, start * 4, end * 4);
@@ -17975,7 +17976,6 @@ function getAccessorData(json, lib, accessorIdx, isIndices) {
  * @property {Object.<string, qtek.Material>} materials
  * @property {Object.<string, qtek.Skeleton>} skeletons
  * @property {Object.<string, qtek.Mesh>} meshes
- * @property {qtek.animation.SkinningClip} clip
  */
 
 /**
@@ -18552,7 +18552,7 @@ function () {
             emissiveMap = lib.textures[materialInfo.emissiveTexture.index] || null;
             enabledTextures.push('emissiveMap');
         }
-        var baseColor = specularGlossinessMatInfo.baseColorFactor || [1, 1, 1, 1];
+        var diffuseColor = specularGlossinessMatInfo.diffuseFactor || [1, 1, 1, 1];
 
         var commonProperties = {
             diffuseMap: diffuseMap || null,
@@ -18560,8 +18560,8 @@ function () {
             specularMap: specularMap || null,
             normalMap: normalMap || null,
             emissiveMap: emissiveMap || null,
-            color: baseColor.slice(0, 3),
-            alpha: baseColor[3],
+            color: diffuseColor.slice(0, 3),
+            alpha: diffuseColor[3],
             specularColor: specularGlossinessMatInfo.specularFactor || [1, 1, 1],
             glossiness: specularGlossinessMatInfo.glossinessFactor || 0,
             emission: materialInfo.emissiveFactor || [0, 0, 0],
@@ -24208,9 +24208,9 @@ SSAOPass.prototype.setNoiseSize = function (size) {
     this._ssaoPass.setUniform('noiseTexSize', [size, size]);
 };
 
-SSAOPass.prototype.dispose = function (gl) {
-    this._targetTexture.dispose(gl);
-    this._ssaoTexture.dispose(gl);
+SSAOPass.prototype.dispose = function (renderer) {
+    this._targetTexture.dispose(renderer);
+    this._ssaoTexture.dispose(renderer);
 };
 
 var SSRGLSLCode = "@export ecgl.ssr.main\n\n#define MAX_ITERATION 20;\n\nuniform sampler2D sourceTexture;\nuniform sampler2D gBufferTexture1;\nuniform sampler2D gBufferTexture2;\n\nuniform mat4 projection;\nuniform mat4 projectionInv;\nuniform mat4 viewInverseTranspose;\n\nuniform float maxRayDistance: 50;\n\nuniform float pixelStride: 16;\nuniform float pixelStrideZCutoff: 50; \nuniform float screenEdgeFadeStart: 0.9; \nuniform float eyeFadeStart : 0.2; uniform float eyeFadeEnd: 0.8; \nuniform float minGlossiness: 0.2; uniform float zThicknessThreshold: 10;\n\nuniform float nearZ;\nuniform vec2 viewportSize : VIEWPORT_SIZE;\n\nuniform float jitterOffset: 0;\n\nvarying vec2 v_Texcoord;\n\n#ifdef DEPTH_DECODE\n@import qtek.util.decode_float\n#endif\n\nfloat fetchDepth(sampler2D depthTexture, vec2 uv)\n{\n vec4 depthTexel = texture2D(depthTexture, uv);\n return depthTexel.r * 2.0 - 1.0;\n}\n\nfloat linearDepth(float depth)\n{\n if (projection[3][3] == 0.0) {\n return projection[3][2] / (depth * projection[2][3] - projection[2][2]);\n }\n else {\n return (depth - projection[3][2]) / projection[2][2];\n }\n}\n\nbool rayIntersectDepth(float rayZNear, float rayZFar, vec2 hitPixel)\n{\n if (rayZFar > rayZNear)\n {\n float t = rayZFar; rayZFar = rayZNear; rayZNear = t;\n }\n float cameraZ = linearDepth(fetchDepth(gBufferTexture2, hitPixel));\n return rayZFar <= cameraZ && rayZNear >= cameraZ - zThicknessThreshold;\n}\n\n\nbool traceScreenSpaceRay(\n vec3 rayOrigin, vec3 rayDir, float jitter,\n out vec2 hitPixel, out vec3 hitPoint, out float iterationCount\n)\n{\n float rayLength = ((rayOrigin.z + rayDir.z * maxRayDistance) > -nearZ)\n ? (-nearZ - rayOrigin.z) / rayDir.z : maxRayDistance;\n\n vec3 rayEnd = rayOrigin + rayDir * rayLength;\n\n vec4 H0 = projection * vec4(rayOrigin, 1.0);\n vec4 H1 = projection * vec4(rayEnd, 1.0);\n\n float k0 = 1.0 / H0.w, k1 = 1.0 / H1.w;\n\n vec3 Q0 = rayOrigin * k0, Q1 = rayEnd * k1;\n\n vec2 P0 = (H0.xy * k0 * 0.5 + 0.5) * viewportSize;\n vec2 P1 = (H1.xy * k1 * 0.5 + 0.5) * viewportSize;\n\n P1 += dot(P1 - P0, P1 - P0) < 0.0001 ? 0.01 : 0.0;\n vec2 delta = P1 - P0;\n\n bool permute = false;\n if (abs(delta.x) < abs(delta.y)) {\n permute = true;\n delta = delta.yx;\n P0 = P0.yx;\n P1 = P1.yx;\n }\n float stepDir = sign(delta.x);\n float invdx = stepDir / delta.x;\n\n vec3 dQ = (Q1 - Q0) * invdx;\n float dk = (k1 - k0) * invdx;\n\n vec2 dP = vec2(stepDir, delta.y * invdx);\n\n float strideScaler = 1.0 - min(1.0, -rayOrigin.z / pixelStrideZCutoff);\n float pixStride = 1.0 + strideScaler * pixelStride;\n\n dP *= pixStride; dQ *= pixStride; dk *= pixStride;\n\n vec4 pqk = vec4(P0, Q0.z, k0);\n vec4 dPQK = vec4(dP, dQ.z, dk);\n\n pqk += dPQK * jitter;\n float rayZFar = (dPQK.z * 0.5 + pqk.z) / (dPQK.w * 0.5 + pqk.w);\n float rayZNear;\n\n bool intersect = false;\n\n vec2 texelSize = 1.0 / viewportSize;\n\n iterationCount = 0.0;\n\n for (int i = 0; i < MAX_ITERATION; i++)\n {\n pqk += dPQK;\n\n rayZNear = rayZFar;\n rayZFar = (dPQK.z * 0.5 + pqk.z) / (dPQK.w * 0.5 + pqk.w);\n\n hitPixel = permute ? pqk.yx : pqk.xy;\n hitPixel *= texelSize;\n\n intersect = rayIntersectDepth(rayZNear, rayZFar, hitPixel);\n\n iterationCount += 1.0;\n\n if (intersect) {\n break;\n }\n }\n\n\n Q0.xy += dQ.xy * iterationCount;\n Q0.z = pqk.z;\n hitPoint = Q0 / pqk.w;\n\n return intersect;\n}\n\nfloat calculateAlpha(\n float iterationCount, float reflectivity,\n vec2 hitPixel, vec3 hitPoint, float dist, vec3 rayDir\n)\n{\n float alpha = clamp(reflectivity, 0.0, 1.0);\n alpha *= 1.0 - (iterationCount / float(MAX_ITERATION));\n vec2 hitPixelNDC = hitPixel * 2.0 - 1.0;\n float maxDimension = min(1.0, max(abs(hitPixelNDC.x), abs(hitPixelNDC.y)));\n alpha *= 1.0 - max(0.0, maxDimension - screenEdgeFadeStart) / (1.0 - screenEdgeFadeStart);\n\n float _eyeFadeStart = eyeFadeStart;\n float _eyeFadeEnd = eyeFadeEnd;\n if (_eyeFadeStart > _eyeFadeEnd) {\n float tmp = _eyeFadeEnd;\n _eyeFadeEnd = _eyeFadeStart;\n _eyeFadeStart = tmp;\n }\n\n float eyeDir = clamp(rayDir.z, _eyeFadeStart, _eyeFadeEnd);\n alpha *= 1.0 - (eyeDir - _eyeFadeStart) / (_eyeFadeEnd - _eyeFadeStart);\n\n alpha *= 1.0 - clamp(dist / maxRayDistance, 0.0, 1.0);\n\n return alpha;\n}\n\n@import qtek.util.rand\n\n@import qtek.util.rgbm\n\nvoid main()\n{\n vec4 normalAndGloss = texture2D(gBufferTexture1, v_Texcoord);\n\n if (dot(normalAndGloss.rgb, vec3(1.0)) == 0.0) {\n discard;\n }\n\n float g = normalAndGloss.a;\n if (g <= minGlossiness) {\n discard;\n }\n\n float reflectivity = (g - minGlossiness) / (1.0 - minGlossiness);\n\n vec3 N = normalAndGloss.rgb * 2.0 - 1.0;\n N = normalize((viewInverseTranspose * vec4(N, 0.0)).xyz);\n\n vec4 projectedPos = vec4(v_Texcoord * 2.0 - 1.0, fetchDepth(gBufferTexture2, v_Texcoord), 1.0);\n vec4 pos = projectionInv * projectedPos;\n vec3 rayOrigin = pos.xyz / pos.w;\n\n vec3 rayDir = normalize(reflect(normalize(rayOrigin), N));\n vec2 hitPixel;\n vec3 hitPoint;\n float iterationCount;\n\n vec2 uv2 = v_Texcoord * viewportSize;\n float jitter = rand(fract(v_Texcoord + jitterOffset));\n\n bool intersect = traceScreenSpaceRay(rayOrigin, rayDir, jitter, hitPixel, hitPoint, iterationCount);\n\n float dist = distance(rayOrigin, hitPoint);\n\n float alpha = calculateAlpha(iterationCount, reflectivity, hitPixel, hitPoint, dist, rayDir) * float(intersect);\n\n vec3 hitNormal = texture2D(gBufferTexture1, hitPixel).rgb * 2.0 - 1.0;\n hitNormal = normalize((viewInverseTranspose * vec4(hitNormal, 0.0)).xyz);\n\n if (dot(hitNormal, rayDir) >= 0.0) {\n discard;\n }\n\n \n if (!intersect) {\n discard;\n }\n vec4 color = decodeHDR(texture2D(sourceTexture, hitPixel));\n gl_FragColor = encodeHDR(vec4(color.rgb * alpha, color.a));\n}\n@end\n\n@export ecgl.ssr.blur\n\nuniform sampler2D texture;\nuniform sampler2D gBufferTexture1;\n\nvarying vec2 v_Texcoord;\n\nuniform vec2 textureSize;\nuniform float blurSize : 4.0;\n\n#ifdef BLEND\nuniform sampler2D sourceTexture;\n#endif\n\n@import qtek.util.rgbm\n\n\nvoid main()\n{\n @import qtek.compositor.kernel.gaussian_13\n\n vec4 centerNTexel = texture2D(gBufferTexture1, v_Texcoord);\n float g = centerNTexel.a;\n float maxBlurSize = clamp(1.0 - g + 0.1, 0.0, 1.0) * blurSize;\n#ifdef VERTICAL\n vec2 off = vec2(0.0, maxBlurSize / textureSize.y);\n#else\n vec2 off = vec2(maxBlurSize / textureSize.x, 0.0);\n#endif\n\n vec2 coord = v_Texcoord;\n\n vec4 sum = vec4(0.0);\n float weightAll = 0.0;\n\n vec3 cN = centerNTexel.rgb * 2.0 - 1.0;\n for (int i = 0; i < 13; i++) {\n vec2 coord = clamp((float(i) - 6.0) * off + v_Texcoord, vec2(0.0), vec2(1.0));\n float w = gaussianKernel[i] * clamp(dot(cN, texture2D(gBufferTexture1, coord).rgb * 2.0 - 1.0), 0.0, 1.0);\n weightAll += w;\n sum += decodeHDR(texture2D(texture, coord)) * w;\n }\n\n#ifdef BLEND\n gl_FragColor = encodeHDR(\n sum / weightAll + decodeHDR(texture2D(sourceTexture, v_Texcoord))\n );\n#else\n gl_FragColor = encodeHDR(sum / weightAll);\n#endif\n}\n\n@end";
@@ -24308,10 +24308,10 @@ SSRPass.prototype.setParameter = function (name, val) {
     }
 };
 
-SSRPass.prototype.dispose = function (gl) {
-    this._texture1.dispose(gl);
-    this._texture2.dispose(gl);
-    this._frameBuffer.dispose(gl);
+SSRPass.prototype.dispose = function (renderer) {
+    this._texture1.dispose(renderer);
+    this._texture2.dispose(renderer);
+    this._frameBuffer.dispose(renderer);
 };
 
 // Based on https://bl.ocks.org/mbostock/19168c663618b707158
@@ -24656,7 +24656,7 @@ var GBuffer = Base.extend(function () {
             }
         }
         for (var i = 0; i < transparentQueue.length; i++) {
-            if (!opaqueQueue[i].ignoreGBuffer) {
+            if (!transparentQueue[i].ignoreGBuffer) {
                 renderQueue[offset++] = transparentQueue[i];
             }
         }
@@ -24934,9 +24934,9 @@ EdgePass.prototype.setParameter = function (name, val) {
     this._edgePass.setUniform(name, val);
 };
 
-EdgePass.prototype.dispose = function (gl) {
-    this._targetTexture.dispose(gl);
-    this._frameBuffer.dispose(gl);
+EdgePass.prototype.dispose = function (renderer) {
+    this._targetTexture.dispose(renderer);
+    this._frameBuffer.dispose(renderer);
 };
 
 // Simple LRU cache use doubly linked list
@@ -28657,14 +28657,14 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
     this._compositor.render(renderer, framebuffer);
 };
 
-EffectCompositor.prototype.dispose = function (gl) {
-    this._sourceTexture.dispose(gl);
-    this._depthTexture.dispose(gl);
-    this._framebuffer.dispose(gl);
-    this._compositor.dispose(gl);
+EffectCompositor.prototype.dispose = function (renderer) {
+    this._sourceTexture.dispose(renderer);
+    this._depthTexture.dispose(renderer);
+    this._framebuffer.dispose(renderer);
+    this._compositor.dispose(renderer);
 
-    this._gBufferPass.dispose(gl);
-    this._ssaoPass.dispose(gl);
+    this._gBufferPass.dispose(renderer);
+    this._ssaoPass.dispose(renderer);
 };
 
 // Temporal Super Sample for static Scene
@@ -28813,14 +28813,14 @@ TemporalSuperSampling.prototype = {
         this._frame++;
     },
 
-    dispose: function (gl) {
-        this._sourceFb.dispose(gl);
-        this._blendFb.dispose(gl);
-        this._prevFrameTex.dispose(gl);
-        this._outputTex.dispose(gl);
-        this._sourceTex.dispose(gl);
-        this._outputPass.dispose(gl);
-        this._blendPass.dispose(gl);
+    dispose: function (renderer) {
+        this._sourceFb.dispose(renderer);
+        this._blendFb.dispose(renderer);
+        this._prevFrameTex.dispose(renderer);
+        this._outputTex.dispose(renderer);
+        this._sourceTex.dispose(renderer);
+        this._outputPass.dispose(renderer);
+        this._blendPass.dispose(renderer);
     }
 };
 
@@ -29118,8 +29118,8 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
 };
 
 RenderMain.prototype.dispose = function (renderer) {
-    this._compositor.dispose(renderer.gl);
-    this._temporalSS.dispose(renderer.gl);
+    this._compositor.dispose(renderer);
+    this._temporalSS.dispose(renderer);
     if (this._shadowMapPass) {
         this._shadowMapPass.dispose(renderer);   
     }
@@ -29299,7 +29299,7 @@ SceneHelper.prototype = {
             this._lightRoot.remove(this._currentCubemapLights.diffuse);
             if (this._currentCubemapLights.specular) {
                 this._lightRoot.remove(this._currentCubemapLights.specular);
-                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+                this._currentCubemapLights.specular.cubemap.dispose(renderer);
             }
         }
     },
@@ -29410,7 +29410,7 @@ SceneHelper.prototype = {
         function getSkybox() {
             if (!(self._skybox instanceof Skybox)) {
                 if (self._skybox) {
-                    self._skybox.dispose(renderer.gl);
+                    self._skybox.dispose(renderer);
                 }
                 self._skybox = new Skybox();
             }
@@ -29419,7 +29419,7 @@ SceneHelper.prototype = {
         function getSkydome() {
             if (!(self._skybox instanceof Skydome)) {
                 if (self._skybox) {
-                    self._skybox.dispose(renderer.gl);
+                    self._skybox.dispose(renderer);
                 }
                 self._skybox = new Skydome();
             }
@@ -31968,13 +31968,13 @@ Viewer.prototype.init = function (dom, opts) {
         this.trigger('renderscene', renderer, scene, camera);
     }).bind(this);
 
-    this._cameraControl = new OrbitControl({
+    var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,
         animation: this._animation,
         domElement: dom
     });
-    this._cameraControl.target = this._renderMain.camera;
-    this._cameraControl.init();
+    cameraControl.target = this._renderMain.camera;
+    cameraControl.init();
 
     this._hotspotManager = new HotspotManger({
         dom: dom,
@@ -32027,9 +32027,25 @@ Viewer.prototype.init = function (dom, opts) {
         this.setGround(opts.ground);
     }
 
+    this.setCameraControl({
+        distance: 20,
+        minDisntance: 2,
+        maxDistance: 100,
+        center: [0, 0, 0]
+    });
+
     this._initHandlers();
 
-    this._cameraControl.on('update', this.refresh, this);
+    cameraControl.on('update', function () {
+        this.trigger('updatecamera', {
+            center: cameraControl.getCenter(),
+            alpha: cameraControl.getAlpha(),
+            beta: cameraControl.getBeta(),
+            distance: cameraControl.getDistance()
+        });
+
+        this.refresh();
+    }, this);
 };
 
 Viewer.prototype._createGround = function () {
@@ -32091,6 +32107,8 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._materialsMap = materialsMap;
 
     this._updateMaterialsSRGB();
+    
+    this._stopAccumulating();
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
@@ -32274,13 +32292,6 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
         this.autoFitModel();
-
-        this.setCameraControl({
-            distance: 20,
-            minDisntance: 2,
-            maxDistance: 100,
-            center: [0, 0, 0]
-        });
 
         var stat = {
             triangleCount: triangleCount,
@@ -32502,12 +32513,12 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
             mat.transparent = !!materialCfg.transparent;
             mat.depthMask = !materialCfg.transparent;
         }
-        ['color', 'emission'].forEach(function (propName) {
+        ['color', 'emission', 'specularColor'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, helper.parseColor(materialCfg[propName]));
             }
         });
-        ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
+        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
@@ -32526,13 +32537,24 @@ Viewer.prototype.getMaterial = function (name) {
         return;
     }
     var mat = materials[0];
-    var materialCfg = {};
+    var materialCfg = {
+        name: name
+    };
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = helper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alphaCutoff', 'metalness', 'roughness', 'emissionIntensity'].forEach(function (propName) {
+    ['alphaCutoff', 'emissionIntensity'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
+    if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
+        ['metalness', 'roughness'].forEach(function (propName) {
+            materialCfg[propName] = mat.get(propName);
+        });
+    }
+    else {
+        materialCfg.specularColor = helper.stringifyColor(mat.get('specularColor'), 'hex');
+        materialCfg.glossiness = mat.get('glossiness');
+    }
     return materialCfg;
 };
 
@@ -32672,7 +32694,7 @@ Viewer.prototype._startAccumulating = function (immediate) {
     }
 
     function accumulate(id) {
-        if (!self._accumulatingId || id !== self._accumulatingId) {
+        if (!self._accumulatingId || id !== self._accumulatingId || self._disposed) {
             return;
         }
 
