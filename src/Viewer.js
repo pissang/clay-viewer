@@ -801,7 +801,7 @@ Viewer.prototype._startAccumulating = function (immediate) {
     }
 
     function accumulate(id) {
-        if (!self._accumulatingId || id !== self._accumulatingId) {
+        if (!self._accumulatingId || id !== self._accumulatingId || self._disposed) {
             return;
         }
 
