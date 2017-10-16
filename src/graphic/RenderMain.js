@@ -306,8 +306,8 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
 };
 
 RenderMain.prototype.dispose = function (renderer) {
-    this._compositor.dispose(renderer.gl);
-    this._temporalSS.dispose(renderer.gl);
+    this._compositor.dispose(renderer);
+    this._temporalSS.dispose(renderer);
     if (this._shadowMapPass) {
         this._shadowMapPass.dispose(renderer);   
     }

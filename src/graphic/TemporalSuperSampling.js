@@ -151,14 +151,14 @@ TemporalSuperSampling.prototype = {
         this._frame++;
     },
 
-    dispose: function (gl) {
-        this._sourceFb.dispose(gl);
-        this._blendFb.dispose(gl);
-        this._prevFrameTex.dispose(gl);
-        this._outputTex.dispose(gl);
-        this._sourceTex.dispose(gl);
-        this._outputPass.dispose(gl);
-        this._blendPass.dispose(gl);
+    dispose: function (renderer) {
+        this._sourceFb.dispose(renderer);
+        this._blendFb.dispose(renderer);
+        this._prevFrameTex.dispose(renderer);
+        this._outputTex.dispose(renderer);
+        this._sourceTex.dispose(renderer);
+        this._outputPass.dispose(renderer);
+        this._blendPass.dispose(renderer);
     }
 };
 

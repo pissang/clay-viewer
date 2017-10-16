@@ -57,7 +57,7 @@ SceneHelper.prototype = {
             this._lightRoot.remove(this._currentCubemapLights.diffuse);
             if (this._currentCubemapLights.specular) {
                 this._lightRoot.remove(this._currentCubemapLights.specular);
-                this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
+                this._currentCubemapLights.specular.cubemap.dispose(renderer);
             }
         }
     },
@@ -168,7 +168,7 @@ SceneHelper.prototype = {
         function getSkybox() {
             if (!(self._skybox instanceof Skybox)) {
                 if (self._skybox) {
-                    self._skybox.dispose(renderer.gl);
+                    self._skybox.dispose(renderer);
                 }
                 self._skybox = new Skybox();
             }
@@ -177,7 +177,7 @@ SceneHelper.prototype = {
         function getSkydome() {
             if (!(self._skybox instanceof Skydome)) {
                 if (self._skybox) {
-                    self._skybox.dispose(renderer.gl);
+                    self._skybox.dispose(renderer);
                 }
                 self._skybox = new Skydome();
             }
