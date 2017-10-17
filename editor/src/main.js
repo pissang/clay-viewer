@@ -231,6 +231,8 @@ function initUI() {
     pbrSpecularGlossinessPanel.disable();
 }
 
+var filesMapInverse = {};
+
 project.init(function (glTF, filesMap, loadedSceneCfg) {
 
     if (loadedSceneCfg) {
@@ -244,13 +246,24 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
     controlKit.update();
 
     if (glTF) {
+        for (var name in filesMap) {
+            filesMapInverse[filesMap[name]] = name;
+        }
         viewer.loadModel(glTF, {
             files: filesMap,
             textureFlipY: config.textureFlipY,
-            zUpToYUp: config.zUpToYUp
-        }).on('loadmodel', function () {
+            zUpToYUp: config.zUpToYUp,
+            // Not load texture, setMaterial will do it.
+            includeTexture: false
+        }).on('ready', function () {
             if (loadedSceneCfg && loadedSceneCfg.materials) {
                 loadedSceneCfg.materials.forEach(function (matConfig) {
+                    // From file name to object URL
+                    for (var key in matConfig) {
+                        if (filesMap[matConfig[key]]) {
+                            matConfig[key] = filesMap[matConfig[key]];
+                        }
+                    }
                     viewer.setMaterial(matConfig.name, matConfig);
                 });
             }
@@ -261,7 +274,14 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
 setInterval(function () {
     if (viewer) {
         config.materials = viewer.getMaterialsNames().map(function (matName) {
-            return viewer.getMaterial(matName);
+            var matConfig = viewer.getMaterial(matName);
+            // From object URL to file name;
+            for (var key in matConfig) {
+                if (filesMapInverse[matConfig[key]]) {
+                    matConfig[key] = filesMapInverse[matConfig[key]];
+                }
+            }
+            return matConfig;
         });
         project.saveSceneConfig(config);
     }

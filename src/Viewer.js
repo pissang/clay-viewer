@@ -430,6 +430,8 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         task.trigger('error');
     });
 
+    this._textureFlipY = opts.textureFlipY;
+
     return task;
 };
 
@@ -631,6 +633,31 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
+        ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+            if (materialCfg[propName]) {
+                mat.setTextureImage(propName, materialCfg[propName], this, {
+                    flipY: this._textureFlipY
+                });   
+            }
+        }, this);
+        if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
+            ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
+                if (materialCfg[propName]) {
+                    mat.setTextureImage(propName, materialCfg[propName], this, {
+                        flipY: this._textureFlipY
+                    });
+                }
+            }, this);
+        }
+        else {
+            ['specularMap', 'glossinessMap'].forEach(function (propName) {
+                if (materialCfg[propName]) {
+                    mat.setTextureImage(propName, materialCfg[propName], this, {
+                        flipY: this._textureFlipY
+                    });
+                }
+            }, this);
+        }
     }, this);
     this.refresh();
 };

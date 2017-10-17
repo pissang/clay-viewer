@@ -37,7 +37,7 @@ body {
 .texture-wrap {
     width: 55%;
     float: right;
-    cursor: pointer;
+    /* cursor: pointer; */
     overflow-x: hidden;
     padding-bottom: 5px;
 }

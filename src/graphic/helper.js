@@ -35,7 +35,7 @@ Material.prototype.setTextureImage = function (textureName, imgValue, app, textu
     // disableTexture first
     material.shader.disableTexture(textureName);
     if (!isValueNone(imgValue)) {
-        texture = helper.loadTexture(imgValue, api, textureOpts, function (texture) {
+        texture = helper.loadTexture(imgValue, app, textureOpts, function (texture) {
             material.shader.enableTexture(textureName);
             app.refresh();
         });
