@@ -34,6 +34,8 @@ function RenderMain(renderer, enableShadow, projection) {
         x: 0, y: 0, width: 0, height: 0
     };
 
+    this.preZ = false;
+
     this.setProjection(projection);
 
     this._compositor = new EffectCompositor();
@@ -230,7 +232,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         frameBuffer.bind(renderer);
         renderer.gl.clear(renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT);
         // FIXME Enable pre z will make alpha test failed
-        renderer.render(scene, camera, true);
+        renderer.render(scene, camera, true, this.preZ);
         this.afterRenderScene(renderer, scene, camera);
         frameBuffer.unbind(renderer);
 
@@ -250,7 +252,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
             frameBuffer.bind(renderer);
             renderer.saveClear();
             renderer.clearBit = renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT;
-            renderer.render(scene, camera, true);
+            renderer.render(scene, camera, true, this.preZ);
             this.afterRenderScene(renderer, scene, camera);
             renderer.restoreClear();
             frameBuffer.unbind(renderer);
@@ -259,7 +261,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         }
         else {
             renderer.setViewport(this.viewport);
-            renderer.render(scene, camera, true);
+            renderer.render(scene, camera, true, this.preZ);
             this.afterRenderScene(renderer, scene, camera);
         }
     }

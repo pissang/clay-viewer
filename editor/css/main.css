@@ -11,6 +11,17 @@ body {
     bottom: 0;
 }
 
+#controlKit .panel .group-list .group .sub-group-list .sub-group ul li.drag-hover {
+    border: 2px solid #66f;
+    box-sizing: border-box;
+}
+#controlKit .panel .group-list .group .sub-group-list .sub-group ul li:after {
+    display: block;
+    visibility: hidden;
+    content: '';    
+    height: 0; 
+    clear: both;
+}
 #controlKit .panel .group-list .group .sub-group-list .sub-group {
     padding: 5px;
 }
@@ -21,6 +32,17 @@ body {
 #controlKit .panel .svg-wrap, #controlKit .panel .canvas-wrap,
 #controlKit .panel .wrap-slider {
     width: 55%;
+}
+
+.texture-wrap {
+    width: 55%;
+    float: right;
+    cursor: pointer;
+    overflow-x: hidden;
+    padding-bottom: 5px;
+}
+.texture-wrap img {
+    height: 100px;
 }
 
 .pace {

@@ -7,6 +7,7 @@ import env from './env';
 import BoundingBoxGizmo from './debug/BoundingBoxGizmo';
 import util from 'qtek/src/core/util';
 import zrUtil from 'zrender/lib/core/util';
+import TextureUI from './ui/Texture';
 
 var boundingBoxGizmo = new BoundingBoxGizmo();
 var gizmoScene = new Scene();
@@ -77,12 +78,21 @@ function init() {
     viewer.start();
 
     viewer.on('select', function (result) {
+        viewer.refresh();
         gizmoScene.add(boundingBoxGizmo);
         boundingBoxGizmo.target = result.target;
 
         selectMaterial(result.target.material);
+
+    });
+    viewer.on('doffocus', function (result) {
+        if (config.postEffect.depthOfField.enable) {
+            config.postEffect.depthOfField.focalDistance = result.distance;
+            controlKit.update();
+        }
     });
     viewer.on('unselect', function () {
+        viewer.refresh();
         gizmoScene.remove(boundingBoxGizmo);
         boundingBoxGizmo.target = null;
         pbrRoughnessMetallicPanel.disable();
@@ -105,7 +115,9 @@ function init() {
     });
 
     ///////////// Drag and drop
-    FileAPI.event.dnd(document.getElementById('main'), function (files) {
+    FileAPI.event.dnd(document.getElementById('main'), function (over) {
+
+    }, function (files) {
         files = files.filter(function (file) {
             return file.name.match(/.(gltf|bin)$/)
                 || file.type.match(/image/);
@@ -118,6 +130,10 @@ function init() {
             });
         });
         project.saveModelFiles(files);
+    });
+
+    document.body.addEventListener('drop', function (e) {
+        e.preventDefault();
     });
 }
 
@@ -175,6 +191,7 @@ function initUI() {
         .addSubGroup({ label: 'Depth of Field', enable: false })
             .addCheckbox(config.postEffect.depthOfField, 'enable', { label: 'Enable', onChange: updatePostEffect })
             .addNumberInput(config.postEffect.depthOfField, 'fstop', { label: 'f-stop', step: 0.1, onChange: updatePostEffect })
+            .addNumberInput(config.postEffect.depthOfField, 'focalDistance', { label: 'Focal Distance', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.depthOfField, 'focalRange', { label: 'Focal Range', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.depthOfField, 'blurRadius', { label: 'Blur Radius', step: 0.1, onChange: updatePostEffect })
             .addSelect(config.postEffect.depthOfField, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
@@ -192,6 +209,11 @@ function initUI() {
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: updateMaterial });
     pbrRoughnessMetallicPanel.disable();
 
     pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 220, fixed: false, align: 'left' });
@@ -199,7 +221,13 @@ function initUI() {
         .addStringOutput(materialConfig, 'name', { label: 'Name' })
         .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
-        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial });
+        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
+        .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: updateMaterial });
     pbrSpecularGlossinessPanel.disable();
 }
 

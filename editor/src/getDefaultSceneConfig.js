@@ -77,7 +77,7 @@ export default function () {
             texture: env.ENV_TEXTURE_ROOT + 'pisa.hdr',
     
             $texture: 'pisa',
-            $textureOptions: ['pisa', 'Barce_Rooftop_C', 'Factory_Catwalk', 'Grand_Canyon_C', 'Ice_Lake', 'Old_Industrial_Hall'],
+            $textureOptions: ['pisa', 'Barce_Rooftop_C', 'Factory_Catwalk', 'Grand_Canyon_C', 'Ice_Lake', 'Hall', 'Old_Industrial_Hall'],
     
             // Exposure factor when parsing hdr format.
             exposure: 1,

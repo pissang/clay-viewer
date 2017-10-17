@@ -654,14 +654,32 @@ Viewer.prototype.getMaterial = function (name) {
     ['alphaCutoff', 'emissionIntensity'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
+    function getTextureUri(propName) {
+        var texture = mat.get(propName);
+        if (texture && texture.image && texture.image.src && texture.isRenderable()) {
+            return texture.image.src;
+        }
+        else {
+            return '';
+        }
+    }
+    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+        materialCfg[propName] = getTextureUri(propName);
+    });
     if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
         ['metalness', 'roughness'].forEach(function (propName) {
             materialCfg[propName] = mat.get(propName);
+        });
+        ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
+            materialCfg[propName] = getTextureUri(propName);
         });
     }
     else {
         materialCfg.specularColor = graphicHelper.stringifyColor(mat.get('specularColor'), 'hex');
         materialCfg.glossiness = mat.get('glossiness');
+        ['specularMap', 'glossinessMap'].forEach(function (propName) {
+            materialCfg[propName] = getTextureUri(propName);
+        });
     }
     return materialCfg;
 };
