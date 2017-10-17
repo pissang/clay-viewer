@@ -270,6 +270,7 @@ Viewer.prototype._clickHandler = function (e) {
     var result = this._picking.pick(e.clientX, e.clientY, true);
     if (result) {
         this._renderMain.setDOFFocusOnPoint(result.distance);
+        this.trigger('doffocus', result);
         this.refresh();
     }
 
