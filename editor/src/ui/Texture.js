@@ -34,7 +34,7 @@ function TextureUI(parent, object, key, params) {
 
             self.update();
 
-            self._onChange(imgFile);
+            self._onChange(imgFile, object[key]);
         }
     });
 }

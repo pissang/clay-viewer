@@ -64,6 +64,7 @@ function saveModelFiles(files) {
 }
 
 function saveSceneConfig(sceneCfg) {
+    // FIXME Write file may failed
     filer.write('/project/scene.json', {
         data: JSON.stringify(sceneCfg, null, 2),
         type: 'application/json'
@@ -116,6 +117,14 @@ function loadModelFromFS() {
     });
 }
 
+function writeTextureImage(file) {
+    filer.write('/project/model/' + file.name, { data: file, type: file.type }, function () {
+        console.log('Writed file ' + file.name);
+    }, function (err) {
+        swal(err.toString());
+    });
+}
+
 var filesMap = {};
 function loadModelFiles(files, cb) {
     var glTFFile = files.find(function (file) {
@@ -155,4 +164,4 @@ function loadModelFiles(files, cb) {
 }
 
 
-export { init, saveModelFiles, loadModelFiles, saveSceneConfig };
+export { init, saveModelFiles, loadModelFiles, saveSceneConfig, writeTextureImage };

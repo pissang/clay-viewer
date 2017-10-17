@@ -604,16 +604,16 @@ Viewer.prototype.setEnvironment = function (envUrl) {
 };
 
 /**
- * @param {string} name
+ * @param {string} matName
  * @param {Object} materialCfg
  * @param {boolean} [materialCfg.transparent]
  * @param {boolean} [materialCfg.alphaCutoff]
  * @param {boolean} [materialCfg.metalness]
  * @param {boolean} [materialCfg.roughness]
  */
-Viewer.prototype.setMaterial = function (name, materialCfg) {
+Viewer.prototype.setMaterial = function (matName, materialCfg) {
     materialCfg = materialCfg || {};
-    var materials = this._materialsMap[name];
+    var materials = this._materialsMap[matName];
     if (!materials) {
         console.warn('Material %s not exits', name);
         return;
@@ -657,6 +657,14 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
                     });
                 }
             }, this);
+        }
+
+        if (mat.get('normalMap')) {
+            this._modelNode.traverse(function (mesh) {
+                if (mesh.material && mesh.material.name === matName) {
+                    mesh.geometry.generateTangents();       
+                }
+            });
         }
     }, this);
     this.refresh();

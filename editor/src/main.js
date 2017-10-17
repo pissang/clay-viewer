@@ -66,6 +66,12 @@ function selectMaterial(mat) {
     controlKit.update();
 }
 
+function changeTexture(file, url) {
+    project.writeTextureImage(file);
+    filesMapInverse[url] = file.name;
+    updateMaterial();
+}
+
 var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
@@ -213,11 +219,11 @@ function initUI() {
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: updateMaterial });
+        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture });
     pbrRoughnessMetallicPanel.disable();
 
     pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 220, fixed: false, align: 'left' });
@@ -227,11 +233,11 @@ function initUI() {
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: updateMaterial });
+        .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture })
+        .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture });
     pbrSpecularGlossinessPanel.disable();
 }
 
