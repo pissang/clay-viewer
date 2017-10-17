@@ -105,7 +105,7 @@ export default function () {
                 // Focal distance of camera in word space.
                 focalDistance: 4,
                 // Focal range of camera in word space. in this range image will be absolutely sharp.
-                focalRange: 2,
+                focalRange: 1,
                 // Max out of focus blur radius.
                 blurRadius: 5,
                 // fstop of camera. Smaller fstop will have shallow depth of field
