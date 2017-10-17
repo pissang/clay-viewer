@@ -123,6 +123,10 @@ function init() {
                 || file.type.match(/image/);
         });
         project.loadModelFiles(files, function (glTF, filesMap) {
+            filesMapInverse = {};
+            for (var name in filesMap) {
+                filesMapInverse[filesMap[name]] = name;
+            }
             viewer.loadModel(glTF, {
                 files: filesMap,
                 textureFlipY: config.textureFlipY,
@@ -231,7 +235,7 @@ function initUI() {
     pbrSpecularGlossinessPanel.disable();
 }
 
-var filesMapInverse = {};
+var filesMapInverse;
 
 project.init(function (glTF, filesMap, loadedSceneCfg) {
 
@@ -246,6 +250,7 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
     controlKit.update();
 
     if (glTF) {
+        filesMapInverse = {};
         for (var name in filesMap) {
             filesMapInverse[filesMap[name]] = name;
         }
