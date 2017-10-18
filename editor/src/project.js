@@ -70,8 +70,8 @@ function saveSceneConfig(sceneCfg) {
         type: 'application/json'
     }, function () {
         console.log('Saved scene');
-    }, function () {
-        console.error('Failed to save scene');
+    }, function (err) {
+        console.error('Failed to save scene,' + err.toString());
     });
 }
 
@@ -163,5 +163,11 @@ function loadModelFiles(files, cb) {
     });
 }
 
+function removeProject() {
+    filer.rm('/project', function () {
+        filer.mkdir('/project', false, function () {});
+    });
+}
 
-export { init, saveModelFiles, loadModelFiles, saveSceneConfig, writeTextureImage };
+
+export { init, saveModelFiles, loadModelFiles, saveSceneConfig, writeTextureImage, removeProject };

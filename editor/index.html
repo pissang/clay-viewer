@@ -3,14 +3,20 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="lib/pace.min.js"></script>
+        <title>GLTF 2.0 Viewer</title>
         <link rel="stylesheet" href="css/controlKit.css">
         <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/iconfont/iconfont.css">
     </head>
     <body>
         <div id="main"></div>
         <div id="loading">
             <img src="./img/loading.gif" alt="">
             <div>LOADING...</div>
+        </div>
+        <div id="toolbar">
+            <span class="iconfont icon-download" id="download"></span>
+            <span class="iconfont icon-reset" id="reset"></span>
         </div>
         <script src="lib/controlKit.js"></script>
         <script src="lib/FileAPI.js"></script>

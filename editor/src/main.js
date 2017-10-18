@@ -110,6 +110,8 @@ function init() {
     var loadingEl = document.getElementById('loading');
     loadingEl.parentNode.removeChild(loadingEl);
     document.getElementById('toolbar').style.display = 'block';
+    document.getElementById('reset').addEventListener('click', reset);
+    document.getElementById('download').addEventListener('click', download);
 
     viewer = new QMV.Viewer(document.getElementById('main'), config);
     viewer.setCameraControl(config.viewControl);
@@ -170,6 +172,9 @@ function init() {
                 textureFlipY: config.textureFlipY,
                 zUpToYUp: config.zUpToYUp
             });
+
+            pbrRoughnessMetallicPanel.disable();
+            pbrSpecularGlossinessPanel.disable();
         });
         env.AUTO_SAVE && project.saveModelFiles(files);
     });
@@ -281,6 +286,35 @@ function initUI() {
         .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
     pbrSpecularGlossinessPanel.disable();
+}
+
+function reset() {
+    swal({
+        title: 'Reset?',
+        text: 'Reset the whole scene',
+        type: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes!'
+    }).then(function () {
+        zrUtil.merge(config, getDefaultSceneConfig(), true);
+        zrUtil.merge(materialConfig, getDefaultMaterialConfig(), true);
+        controlKit.update();
+        pbrRoughnessMetallicPanel.disable();
+        pbrSpecularGlossinessPanel.disable();
+
+        viewer.dispose();
+        viewer = new QMV.Viewer(document.getElementById('main'), config);
+        viewer.setCameraControl(config.viewControl);
+        viewer.start();
+        
+        project.removeProject();
+    }).catch(function () {});
+}
+
+function download() {
+
 }
 
 var filesMapInverse;
