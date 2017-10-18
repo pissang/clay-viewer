@@ -495,7 +495,6 @@ Viewer.prototype.loadAnimation = function (url) {
     loader.load(url);
     loader.success(function (res) {
         this._setAnimationClips(res.clips);
-        // this.autoFitModel();
     }, this);
 
     return loader;

@@ -105,12 +105,11 @@ var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
 
-window.addEventListener('resize', function () { viewer.resize(); });
-
 function init() {
     // Remove loading
     var loadingEl = document.getElementById('loading');
     loadingEl.parentNode.removeChild(loadingEl);
+    document.getElementById('toolbar').style.display = 'block';
 
     viewer = new QMV.Viewer(document.getElementById('main'), config);
     viewer.setCameraControl(config.viewControl);
@@ -348,3 +347,6 @@ setInterval(function () {
         env.AUTO_SAVE && project.saveSceneConfig(config);
     }
 }, 5000);
+
+
+window.addEventListener('resize', function () { viewer.resize(); });

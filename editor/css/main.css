@@ -30,6 +30,28 @@ body {
     width: 120px;
 }
 
+#toolbar {
+    position: absolute;
+    right: 280px;
+    top: 10px;
+    border-radius: 3px;
+    background-color: rgba(255,255,255,0.5);
+    display: none;
+    /* box-shadow: 0px 0px 10px rgba(122,122,122,0.4); */
+}
+
+#toolbar .iconfont {
+    display: inline-block;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 3px;
+}
+#toolbar .iconfont:hover {
+    background-color: rgba(255,255,255,0.5);
+}
+
+
 #controlKit .panel .group-list .group .sub-group-list .sub-group ul li.drag-hover {
     border: 2px solid #66f;
     box-sizing: border-box;
