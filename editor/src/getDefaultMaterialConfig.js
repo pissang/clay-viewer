@@ -12,6 +12,8 @@ export default function () {
         emission: '#fff',
         emissionIntensity: 0,
         emissiveMap: '',
+
+        uvRepeat: [1, 1],
         
         // Metallic and roughness
         metalness: 0,
@@ -27,7 +29,8 @@ export default function () {
 
         $metalnessRange: [0, 1],
         $roughnessRange: [0, 1],
-        $glossinessRange: [0, 1]
+        $glossinessRange: [0, 1],
 
+        $textureTiling: 1
     };
 }

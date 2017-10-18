@@ -48,6 +48,7 @@ function updateGround() {
 }
 
 function updateMaterial() {
+    materialConfig.uvRepeat = [materialConfig.$textureTiling, materialConfig.$textureTiling];
     viewer.setMaterial(materialConfig.name, materialConfig);
 }
 
@@ -240,7 +241,9 @@ function initUI() {
         .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
+        .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap') })
@@ -254,7 +257,9 @@ function initUI() {
         .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
+        .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
+        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap') })
