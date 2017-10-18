@@ -13,6 +13,7 @@ import PlaneGeometry from 'qtek/src/geometry/Plane';
 import Shader from 'qtek/src/Shader';
 import RayPicking from 'qtek/src/picking/RayPicking';
 import notifier from 'qtek/src/core/mixin/notifier';
+import shaderLibrary from 'qtek/src/shader/library';
 
 import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
@@ -153,6 +154,8 @@ Viewer.prototype.init = function (dom, opts) {
 
         this.refresh();
     }, this);
+
+    this._shaderLibrary = shaderLibrary.createLibrary();
 };
 
 Viewer.prototype._createGround = function () {
@@ -362,7 +365,8 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: opts.textureFlipY
+        textureFlipY: opts.textureFlipY,
+        shaderLibrary: this._shaderLibrary
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -395,7 +399,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
                 vertexCount += mesh.geometry.vertexCount;
             }
         });
-        this._preprocessModel(res.rootNode, loader.shaderLibrary, opts);
+        this._preprocessModel(res.rootNode, opts);
 
         this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
@@ -431,6 +435,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     });
 
     this._textureFlipY = opts.textureFlipY;
+    this._shaderName = shaderName;
 
     return task;
 };
@@ -439,10 +444,11 @@ Viewer.prototype.getScene = function () {
     return this._renderMain.scene;
 };
 
-Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
+Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
     var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
     var shaderName = opts.shader || 'standard';
+    var shaderLibrary = this._shaderLibrary;
 
     var meshNeedsSplit = [];
     rootNode.traverse(function (mesh) {
@@ -614,9 +620,60 @@ Viewer.prototype.setEnvironment = function (envUrl) {
 Viewer.prototype.setMaterial = function (matName, materialCfg) {
     materialCfg = materialCfg || {};
     var materials = this._materialsMap[matName];
-    if (!materials) {
+    var app = this;
+    var textureFlipY = this._textureFlipY;
+    if (!materials || !materials.length) {
         console.warn('Material %s not exits', name);
         return;
+    }
+
+    var enabledTextures = materials[0].shader.getEnabledTextures();
+    function addTexture(propName) {
+        // Not change if texture name is not in the config.
+        if (propName in materialCfg) {
+            var idx = enabledTextures.indexOf(propName);
+            if (materialCfg[propName] && materialCfg[propName] !== 'none') {
+                var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
+                    flipY: textureFlipY,
+                    anisotropic: 8
+                }, function () {
+                    app.refresh();
+                });
+                textures[propName] = texture;
+                // Enable texture.
+                if (idx < 0) {
+                    enabledTextures.push(propName);
+                }
+            }
+            else {
+                // Disable texture.
+                if (idx >= 0) {
+                    enabledTextures.splice(idx, 1);
+                }
+            }
+        }
+    }
+    var textures = {};
+    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+        addTexture(propName);
+    }, this);
+    if (materials[0].shader.isDefined('fragment', 'USE_METALNESS')) {
+        ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
+            addTexture(propName);
+        }, this);
+    }
+    else {
+        ['specularMap', 'glossinessMap'].forEach(function (propName) {
+            addTexture(propName);
+        }, this);
+    }
+
+    if (textures.normalMap) {
+        this._modelNode.traverse(function (mesh) {
+            if (mesh.material && mesh.material.name === matName) {
+                mesh.geometry.generateTangents();       
+            }
+        });
     }
     materials.forEach(function (mat) {
         if (materialCfg.transparent != null) {
@@ -633,39 +690,15 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
-        ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
-            if (materialCfg[propName]) {
-                mat.setTextureImage(propName, materialCfg[propName], this, {
-                    flipY: this._textureFlipY
-                });   
-            }
-        }, this);
-        if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
-            ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
-                if (materialCfg[propName]) {
-                    mat.setTextureImage(propName, materialCfg[propName], this, {
-                        flipY: this._textureFlipY
-                    });
-                }
-            }, this);
+        for (var texName in textures) {
+            mat.set(texName, textures[texName]);
         }
-        else {
-            ['specularMap', 'glossinessMap'].forEach(function (propName) {
-                if (materialCfg[propName]) {
-                    mat.setTextureImage(propName, materialCfg[propName], this, {
-                        flipY: this._textureFlipY
-                    });
-                }
-            }, this);
-        }
-
-        if (mat.get('normalMap')) {
-            this._modelNode.traverse(function (mesh) {
-                if (mesh.material && mesh.material.name === matName) {
-                    mesh.geometry.generateTangents();       
-                }
-            });
-        }
+        mat.attachShader(this._shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
+            fragmentDefines: mat.shader.fragmentDefines,
+            textures: enabledTextures,
+            vertexDefines: mat.shader.vertexDefines,
+            precision: mat.shader.precision
+        }), true);
     }, this);
     this.refresh();
 };
