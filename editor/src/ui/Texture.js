@@ -18,7 +18,7 @@ function TextureUI(parent, object, key, params) {
 
     this.update();
 
-    this._wrapNode.getParent().setHeight(105);
+    this._wrapNode.getParent().setHeight(85);
 
     var liEl = this._wrapNode.getParent().getElement();
     FileAPI.event.dnd(liEl, function (over) {
