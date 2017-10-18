@@ -65,13 +65,15 @@ function saveModelFiles(files) {
 
 function saveSceneConfig(sceneCfg) {
     // FIXME Write file may failed
-    filer.write('/project/scene.json', {
-        data: JSON.stringify(sceneCfg, null, 2),
-        type: 'application/json'
-    }, function () {
-        console.log('Saved scene');
-    }, function (err) {
-        console.error('Failed to save scene,' + err.toString());
+    filer.mkdir('/project', false, function () {
+        filer.write('/project/scene.json', {
+            data: JSON.stringify(sceneCfg, null, 2),
+            type: 'application/json'
+        }, function () {
+            console.log('Saved scene');
+        }, function (err) {
+            console.error('Failed to save scene,' + err.toString());
+        });
     });
 }
 
@@ -165,7 +167,11 @@ function loadModelFiles(files, cb) {
 
 function removeProject() {
     filer.rm('/project', function () {
-        filer.mkdir('/project', false, function () {});
+        filer.mkdir('/project', false, function () {}, function (err) {
+            console.error(err.toString());
+        });
+    }, function (err) {
+        console.log(err.toString());
     });
 }
 

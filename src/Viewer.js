@@ -181,11 +181,7 @@ Viewer.prototype._createGround = function () {
 
 Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Remove previous loaded
-    var prevModelNode = this._modelNode;
-    if (prevModelNode) {
-        this._renderer.disposeNode(prevModelNode);
-        this._renderMain.scene.remove(prevModelNode);
-    }
+    this.removeModel();
 
     this._skeletons.forEach(function (skeleton) {
         if (skeleton.__debugScene) {
@@ -221,12 +217,27 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._stopAccumulating();
 };
 
-Viewer.prototype._setAnimationClips = function (clips) {
+Viewer.prototype.removeModel = function () {
+    var prevModelNode = this._modelNode;
+    if (prevModelNode) {
+        this._renderer.disposeNode(prevModelNode);
+        this._renderMain.scene.remove(prevModelNode);
+        this._modelNode = null;
+        this.refresh();
+    }
+    this._removeAnimationClips();
+    this._materialsMap = {};
+    this._nodes = [];
+    this._skeletons = [];
+};
 
+Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
     }, this);
+};
 
+Viewer.prototype._setAnimationClips = function (clips) {
     var self = this;
     clips.forEach(function (clip) {
         if (!clip.target) {
@@ -494,6 +505,7 @@ Viewer.prototype.loadAnimation = function (url) {
     });
     loader.load(url);
     loader.success(function (res) {
+        this._removeAnimationClips();
         this._setAnimationClips(res.clips);
     }, this);
 

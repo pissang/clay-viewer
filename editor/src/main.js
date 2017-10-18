@@ -304,10 +304,7 @@ function reset() {
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
 
-        viewer.dispose();
-        viewer = new QMV.Viewer(document.getElementById('main'), config);
-        viewer.setCameraControl(config.viewControl);
-        viewer.start();
+        viewer.removeModel();
         
         project.removeProject();
     }).catch(function () {});
