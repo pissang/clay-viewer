@@ -291,7 +291,7 @@ function initUI() {
 function reset() {
     swal({
         title: 'Reset?',
-        text: 'Reset the whole scene',
+        text: 'Reset the viewer',
         type: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -311,7 +311,7 @@ function reset() {
 }
 
 function download() {
-
+    project.downloadProject();
 }
 
 var filesMapInverse;

@@ -98,23 +98,15 @@ function loadSceneFromFS() {
 
 function loadModelFromFS() {
     return new Promise(function (resolve, reject) {
-        filer.ls('/project/model', function (entries) {
-            var files = [];
-            entries = entries.filter(function (entry) {
-                return entry.isFile;
-            });
-            entries.forEach(function (entry) {
-                filer.open(entry, function (file) {
-                    files.push(file);
-                    if (files.length === entries.length) {
-                        loadModelFiles(files, function (glTF, filesMap) {
-                            resolve([glTF, filesMap]);
-                        });
-                    }
+        readModelFilesFromFS().then(function (files) {
+            if (!files) {
+                resolve([]);
+            }
+            else {
+                loadModelFiles(files, function (glTF, filesMap) {
+                    resolve([glTF, filesMap]);
                 });
-            });
-        }, function (err) {
-            resolve([]);
+            }
         });
     });
 }
@@ -175,5 +167,65 @@ function removeProject() {
     });
 }
 
+function readModelFilesFromFS() {
+    return new Promise(function (resolve, reject) {
+        filer.ls('/project/model', function (entries) {
+            var files = [];
+            entries = entries.filter(function (entry) {
+                return entry.isFile;
+            });
+            entries.forEach(function (entry) {
+                filer.open(entry, function (file) {
+                    files.push(file);
+                    if (files.length === entries.length) {
+                        resolve(files);
+                    }
+                });
+            });
+        }, function (err) {
+            resolve(null);
+        });
+    });
+}
 
-export { init, saveModelFiles, loadModelFiles, saveSceneConfig, writeTextureImage, removeProject };
+function downloadProject() {
+    Promise.all([
+        readModelFilesFromFS(),
+        loadSceneFromFS()
+    ]).then(function (result) {
+        var files = result[0];
+        var loadedSceneCfg = result[1];
+
+        var zip = new JSZip();
+        var count = files.length;
+        if (!count) {
+            swal('No file in project!');
+        }
+        files.forEach(function (file) {
+            FileAPI.readAsArrayBuffer(file, function (e) {
+                if (e.type == 'load') {
+                    count--;
+                    zip.file(file.name, e.result);
+
+                    if (count === 0) {
+                        zip.generateAsync({ type: 'blob' })
+                            .then(function (blob) {
+                                saveAs(blob, 'model.zip');
+                            });                        
+                    }
+                }
+            });
+        });
+    });
+}
+
+
+export {
+    init,
+    saveModelFiles,
+    loadModelFiles,
+    saveSceneConfig,
+    writeTextureImage,
+    removeProject,
+    downloadProject
+};
