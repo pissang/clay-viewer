@@ -446,7 +446,7 @@ Viewer.prototype.getScene = function () {
 
 Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
-    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
+    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
     var shaderName = opts.shader || 'standard';
     var shaderLibrary = this._shaderLibrary;
 
@@ -646,17 +646,18 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 }, function () {
                     app.refresh();
                 });
-                textures[propName] = texture;
                 // Enable texture.
                 if (idx < 0) {
                     enabledTextures.push(propName);
                 }
+                textures[propName] = texture;
             }
             else {
                 // Disable texture.
                 if (idx >= 0) {
                     enabledTextures.splice(idx, 1);
                 }
+                textures[propName] = null;
             }
         }
     }

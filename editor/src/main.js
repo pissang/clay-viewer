@@ -185,7 +185,7 @@ function init() {
 }
 
 function initUI() {
-    scenePanel = controlKit.addPanel({ label: 'Scene', width: 250 });
+    scenePanel = controlKit.addPanel({ label: 'Settings', width: 250 });
 
     scenePanel.addGroup({ label: 'Global' })
         .addSubGroup( { label: 'Load Option'})
