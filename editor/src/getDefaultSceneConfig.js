@@ -154,7 +154,7 @@ export default function () {
             },
             FXAA: {
                 // If enable FXAA
-                enable: true
+                enable: false
             }
         }
     };
