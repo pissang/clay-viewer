@@ -107,6 +107,10 @@ var pbrSpecularGlossinessPanel;
 window.addEventListener('resize', function () { viewer.resize(); });
 
 function init() {
+    // Remove loading
+    var loadingEl = document.getElementById('loading');
+    loadingEl.parentNode.removeChild(loadingEl);
+
     viewer = new QMV.Viewer(document.getElementById('main'), config);
     viewer.setCameraControl(config.viewControl);
     viewer.start();
@@ -173,6 +177,11 @@ function init() {
     document.body.addEventListener('drop', function (e) {
         e.preventDefault();
     });
+
+
+    initUI();
+
+    inited = true;
 }
 
 function initUI() {
@@ -211,6 +220,7 @@ function initUI() {
             .addColor(config.ambientLight, 'color', { label: 'Color', onChange: updateLight });
 
     scenePanel.addGroup({ label: 'Post Effect', enable: false})
+        .addCheckbox(config.postEffect, 'enable', { label: 'Enable', onChange: updatePostEffect })
         .addSubGroup({ label: 'Bloom', enable: false })
             .addCheckbox(config.postEffect.bloom, 'enable', { label: 'Enable', onChange: updatePostEffect })
             .addNumberInput(config.postEffect.bloom, 'intensity', { label: 'Intensity', step: 0.1, onChange: updatePostEffect })
@@ -274,18 +284,18 @@ function initUI() {
 }
 
 var filesMapInverse;
+var inited = false;
 
 project.init(function (glTF, filesMap, loadedSceneCfg) {
 
     if (loadedSceneCfg) {
         zrUtil.merge(config, loadedSceneCfg, true);
     }
+    if (inited) {
+        return;
+    }
 
     init();
-
-    initUI();
-    
-    controlKit.update();
 
     if (glTF) {
         filesMapInverse = {};
@@ -313,6 +323,14 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
         });
     }
 });
+
+setTimeout(function () {
+    if (inited) {
+        return;
+    }
+    console.warn('Init time out');
+    init();
+}, 5000);
 
 setInterval(function () {
     if (viewer) {

@@ -474,6 +474,8 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
+            mesh.material.set('emission', [0, 0, 0]);
+
             // Transparent mesh not cast shadow
             if (mesh.material.transparent) {
                 mesh.castShadow = false;
@@ -628,11 +630,16 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
     }
 
     var enabledTextures = materials[0].shader.getEnabledTextures();
+
+    function haveTexture(val) {
+        return val && val !== 'none';
+    }
+
     function addTexture(propName) {
         // Not change if texture name is not in the config.
         if (propName in materialCfg) {
             var idx = enabledTextures.indexOf(propName);
-            if (materialCfg[propName] && materialCfg[propName] !== 'none') {
+            if (haveTexture(materialCfg[propName])) {
                 var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
                     flipY: textureFlipY,
                     anisotropic: 8
@@ -685,7 +692,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, graphicHelper.parseColor(materialCfg[propName]));
             }
         });
-        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity'].forEach(function (propName) {
+        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
@@ -719,7 +726,7 @@ Viewer.prototype.getMaterial = function (name) {
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alphaCutoff', 'emissionIntensity'].forEach(function (propName) {
+    ['alphaCutoff', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
     function getTextureUri(propName) {

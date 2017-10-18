@@ -78,7 +78,7 @@ function saveSceneConfig(sceneCfg) {
 function loadSceneFromFS() {
     return new Promise(function (resolve, reject) {
         filer.create('/project/scene.json', true, function () {
-
+            resolve(null);
         }, function () {
             // FIXME it will throw async error if file not exists
             filer.open('/project/scene.json', function (file) {

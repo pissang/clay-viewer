@@ -11,6 +11,25 @@ body {
     bottom: 0;
 }
 
+#loading {
+    position: absolute;
+    width: 120px;
+    height: 80px;
+    left: 50%;
+    top: 50%;
+    margin-left: -60px;
+    margin-top: -40px;
+
+    text-transform: uppercase;
+    font-size: 24px;
+    color: #aaa;
+    text-align: center;
+}
+
+#loading img {
+    width: 120px;
+}
+
 #controlKit .panel .group-list .group .sub-group-list .sub-group ul li.drag-hover {
     border: 2px solid #66f;
     box-sizing: border-box;
