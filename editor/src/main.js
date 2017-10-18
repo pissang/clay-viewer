@@ -80,7 +80,8 @@ function changeTexture(type, file, val) {
             ['metalnessMap', 'metalness', 0.5],
             ['roughnessMap', 'roughness', 0.5],
             ['glossinessMap', 'glossiness', 0.5],
-            ['specularMap', 'specularColor', '#fff']
+            ['specularMap', 'specularColor', '#fff'],
+            ['emissiveMap', 'emission', '#fff']
         ].forEach(function (item) {
             if (type === item[0]) {
                 console.warn('Force %s to be %f after set %s', item[1], item[2], item[0]);

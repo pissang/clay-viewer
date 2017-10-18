@@ -474,8 +474,6 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
-            mesh.material.set('emission', [0, 0, 0]);
-
             // Transparent mesh not cast shadow
             if (mesh.material.transparent) {
                 mesh.castShadow = false;
