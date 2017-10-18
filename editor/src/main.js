@@ -48,7 +48,8 @@ function updateGround() {
 }
 
 function updateMaterial() {
-    materialConfig.uvRepeat = [materialConfig.$textureTiling, materialConfig.$textureTiling];
+    var $textureTiling = Math.max(materialConfig.$textureTiling, 0.01);
+    materialConfig.uvRepeat = [$textureTiling, $textureTiling];
     viewer.setMaterial(materialConfig.name, materialConfig);
 }
 
@@ -71,28 +72,32 @@ function haveTexture(val) {
     return val && val !== 'none';
 }
 
-function changeTexture(type, file, url) {
+function changeTexture(type, file, val) {
     var uiNeedUpdate = false;
-    [
-        ['diffuseMap', 'color', '#fff'],
-        ['metalnessMap', 'metalness', 0.5],
-        ['roughnessMap', 'roughness', 0.5],
-        ['glossinessMap', 'glossiness', 0.5],
-        ['specularMap', 'specularColor', '#fff']
-    ].forEach(function (item) {
-        if (haveTexture(materialConfig[item[0]]) && type === item[0]) {
-            console.warn('Force %s to be %f after set %s', item[1], item[2], item[0]);
-            materialConfig[item[1]] = item[2];
+    if (haveTexture(val)) {
+        [
+            ['diffuseMap', 'color', '#fff'],
+            ['metalnessMap', 'metalness', 0.5],
+            ['roughnessMap', 'roughness', 0.5],
+            ['glossinessMap', 'glossiness', 0.5],
+            ['specularMap', 'specularColor', '#fff']
+        ].forEach(function (item) {
+            if (type === item[0]) {
+                console.warn('Force %s to be %f after set %s', item[1], item[2], item[0]);
+                materialConfig[item[1]] = item[2];
+    
+                uiNeedUpdate = true;
+            }
+        }, this);
 
-            uiNeedUpdate = true;
-        }
-    }, this);
+        // TODO Remove old textures.
+        project.writeTextureImage(file);
+        filesMapInverse[val] = file.name;
 
-    project.writeTextureImage(file);
-    filesMapInverse[url] = file.name;
+        uiNeedUpdate && controlKit.update();
+    }
+
     updateMaterial();
-
-    uiNeedUpdate && controlKit.update();
 }
 
 var scenePanel;
@@ -243,7 +248,7 @@ function initUI() {
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial })
+        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap') })
@@ -259,7 +264,7 @@ function initUI() {
         .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
         .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial })
+        .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap') })

@@ -43,6 +43,20 @@ body {
 }
 .texture-wrap img {
     height: 80px;
+    display: inline-block;
+    vertical-align: top;
+}
+.texture-wrap .texture-delete {
+    display: inline-block;
+    width: 20px!important;
+    height: 80px!important;
+    vertical-align: top;
+    text-align: center;
+    line-height: 80px;
+    text-transform: none!important;
+}
+.texture-wrap .texture-delete::after {
+    content: 'x';
 }
 
 .pace {

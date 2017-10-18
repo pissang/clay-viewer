@@ -12,9 +12,13 @@ function TextureUI(parent, object, key, params) {
     wrap.setStyleClass('texture-wrap');
 
     var img = document.createElement('img');
+    var deleteEl = document.createElement('div');
+    deleteEl.className = 'texture-delete button';
+
     this._img = img;
 
     wrap.getElement().appendChild(img);
+    wrap.getElement().appendChild(deleteEl);
 
     this.update();
 
@@ -36,6 +40,13 @@ function TextureUI(parent, object, key, params) {
 
             self._onChange(imgFile, object[key]);
         }
+    });
+
+    // Clear
+    deleteEl.addEventListener('click', function () {
+        object[key] = 'none';
+        self.update();
+        self._onChange(null, 'none');
     });
 }
 
