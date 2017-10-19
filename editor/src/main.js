@@ -56,6 +56,7 @@ function updateMaterial() {
 function selectMaterial(mat) {
     materialConfig.name = mat.name;
     var matConfig = viewer.getMaterial(mat.name);
+    matConfig.$textureTiling = matConfig.uvRepeat[0];
     util.extend(materialConfig, matConfig);
     if (matConfig.specularColor == null) {
         pbrRoughnessMetallicPanel.enable();
@@ -365,6 +366,7 @@ setTimeout(function () {
 
 setInterval(function () {
     if (viewer) {
+        var materialsMap = {};
         config.materials = viewer.getMaterialsNames().map(function (matName) {
             var matConfig = viewer.getMaterial(matName);
             // From object URL to file name;
@@ -373,8 +375,17 @@ setInterval(function () {
                     matConfig[key] = filesMapInverse[matConfig[key]];
                 }
             }
+            matConfig.targetMeshes = [];
+            materialsMap[matName] = matConfig;
             return matConfig;
         });
+
+        viewer.getScene().traverse(function (mesh) {
+            if (mesh.material && materialsMap[mesh.material.name]) {
+                materialsMap[mesh.material.name].targetMeshes.push(mesh.name);
+            }
+        });
+
         env.AUTO_SAVE && project.saveSceneConfig(config);
     }
 }, 5000);
