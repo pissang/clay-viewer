@@ -217,20 +217,6 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._stopAccumulating();
 };
 
-Viewer.prototype.removeModel = function () {
-    var prevModelNode = this._modelNode;
-    if (prevModelNode) {
-        this._renderer.disposeNode(prevModelNode);
-        this._renderMain.scene.remove(prevModelNode);
-        this._modelNode = null;
-        this.refresh();
-    }
-    this._removeAnimationClips();
-    this._materialsMap = {};
-    this._nodes = [];
-    this._skeletons = [];
-};
-
 Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
@@ -451,6 +437,27 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     return task;
 };
 
+/**
+ * Remove current loaded model
+ */
+Viewer.prototype.removeModel = function () {
+    var prevModelNode = this._modelNode;
+    if (prevModelNode) {
+        this._renderer.disposeNode(prevModelNode);
+        this._renderMain.scene.remove(prevModelNode);
+        this._modelNode = null;
+        this.refresh();
+    }
+    this._removeAnimationClips();
+    this._materialsMap = {};
+    this._nodes = [];
+    this._skeletons = [];
+};
+
+/**
+ * Return scene.
+ * @return {qtek.Scene}
+ */
 Viewer.prototype.getScene = function () {
     return this._renderMain.scene;
 };
@@ -634,7 +641,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
     var app = this;
     var textureFlipY = this._textureFlipY;
     if (!materials || !materials.length) {
-        console.warn('Material %s not exits', name);
+        console.warn('Material %s not exits', matName);
         return;
     }
 
@@ -702,7 +709,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, graphicHelper.parseColor(materialCfg[propName]));
             }
         });
-        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
+        ['alpha', 'alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
@@ -736,7 +743,7 @@ Viewer.prototype.getMaterial = function (name) {
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alphaCutoff', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
+    ['alpha', 'alphaCutoff', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
     function getTextureUri(propName) {
@@ -766,6 +773,7 @@ Viewer.prototype.getMaterial = function (name) {
             materialCfg[propName] = getTextureUri(propName);
         });
     }
+
     return materialCfg;
 };
 

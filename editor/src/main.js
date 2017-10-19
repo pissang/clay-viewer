@@ -50,6 +50,7 @@ function updateGround() {
 function updateMaterial() {
     var $textureTiling = Math.max(materialConfig.$textureTiling, 0.01);
     materialConfig.uvRepeat = [$textureTiling, $textureTiling];
+    materialConfig.transparent = materialConfig.alpha < 1;
     viewer.setMaterial(materialConfig.name, materialConfig);
 }
 
@@ -256,10 +257,11 @@ function initUI() {
             .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
 
-    pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 220, fixed: false, align: 'left' });
+    pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 240, fixed: false, align: 'left' });
     pbrRoughnessMetallicPanel
         .addStringOutput(materialConfig, 'name', { label: 'Name' })
         .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
+        .addSlider(materialConfig, 'alpha', '$alphaRange', { label: 'Alpha', onChange: updateMaterial })
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
         .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
@@ -272,10 +274,11 @@ function initUI() {
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
     pbrRoughnessMetallicPanel.disable();
 
-    pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 220, fixed: false, align: 'left' });
+    pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 240, fixed: false, align: 'left' });
     pbrSpecularGlossinessPanel
         .addStringOutput(materialConfig, 'name', { label: 'Name' })
         .addColor(materialConfig, 'color', { label: 'Base Color', onChange: updateMaterial })
+        .addSlider(materialConfig, 'alpha', '$alphaRange', { label: 'Alpha', onChange: updateMaterial })
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
         .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
