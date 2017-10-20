@@ -959,6 +959,8 @@ Viewer.prototype.dispose = function () {
 
     this._renderer.dispose();
     this._cameraControl.dispose();
+    this.root.removeEventListener('mousedown', this._mouseDownHandler);
+    this.root.removeEventListener('click', this._clickHandler);
     this.root.innerHTML = '';
 
     this.stop();

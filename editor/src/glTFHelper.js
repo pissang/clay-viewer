@@ -212,6 +212,7 @@ function updateGLTFMaterials(glTF, sceneConfig) {
                 return channel * matConfig.emissionIntensity;
             })
             // TODO Alpha mode
+            // TODO texture tiling.
         };
         if (matConfig.normalMap) {
             gltfMat.normalTexture = {
