@@ -2,6 +2,12 @@
 
 3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer based on [QTEK](https://github.com/pissang/qtek)
 
+## Editor
+
+<a href="https://pissang.github.io/qtek-model-viewer/editor/">
+    <img src="./screenshots/editor.png" width="400px" />
+</a>
+
 ## Loader
 
 ```js
