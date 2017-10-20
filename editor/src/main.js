@@ -202,14 +202,16 @@ function init() {
                 zUpToYUp: config.zUpToYUp,
                 includeTexture: !haveQMVConfig
             }).on('ready', function () {
-                (glTF.extras.qtekModelViewerConfig.materials || []).forEach(function (matConfig) {
-                    for (var key in matConfig) {
-                        if (filesMap[matConfig[key]]) {
-                            matConfig[key] = filesMap[matConfig[key]];
+                if (haveQMVConfig) {
+                    (glTF.extras.qtekModelViewerConfig.materials || []).forEach(function (matConfig) {
+                        for (var key in matConfig) {
+                            if (filesMap[matConfig[key]]) {
+                                matConfig[key] = filesMap[matConfig[key]];
+                            }
                         }
-                    }
-                    viewer.setMaterial(matConfig.name, matConfig);
-                });
+                        viewer.setMaterial(matConfig.name, matConfig);
+                    });
+                }
             });
 
             pbrRoughnessMetallicPanel.disable();

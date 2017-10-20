@@ -8780,7 +8780,6 @@ function ShaderLibrary () {
  * + qtek.standard
  * + qtek.basic
  * + qtek.lambert
- * + qtek.phong
  * + qtek.wireframe
  *
  * @namespace qtek.shader.library
@@ -8800,12 +8799,14 @@ function ShaderLibrary () {
  *         textures: ['diffuseMap'],
  *         vertexDefines: {},
  *         fragmentDefines: {}
+ *         precision: 'mediump'
  *     })
  */
 ShaderLibrary.prototype.get = function(name, option) {
     var enabledTextures = [];
     var vertexDefines = {};
     var fragmentDefines = {};
+    var precision;
     if (typeof(option) === 'string') {
         enabledTextures = Array.prototype.slice.call(arguments, 1);
     }
@@ -8813,6 +8814,7 @@ ShaderLibrary.prototype.get = function(name, option) {
         enabledTextures = option.textures || [];
         vertexDefines = option.vertexDefines || {};
         fragmentDefines = option.fragmentDefines || {};
+        precision = option.precision;
     }
     else if (option instanceof Array) {
         enabledTextures = option;
@@ -8837,6 +8839,9 @@ ShaderLibrary.prototype.get = function(name, option) {
             fragmentDefines[fragmentDefineKeys[i]]
         );
     }
+    if (precision) {
+        keyArr.push(precision);
+    }
     var key = keyArr.join('_');
 
     if (this._pool[key]) {
@@ -8852,6 +8857,9 @@ ShaderLibrary.prototype.get = function(name, option) {
             'vertex': source.vertex,
             'fragment': source.fragment
         });
+        if (precision) {
+            shader.precision = precision;
+        }
         for (var i = 0; i < enabledTextures.length; i++) {
             shader.enableTexture(enabledTextures[i]);
         }
@@ -8935,11 +8943,11 @@ var Texture = Base.extend(
     /**
      * @type {number}
      */
-    wrapS: glenum.CLAMP_TO_EDGE,
+    wrapS: glenum.REPEAT,
     /**
      * @type {number}
      */
-    wrapT: glenum.CLAMP_TO_EDGE,
+    wrapT: glenum.REPEAT,
     /**
      * @type {number}
      */
@@ -17190,21 +17198,21 @@ function makeAttrKey(attrName) {
 var StaticGeometry = Geometry.extend(function () {
     return /** @lends qtek.StaticGeometry# */ {
         attributes: {
-                position: new StaticAttribute('position', 'float', 3, 'POSITION'),
-                texcoord0: new StaticAttribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
-                texcoord1: new StaticAttribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
-                normal: new StaticAttribute('normal', 'float', 3, 'NORMAL'),
-                tangent: new StaticAttribute('tangent', 'float', 4, 'TANGENT'),
-                color: new StaticAttribute('color', 'float', 4, 'COLOR'),
-                // Skinning attributes
-                // Each vertex can be bind to 4 bones, because the
-                // sum of weights is 1, so the weights is stored in vec3 and the last
-                // can be calculated by 1-w.x-w.y-w.z
-                weight: new StaticAttribute('weight', 'float', 3, 'WEIGHT'),
-                joint: new StaticAttribute('joint', 'float', 4, 'JOINT'),
-                // For wireframe display
-                // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
-                barycentric: new StaticAttribute('barycentric', 'float', 3, null),
+            position: new StaticAttribute('position', 'float', 3, 'POSITION'),
+            texcoord0: new StaticAttribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
+            texcoord1: new StaticAttribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
+            normal: new StaticAttribute('normal', 'float', 3, 'NORMAL'),
+            tangent: new StaticAttribute('tangent', 'float', 4, 'TANGENT'),
+            color: new StaticAttribute('color', 'float', 4, 'COLOR'),
+            // Skinning attributes
+            // Each vertex can be bind to 4 bones, because the
+            // sum of weights is 1, so the weights is stored in vec3 and the last
+            // can be calculated by 1-w.x-w.y-w.z
+            weight: new StaticAttribute('weight', 'float', 3, 'WEIGHT'),
+            joint: new StaticAttribute('joint', 'float', 4, 'JOINT'),
+            // For wireframe display
+            // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
+            barycentric: new StaticAttribute('barycentric', 'float', 3, null),
         },
 
         hint: glenum.STATIC_DRAW,
@@ -17583,6 +17591,11 @@ var StaticGeometry = Geometry.extend(function () {
         var tangents = attributes.tangent.value;
         var normals = attributes.normal.value;
 
+        if (!texcoords) {
+            console.warn('Geometry without texcoords can\'t generate tangents.');
+            return;
+        }
+
         var tan1 = [];
         var tan2 = [];
         for (var i = 0; i < nVertex; i++) {
@@ -17661,7 +17674,8 @@ var StaticGeometry = Geometry.extend(function () {
             tangents[i * 4] = tmp[0];
             tangents[i * 4 + 1] = tmp[1];
             tangents[i * 4 + 2] = tmp[2];
-            tangents[i * 4 + 3] = vec3$11.dot(nCrossT, tan2[i]) < 0.0 ? -1.0 : 1.0;
+            // PENDING can config ?
+            tangents[i * 4 + 3] = vec3$11.dot(nCrossT, tan2[i]) < 0.0 ? 1.0 : -1.0;
         }
         this.dirty();
     },
@@ -18715,14 +18729,7 @@ function () {
                     }
                 }
 
-                if (meshInfo.name) {
-                    if (meshInfo.primitives.length > 1) {
-                        mesh.name = [meshInfo.name, pp].join('-');
-                    }
-                    else {
-                        mesh.name = meshInfo.name;
-                    }
-                }
+                mesh.name = GLTFLoader.generateMeshName(meshInfo.name, pp);
 
                 lib.meshes[idx].push(mesh);
             }
@@ -18924,6 +18931,10 @@ function () {
         return lib.clips;
     }
 });
+
+GLTFLoader.generateMeshName = function (meshName, primitiveIdx) {
+    return primitiveIdx === 0 ? meshName : (meshName + '$' + primitiveIdx);
+};
 
 /**
  * @module echarts/animation/Animator
@@ -19922,7 +19933,8 @@ var meshUtil = {
                     subShader = shaderLib.get(shaderType, {
                         textures: shader.getEnabledTextures(),
                         vertexDefines: vertexDefines,
-                        fragmentDefines: shader.fragmentDefines
+                        fragmentDefines: shader.fragmentDefines,
+                        precision: shader.precision
                     });
                 }
                 else {
@@ -27353,7 +27365,7 @@ Material.prototype.setTextureImage = function (textureName, imgValue, app, textu
     // disableTexture first
     material.shader.disableTexture(textureName);
     if (!isValueNone(imgValue)) {
-        texture = helper.loadTexture(imgValue, api, textureOpts, function (texture) {
+        texture = helper.loadTexture(imgValue, app, textureOpts, function (texture) {
             material.shader.enableTexture(textureName);
             app.refresh();
         });
@@ -28207,7 +28219,7 @@ var effectJson = {
     ]
 };
 
-var dofGLSL = "@export ecgl.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDistance: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n float aperture = focalLength / fstop;\n\n float coc;\n\n float uppper = focalDistance + focalRange;\n float lower = focalDistance - focalRange;\n if (dist <= uppper && dist >= lower) {\n coc = 0.5;\n }\n else {\n float focalAdjusted = dist > uppper ? uppper : lower;\n\n coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n coc = clamp(coc, 0.0, 0.4) / 0.4000001;\n\n if (dist < lower) {\n coc = -coc;\n }\n coc = coc * 0.5 + 0.5;\n }\n\n gl_FragColor = encodeFloat(coc);\n}\n@end\n\n\n@export ecgl.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n fCoc = abs(fCoc * 2.0 - 1.0);\n\n float weight = smoothstep(0.0, 1.0, fCoc);\n \n#ifdef NEARFIELD_ENABLED\n vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n gl_FragColor = encodeHDR(\n mix(\n nearfieldColor, mix(originalColor, blurredColor, weight),\n pow(1.0 - fNearCoc, 4.0)\n )\n );\n#else\n gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n}\n\n@end\n\n\n\n@export ecgl.dof.diskBlur\n\n#define POISSON_KERNEL_SIZE 16;\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurRadius : 10.0;\nuniform vec2 textureSize : [512.0, 512.0];\n\nuniform vec2 poissonKernel[POISSON_KERNEL_SIZE];\n\nuniform float percent;\n\nfloat nrand(const in vec2 n) {\n return fract(sin(dot(n.xy ,vec2(12.9898,78.233))) * 43758.5453);\n}\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\n\nvoid main()\n{\n vec2 offset = blurRadius / textureSize;\n\n float rnd = 6.28318 * nrand(v_Texcoord + 0.07 * percent );\n float cosa = cos(rnd);\n float sina = sin(rnd);\n vec4 basis = vec4(cosa, -sina, sina, cosa);\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n#ifdef BLUR_COC\n float cocSum = 0.0;\n#else\n vec4 color = vec4(0.0);\n#endif\n\n\n float weightSum = 0.0;\n\n for (int i = 0; i < POISSON_KERNEL_SIZE; i++) {\n vec2 ofs = poissonKernel[i];\n\n ofs = vec2(dot(ofs, basis.xy), dot(ofs, basis.zw));\n\n vec2 uv = v_Texcoord + ofs * offset;\n vec4 texel = texture2D(texture, uv);\n\n float w = 1.0;\n#ifdef BLUR_COC\n float fCoc = decodeFloat(texel) * 2.0 - 1.0;\n cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n texel = decodeHDR(texel);\n #if !defined(BLUR_NEARFIELD)\n float fCoc = decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0;\n w *= abs(fCoc);\n #endif\n color += texel * w;\n#endif\n\n weightSum += w;\n }\n\n#ifdef BLUR_COC\n gl_FragColor = encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n color /= weightSum;\n gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end";
+var dofGLSL = "@export ecgl.dof.coc\n\nuniform sampler2D depth;\n\nuniform float zNear: 0.1;\nuniform float zFar: 2000;\n\nuniform float focalDistance: 3;\nuniform float focalRange: 1;\nuniform float focalLength: 30;\nuniform float fstop: 2.8;\n\nvarying vec2 v_Texcoord;\n\n@import qtek.util.encode_float\n\nvoid main()\n{\n float z = texture2D(depth, v_Texcoord).r * 2.0 - 1.0;\n\n float dist = 2.0 * zNear * zFar / (zFar + zNear - z * (zFar - zNear));\n\n float aperture = focalLength / fstop;\n\n float coc;\n\n float uppper = focalDistance + focalRange;\n float lower = focalDistance - focalRange;\n if (dist <= uppper && dist >= lower) {\n coc = 0.5;\n }\n else {\n float focalAdjusted = dist > uppper ? uppper : lower;\n\n coc = abs(aperture * (focalLength * (dist - focalAdjusted)) / (dist * (focalAdjusted - focalLength)));\n coc = clamp(coc, 0.0, 2.0) / 2.00001;\n\n if (dist < lower) {\n coc = -coc;\n }\n coc = coc * 0.5 + 0.5;\n }\n\n gl_FragColor = encodeFloat(coc);\n}\n@end\n\n\n@export ecgl.dof.composite\n\n#define DEBUG 0\n\nuniform sampler2D original;\nuniform sampler2D blurred;\nuniform sampler2D nearfield;\nuniform sampler2D coc;\nuniform sampler2D nearcoc;\nvarying vec2 v_Texcoord;\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\nvoid main()\n{\n vec4 blurredColor = decodeHDR(texture2D(blurred, v_Texcoord));\n vec4 originalColor = decodeHDR(texture2D(original, v_Texcoord));\n\n float fCoc = decodeFloat(texture2D(coc, v_Texcoord));\n\n fCoc = abs(fCoc * 2.0 - 1.0);\n\n float weight = smoothstep(0.0, 1.0, fCoc);\n \n#ifdef NEARFIELD_ENABLED\n vec4 nearfieldColor = decodeHDR(texture2D(nearfield, v_Texcoord));\n float fNearCoc = decodeFloat(texture2D(nearcoc, v_Texcoord));\n fNearCoc = abs(fNearCoc * 2.0 - 1.0);\n\n gl_FragColor = encodeHDR(\n mix(\n nearfieldColor, mix(originalColor, blurredColor, weight),\n pow(1.0 - fNearCoc, 4.0)\n )\n );\n#else\n gl_FragColor = encodeHDR(mix(originalColor, blurredColor, weight));\n#endif\n\n}\n\n@end\n\n\n\n@export ecgl.dof.diskBlur\n\n#define POISSON_KERNEL_SIZE 16;\n\nuniform sampler2D texture;\nuniform sampler2D coc;\nvarying vec2 v_Texcoord;\n\nuniform float blurRadius : 10.0;\nuniform vec2 textureSize : [512.0, 512.0];\n\nuniform vec2 poissonKernel[POISSON_KERNEL_SIZE];\n\nuniform float percent;\n\nfloat nrand(const in vec2 n) {\n return fract(sin(dot(n.xy ,vec2(12.9898,78.233))) * 43758.5453);\n}\n\n@import qtek.util.rgbm\n@import qtek.util.float\n\n\nvoid main()\n{\n vec2 offset = blurRadius / textureSize;\n\n float rnd = 6.28318 * nrand(v_Texcoord + 0.07 * percent );\n float cosa = cos(rnd);\n float sina = sin(rnd);\n vec4 basis = vec4(cosa, -sina, sina, cosa);\n\n#if !defined(BLUR_NEARFIELD) && !defined(BLUR_COC)\n offset *= abs(decodeFloat(texture2D(coc, v_Texcoord)) * 2.0 - 1.0);\n#endif\n\n#ifdef BLUR_COC\n float cocSum = 0.0;\n#else\n vec4 color = vec4(0.0);\n#endif\n\n\n float weightSum = 0.0;\n\n for (int i = 0; i < POISSON_KERNEL_SIZE; i++) {\n vec2 ofs = poissonKernel[i];\n\n ofs = vec2(dot(ofs, basis.xy), dot(ofs, basis.zw));\n\n vec2 uv = v_Texcoord + ofs * offset;\n vec4 texel = texture2D(texture, uv);\n\n float w = 1.0;\n#ifdef BLUR_COC\n float fCoc = decodeFloat(texel) * 2.0 - 1.0;\n cocSum += clamp(fCoc, -1.0, 0.0) * w;\n#else\n texel = decodeHDR(texel);\n #if !defined(BLUR_NEARFIELD)\n float fCoc = decodeFloat(texture2D(coc, uv)) * 2.0 - 1.0;\n w *= abs(fCoc);\n #endif\n color += texel * w;\n#endif\n\n weightSum += w;\n }\n\n#ifdef BLUR_COC\n gl_FragColor = encodeFloat(clamp(cocSum / weightSum, -1.0, 0.0) * 0.5 + 0.5);\n#else\n color /= weightSum;\n gl_FragColor = encodeHDR(color);\n#endif\n}\n\n@end";
 
 var edgeGLSL = "@export ecgl.edge\n\nuniform sampler2D texture;\n\nuniform sampler2D normalTexture;\nuniform sampler2D depthTexture;\n\nuniform mat4 projectionInv;\n\nuniform vec2 textureSize;\n\nuniform vec4 edgeColor: [0,0,0,0.8];\n\nvarying vec2 v_Texcoord;\n\nvec3 packColor(vec2 coord) {\n float z = texture2D(depthTexture, coord).r * 2.0 - 1.0;\n vec4 p = vec4(v_Texcoord * 2.0 - 1.0, z, 1.0);\n vec4 p4 = projectionInv * p;\n\n return vec3(\n texture2D(normalTexture, coord).rg,\n -p4.z / p4.w / 5.0\n );\n}\n\nvoid main() {\n vec2 cc = v_Texcoord;\n vec3 center = packColor(cc);\n\n float size = clamp(1.0 - (center.z - 10.0) / 100.0, 0.0, 1.0) * 0.5;\n float dx = size / textureSize.x;\n float dy = size / textureSize.y;\n\n vec2 coord;\n vec3 topLeft = packColor(cc+vec2(-dx, -dy));\n vec3 top = packColor(cc+vec2(0.0, -dy));\n vec3 topRight = packColor(cc+vec2(dx, -dy));\n vec3 left = packColor(cc+vec2(-dx, 0.0));\n vec3 right = packColor(cc+vec2(dx, 0.0));\n vec3 bottomLeft = packColor(cc+vec2(-dx, dy));\n vec3 bottom = packColor(cc+vec2(0.0, dy));\n vec3 bottomRight = packColor(cc+vec2(dx, dy));\n\n vec3 v = -topLeft-2.0*top-topRight+bottomLeft+2.0*bottom+bottomRight;\n vec3 h = -bottomLeft-2.0*left-topLeft+bottomRight+2.0*right+topRight;\n\n float edge = sqrt(dot(h, h) + dot(v, v));\n\n edge = smoothstep(0.8, 1.0, edge);\n\n gl_FragColor = mix(texture2D(texture, v_Texcoord), vec4(edgeColor.rgb, 1.0), edgeColor.a * edge);\n}\n@end";
 
@@ -28846,6 +28858,8 @@ function RenderMain(renderer, enableShadow, projection) {
         x: 0, y: 0, width: 0, height: 0
     };
 
+    this.preZ = false;
+
     this.setProjection(projection);
 
     this._compositor = new EffectCompositor();
@@ -29041,7 +29055,8 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         var frameBuffer = this._compositor.getSourceFrameBuffer();
         frameBuffer.bind(renderer);
         renderer.gl.clear(renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT);
-        renderer.render(scene, camera, true, true);
+        // FIXME Enable pre z will make alpha test failed
+        renderer.render(scene, camera, true, this.preZ);
         this.afterRenderScene(renderer, scene, camera);
         frameBuffer.unbind(renderer);
 
@@ -29061,7 +29076,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
             frameBuffer.bind(renderer);
             renderer.saveClear();
             renderer.clearBit = renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT;
-            renderer.render(scene, camera, true, true);
+            renderer.render(scene, camera, true, this.preZ);
             this.afterRenderScene(renderer, scene, camera);
             renderer.restoreClear();
             frameBuffer.unbind(renderer);
@@ -29070,7 +29085,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         }
         else {
             renderer.setViewport(this.viewport);
-            renderer.render(scene, camera, true, true);
+            renderer.render(scene, camera, true, this.preZ);
             this.afterRenderScene(renderer, scene, camera);
         }
     }
@@ -29448,7 +29463,6 @@ SceneHelper.prototype = {
                 // Panorama
                 var skydome = getSkydome();
                 var texture = helper.loadTexture(environmentUrl, app, {
-                    anisotropic: 8,
                     flipY: false
                 }, function () {
                     app.refresh();
@@ -29567,7 +29581,7 @@ var defaultSceneConfig = {
             // Focal distance of camera in word space.
             focalDistance: 5,
             // Focal range of camera in word space. in this range image will be absolutely sharp.
-            focalRange: 3,
+            focalRange: 1,
             // Max out of focus blur radius.
             blurRadius: 5,
             // fstop of camera. Smaller fstop will have shallow depth of field
@@ -32046,6 +32060,8 @@ Viewer.prototype.init = function (dom, opts) {
 
         this.refresh();
     }, this);
+
+    this._shaderLibrary = library.createLibrary();
 };
 
 Viewer.prototype._createGround = function () {
@@ -32071,11 +32087,7 @@ Viewer.prototype._createGround = function () {
 
 Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Remove previous loaded
-    var prevModelNode = this._modelNode;
-    if (prevModelNode) {
-        this._renderer.disposeNode(prevModelNode);
-        this._renderMain.scene.remove(prevModelNode);
-    }
+    this.removeModel();
 
     this._skeletons.forEach(function (skeleton) {
         if (skeleton.__debugScene) {
@@ -32111,12 +32123,13 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._stopAccumulating();
 };
 
-Viewer.prototype._setAnimationClips = function (clips) {
-
+Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
     }, this);
+};
 
+Viewer.prototype._setAnimationClips = function (clips) {
     var self = this;
     clips.forEach(function (clip) {
         if (!clip.target) {
@@ -32163,6 +32176,7 @@ Viewer.prototype._clickHandler = function (e) {
     var result = this._picking.pick(e.clientX, e.clientY, true);
     if (result) {
         this._renderMain.setDOFFocusOnPoint(result.distance);
+        this.trigger('doffocus', result);
         this.refresh();
     }
 
@@ -32254,7 +32268,8 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: opts.textureFlipY
+        textureFlipY: opts.textureFlipY,
+        shaderLibrary: this._shaderLibrary
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -32287,7 +32302,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
                 vertexCount += mesh.geometry.vertexCount;
             }
         });
-        this._preprocessModel(res.rootNode, loader.shaderLibrary, opts);
+        this._preprocessModel(res.rootNode, opts);
 
         this._addModel(res.rootNode, res.nodes, res.skeletons, res.clips);
 
@@ -32322,17 +32337,42 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         task.trigger('error');
     });
 
+    this._textureFlipY = opts.textureFlipY;
+    this._shaderName = shaderName;
+
     return task;
 };
 
+/**
+ * Remove current loaded model
+ */
+Viewer.prototype.removeModel = function () {
+    var prevModelNode = this._modelNode;
+    if (prevModelNode) {
+        this._renderer.disposeNode(prevModelNode);
+        this._renderMain.scene.remove(prevModelNode);
+        this._modelNode = null;
+        this.refresh();
+    }
+    this._removeAnimationClips();
+    this._materialsMap = {};
+    this._nodes = [];
+    this._skeletons = [];
+};
+
+/**
+ * Return scene.
+ * @return {qtek.Scene}
+ */
 Viewer.prototype.getScene = function () {
     return this._renderMain.scene;
 };
 
-Viewer.prototype._preprocessModel = function (rootNode, shaderLibrary, opts) {
+Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
-    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.95;
+    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
     var shaderName = opts.shader || 'standard';
+    var shaderLibrary = this._shaderLibrary;
 
     var meshNeedsSplit = [];
     rootNode.traverse(function (mesh) {
@@ -32378,8 +32418,8 @@ Viewer.prototype.loadAnimation = function (url) {
     });
     loader.load(url);
     loader.success(function (res) {
+        this._removeAnimationClips();
         this._setAnimationClips(res.clips);
-        // this.autoFitModel();
     }, this);
 
     return loader;
@@ -32494,19 +32534,76 @@ Viewer.prototype.setEnvironment = function (envUrl) {
 };
 
 /**
- * @param {string} name
+ * @param {string} matName
  * @param {Object} materialCfg
  * @param {boolean} [materialCfg.transparent]
  * @param {boolean} [materialCfg.alphaCutoff]
  * @param {boolean} [materialCfg.metalness]
  * @param {boolean} [materialCfg.roughness]
  */
-Viewer.prototype.setMaterial = function (name, materialCfg) {
+Viewer.prototype.setMaterial = function (matName, materialCfg) {
     materialCfg = materialCfg || {};
-    var materials = this._materialsMap[name];
-    if (!materials) {
-        console.warn('Material %s not exits', name);
+    var materials = this._materialsMap[matName];
+    var app = this;
+    var textureFlipY = this._textureFlipY;
+    if (!materials || !materials.length) {
+        console.warn('Material %s not exits', matName);
         return;
+    }
+
+    var enabledTextures = materials[0].shader.getEnabledTextures();
+
+    function haveTexture(val) {
+        return val && val !== 'none';
+    }
+
+    function addTexture(propName) {
+        // Not change if texture name is not in the config.
+        if (propName in materialCfg) {
+            var idx = enabledTextures.indexOf(propName);
+            if (haveTexture(materialCfg[propName])) {
+                var texture = helper.loadTexture(materialCfg[propName], app, {
+                    flipY: textureFlipY,
+                    anisotropic: 8
+                }, function () {
+                    app.refresh();
+                });
+                // Enable texture.
+                if (idx < 0) {
+                    enabledTextures.push(propName);
+                }
+                textures[propName] = texture;
+            }
+            else {
+                // Disable texture.
+                if (idx >= 0) {
+                    enabledTextures.splice(idx, 1);
+                }
+                textures[propName] = null;
+            }
+        }
+    }
+    var textures = {};
+    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+        addTexture(propName);
+    }, this);
+    if (materials[0].shader.isDefined('fragment', 'USE_METALNESS')) {
+        ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
+            addTexture(propName);
+        }, this);
+    }
+    else {
+        ['specularMap', 'glossinessMap'].forEach(function (propName) {
+            addTexture(propName);
+        }, this);
+    }
+
+    if (textures.normalMap) {
+        this._modelNode.traverse(function (mesh) {
+            if (mesh.material && mesh.material.name === matName) {
+                mesh.geometry.generateTangents();       
+            }
+        });
     }
     materials.forEach(function (mat) {
         if (materialCfg.transparent != null) {
@@ -32518,11 +32615,20 @@ Viewer.prototype.setMaterial = function (name, materialCfg) {
                 mat.set(propName, helper.parseColor(materialCfg[propName]));
             }
         });
-        ['alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity'].forEach(function (propName) {
+        ['alpha', 'alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
+        for (var texName in textures) {
+            mat.set(texName, textures[texName]);
+        }
+        mat.attachShader(this._shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
+            fragmentDefines: mat.shader.fragmentDefines,
+            textures: enabledTextures,
+            vertexDefines: mat.shader.vertexDefines,
+            precision: mat.shader.precision
+        }), true);
     }, this);
     this.refresh();
 };
@@ -32543,18 +32649,39 @@ Viewer.prototype.getMaterial = function (name) {
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = helper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alphaCutoff', 'emissionIntensity'].forEach(function (propName) {
+    ['alpha', 'alphaCutoff', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
+    });
+    function getTextureUri(propName) {
+        var texture = mat.get(propName);
+        if (texture && texture.image && texture.image.src && texture.isRenderable()) {
+            return texture.image.src;
+        }
+        else {
+            return '';
+        }
+    }
+    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+        materialCfg[propName] = getTextureUri(propName);
     });
     if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
         ['metalness', 'roughness'].forEach(function (propName) {
             materialCfg[propName] = mat.get(propName);
         });
+        ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
+            materialCfg[propName] = getTextureUri(propName);
+        });
+        materialCfg.type = 'pbrMetallicRoughness';
     }
     else {
         materialCfg.specularColor = helper.stringifyColor(mat.get('specularColor'), 'hex');
         materialCfg.glossiness = mat.get('glossiness');
+        ['specularMap', 'glossinessMap'].forEach(function (propName) {
+            materialCfg[propName] = getTextureUri(propName);
+        });
+        materialCfg.type = 'pbrSpecularGlossiness';
     }
+
     return materialCfg;
 };
 
@@ -32738,6 +32865,8 @@ Viewer.prototype.dispose = function () {
 
     this._renderer.dispose();
     this._cameraControl.dispose();
+    this.root.removeEventListener('mousedown', this._mouseDownHandler);
+    this.root.removeEventListener('click', this._clickHandler);
     this.root.innerHTML = '';
 
     this.stop();
