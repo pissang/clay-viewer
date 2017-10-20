@@ -5,7 +5,7 @@
 ## Editor
 
 <a href="https://pissang.github.io/qtek-model-viewer/editor/">
-    <img src="./screenshots/editor.png" width="400px" />
+    <img src="./screenshots/editor.jpg" width="400px" />
 </a>
 
 ## Loader
