@@ -3,13 +3,36 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="lib/pace.min.js"></script>
-        <title>GLTF 2.0 Viewer</title>
+        <title>glTF 2.0 Viewer</title>
         <link rel="stylesheet" href="css/controlKit.css">
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/iconfont/iconfont.css">
     </head>
     <body>
-        <div id="main"></div>
+        <div id="main">
+            <div id="viewport"></div>
+            <div id="tip">
+                Drag glTF2.0 and texture files or folder on the viewport.
+                <div class="hint">
+                    Get glTF2.0 models from
+                    <ul>
+                        <li>
+                            <a href="https://github.com/KhronosGroup/glTF-Sample-Models">glTF Sample Models</a>
+                        </li>
+                        <li>
+                            <a href="https://sketchfab.com/feed-v2">Sketchfab</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div id="credits">
+                Built on top of
+                    <a href="https://github.com/pissang/qtek" target="_blank">QTEK</a>,
+                    <a href="https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md" target="_blank">glTF2.0</a>,
+                    <a href="https://github.com/automat/controlkit.js" target="_blank">ControlKit</a>
+    
+            </div>
+        </div>
         <div id="loading">
             <img src="./img/loading.gif" alt="">
             <div>LOADING...</div>

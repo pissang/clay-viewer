@@ -113,9 +113,15 @@ var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
 
+function showTip() {
+    document.getElementById('tip').style.display = 'block';
+}
+function hideTip() {
+    document.getElementById('tip').style.display = 'none';
+}
 
 function createViewer() {
-    viewer = new QMV.Viewer(document.getElementById('main'), config);
+    viewer = new QMV.Viewer(document.getElementById('viewport'), config);
     viewer.setCameraControl(config.viewControl);
     viewer.start();
 
@@ -177,6 +183,8 @@ function init() {
                 || file.type.match(/image/);
         });
         project.loadModelFiles(files, function (glTF, filesMap) {
+            hideTip();
+
             filesMapInverse = {};
             for (var name in filesMap) {
                 filesMapInverse[filesMap[name]] = name;
@@ -345,6 +353,8 @@ function reset() {
         createViewer();
         
         project.removeProject();
+
+        showTip();
     }).catch(function () {});
 }
 
@@ -390,6 +400,9 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
                 });
             }
         });
+    }
+    else {
+        showTip();
     }
 });
 
