@@ -107,14 +107,8 @@ var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
 
-function init() {
-    // Remove loading
-    var loadingEl = document.getElementById('loading');
-    loadingEl.parentNode.removeChild(loadingEl);
-    document.getElementById('toolbar').style.display = 'block';
-    document.getElementById('reset').addEventListener('click', reset);
-    document.getElementById('download').addEventListener('click', download);
 
+function createViewer() {
     viewer = new QMV.Viewer(document.getElementById('main'), config);
     viewer.setCameraControl(config.viewControl);
     viewer.start();
@@ -155,6 +149,18 @@ function init() {
             distance: params.distance
         };
     });
+
+}
+
+function init() {
+    // Remove loading
+    var loadingEl = document.getElementById('loading');
+    loadingEl.parentNode.removeChild(loadingEl);
+    document.getElementById('toolbar').style.display = 'block';
+    document.getElementById('reset').addEventListener('click', reset);
+    document.getElementById('download').addEventListener('click', download);
+
+    createViewer();
 
     ///////////// Drag and drop
     FileAPI.event.dnd(document.getElementById('main'), function (over) {
@@ -304,11 +310,16 @@ function reset() {
     }).then(function () {
         zrUtil.merge(config, getDefaultSceneConfig(), true);
         zrUtil.merge(materialConfig, getDefaultMaterialConfig(), true);
+        config.materials = [];
         controlKit.update();
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
 
-        viewer.removeModel();
+        gizmoScene.remove(boundingBoxGizmo);
+        boundingBoxGizmo.target = null;
+        
+        viewer.dispose();
+        createViewer();
         
         project.removeProject();
     }).catch(function () {});

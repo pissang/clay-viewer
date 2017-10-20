@@ -6,6 +6,8 @@ export default function () {
         
         color: '#fff',
 
+        type: 'pbrMetallicRoughness',
+
         transparent: false,
         alpha: 1,
 

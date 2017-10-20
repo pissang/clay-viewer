@@ -765,6 +765,7 @@ Viewer.prototype.getMaterial = function (name) {
         ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
             materialCfg[propName] = getTextureUri(propName);
         });
+        materialCfg.type = 'pbrMetallicRoughness';
     }
     else {
         materialCfg.specularColor = graphicHelper.stringifyColor(mat.get('specularColor'), 'hex');
@@ -772,6 +773,7 @@ Viewer.prototype.getMaterial = function (name) {
         ['specularMap', 'glossinessMap'].forEach(function (propName) {
             materialCfg[propName] = getTextureUri(propName);
         });
+        materialCfg.type = 'pbrSpecularGlossiness';
     }
 
     return materialCfg;

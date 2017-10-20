@@ -1,4 +1,5 @@
 import Filer from 'filer.js';
+import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, TEXTURES } from './glTFHelper';
 
 var filer = new Filer();
 var filerInited = false;
@@ -64,7 +65,6 @@ function saveModelFiles(files) {
 }
 
 function saveSceneConfig(sceneCfg) {
-    // FIXME Write file may failed
     filer.mkdir('/project', false, function () {
         filer.write('/project/scene.json', {
             data: JSON.stringify(sceneCfg, null, 2),
@@ -197,22 +197,93 @@ function downloadProject() {
         var loadedSceneCfg = result[1];
 
         var zip = new JSZip();
-        var count = files.length;
-        if (!count) {
-            swal('No file in project!');
-        }
-        files.forEach(function (file) {
-            FileAPI.readAsArrayBuffer(file, function (e) {
-                if (e.type == 'load') {
-                    count--;
-                    zip.file(file.name, e.result);
 
-                    if (count === 0) {
-                        zip.generateAsync({ type: 'blob' })
-                            .then(function (blob) {
-                                saveAs(blob, 'model.zip');
-                            });                        
-                    }
+        var glTFFile;
+        var filesMap = {};
+        files = files.filter(function (file) {
+            if (file.name.match(/.gltf$/)) {
+                glTFFile = file;
+            }
+            else {
+                filesMap[file.name] = file;
+                return true;
+            }
+        });
+
+        if (!glTFFile) {
+            swal('No glTF file in project!');
+        }
+
+        function removeFile(file) {
+            var idx = files.indexOf(file);
+            if (idx >= 0) {
+                files.splice(idx, 1);
+            }
+        }
+
+        Promise.all(loadedSceneCfg.materials.map(function (matConfig, idx) {
+            // TODO Different material use same metalnessMap and roughnessMap.
+            if (matConfig.metalnessMap || matConfig.roughnessMap) {
+                var metalnessFile = filesMap[matConfig.metalnessMap];
+                var roughnessFile = filesMap[matConfig.roughnessMap];
+                return new Promise(function (resolve) {
+                    mergeMetallicRoughness(metalnessFile, roughnessFile, matConfig.metalness, matConfig.roughness).then(function (canvas) {
+                        var fileName = matConfig.name + '$' + idx + '_metallicRoughness.png';
+                        var dataUrl = canvas.toDataURL();
+                        dataUrl = dataUrl.slice('data:image/png;base64,'.length);
+                        zip.file(fileName, dataUrl, {
+                            base64: true
+                        });
+                        matConfig.metalnessMap = matConfig.roughnessMap = fileName;
+
+                        console.log('Merged %s, %s to %s', matConfig.metalnessMap, matConfig.roughnessMap, fileName);
+
+                        resolve();
+                    });
+                });
+            }
+            else if (matConfig.specularMap || matConfig.glossinessMap) {
+                var specularFile = filesMap[matConfig.specularMap];
+                var glossinessFile = filesMap[matConfig.glossinessMap];
+                return new Promise(function (resolve) {
+                    mergeSpecularGlossiness(specularFile, glossinessFile, matConfig.specularColor, matConfig.glossiness).then(function (canvas) {
+                        var fileName = matConfig.name + '$' + idx + '_specularGlossiness.png';
+                        var dataUrl = canvas.toDataURL();
+                        dataUrl = dataUrl.slice('data:image/png;base64,'.length);
+                        zip.file(fileName, dataUrl, {
+                            base64: true
+                        });
+                        matConfig.specularMap = matConfig.glossinessMap = fileName;
+
+                        console.log('Merged %s, %s to %s', matConfig.specularMap, matConfig.glossinessMap, fileName);
+
+                        resolve();
+                    });
+                });
+            }
+            return null;
+        }).filter(function (p) { return p != null; })).then(function () {
+            FileAPI.readAsText(glTFFile, 'utf-8', function (e) {
+                if (e.type == 'load') {
+                    var newGLTF = updateGLTFMaterials(JSON.parse(e.result), loadedSceneCfg);
+                    // Remove unused images
+                    files = files.filter(function (file) {
+                        if (file.type.match(/image/)) {
+                            return newGLTF.images && newGLTF.images.some(function (img) {
+                                return img.uri === file.name;
+                            });
+                        }
+                        // Other is binary file.
+                        return true;
+                    });
+                    zip.file(glTFFile.name, JSON.stringify(newGLTF, null, 2));
+                    files.forEach(function (file) {
+                        zip.file(file.name, file);         
+                    });
+                    zip.generateAsync({ type: 'blob' })
+                        .then(function (blob) {
+                            saveAs(blob, 'model.zip');
+                        });
                 }
             });
         });
