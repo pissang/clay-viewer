@@ -46,6 +46,12 @@ function updateEnvironment() {
 function updateGround() {
     viewer.setGround(config.ground);
 }
+function updateAll() {
+    updateLight();
+    updatePostEffect();
+    updateEnvironment();
+    updateGround();
+}
 
 function updateMaterial() {
     var $textureTiling = Math.max(materialConfig.$textureTiling, 0.01);
@@ -175,10 +181,27 @@ function init() {
             for (var name in filesMap) {
                 filesMapInverse[filesMap[name]] = name;
             }
+            var haveQMVConfig = !!(glTF.extras && glTF.extras.qtekModelViewerConfig);
+            if (haveQMVConfig) {
+                zrUtil.merge(config, glTF.extras.qtekModelViewerConfig, true);
+                viewer.setCameraControl(config.viewControl);
+                updateAll();
+                controlKit.update();
+            }
             viewer.loadModel(glTF, {
                 files: filesMap,
                 textureFlipY: config.textureFlipY,
-                zUpToYUp: config.zUpToYUp
+                zUpToYUp: config.zUpToYUp,
+                includeTexture: !haveQMVConfig
+            }).on('ready', function () {
+                (glTF.extras.qtekModelViewerConfig.materials || []).forEach(function (matConfig) {
+                    for (var key in matConfig) {
+                        if (filesMap[matConfig[key]]) {
+                            matConfig[key] = filesMap[matConfig[key]];
+                        }
+                    }
+                    viewer.setMaterial(matConfig.name, matConfig);
+                });
             });
 
             pbrRoughnessMetallicPanel.disable();
@@ -317,7 +340,7 @@ function reset() {
 
         gizmoScene.remove(boundingBoxGizmo);
         boundingBoxGizmo.target = null;
-        
+
         viewer.dispose();
         createViewer();
         
