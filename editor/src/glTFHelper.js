@@ -82,6 +82,7 @@ function mergeMetallicRoughness(metallicFile, roughnessFile, metallicFactor, rou
 }
 
 function mergeSpecularGlossiness(specularFile, glossinessFile, specularFactor, glossinessFactor) {
+    specularFactor = graphicHelper.parseColor(specularFactor).slice(0, 3);
     return new Promise(function (resolve, reject) {
         prepareImageData([specularFile, glossinessFile])
             .then(function (result) {
@@ -104,7 +105,7 @@ function mergeSpecularGlossiness(specularFile, glossinessFile, specularFactor, g
                         var g2 = glossinessImgData[i + 3] / 255;
                         g = Math.min(Math.max(g2 + (g - 0.5) * 2, 0), 1);
                     }
-                    for (var k = 0; i < 3; k++) {
+                    for (var k = 0; k < 3; k++) {
                         finalImgData.data[i + k] = Math.round(spec[k] * 255);
                     }
                     finalImgData.data[i + 3] = Math.round(g * 255);
