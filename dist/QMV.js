@@ -10871,7 +10871,8 @@ var Renderer = Base.extend(function () {
 
             var geometry = renderable.geometry;
 
-            var worldM = renderable.worldTransform._array;
+            // Skinned mesh will transformed to joint space. Ignore the mesh transform
+            var worldM = renderable.isSkinnedMesh() ? matrices.IDENTITY : renderable.worldTransform._array;
             // All matrices ralated to world matrix will be updated on demand;
             mat4.multiplyAffine(matrices.WORLDVIEW, matrices.VIEW , worldM);
             if (geometry.boundingBox && !preZ) {
@@ -11052,7 +11053,7 @@ var Renderer = Base.extend(function () {
                 continue;
             }
 
-            var worldM = renderable.worldTransform._array;
+            var worldM = renderable.isSkinnedMesh() ? matrices.IDENTITY : renderable.worldTransform._array;
             var geometry = renderable.geometry;
 
             mat4.multiplyAffine(matrices.WORLDVIEW, matrices.VIEW , worldM);
@@ -11112,7 +11113,7 @@ var Renderer = Base.extend(function () {
         // http://www.cse.chalmers.se/~uffe/vfc_bbox.pdf
         var cullingBoundingBox = new BoundingBox();
         var cullingMatrix = new Matrix4();
-        return function(object, scene, camera, worldViewMat, projectionMat) {
+        return function (object, scene, camera, worldViewMat, projectionMat) {
             // Bounding box can be a property of object(like light) or renderable.geometry
             var geoBBox = object.boundingBox || object.geometry.boundingBox;
             cullingMatrix._array = worldViewMat;
@@ -11315,6 +11316,8 @@ Renderer.transparentSortFunc = Renderer.prototype.transparentSortFunc = function
 
 // Temporary variables
 var matrices = {
+    IDENTITY: mat4Create(),
+    
     WORLD: mat4Create(),
     VIEW: mat4Create(),
     PROJECTION: mat4Create(),
@@ -12266,6 +12269,12 @@ var Node = Base.extend(
      */
     invisible: false,
 
+    /**
+     * Return if Node is a skinned mesh
+     */
+    isSkinnedMesh: function () {
+        return false;
+    },
     /**
      * Return true if it is a renderable scene node, like Mesh and ParticleSystem
      * @return {boolean}
@@ -13789,7 +13798,7 @@ var Renderable = Node.extend(
      * @type {boolean}
      */
     ignoreGBuffer: false,
-
+    
     /**
      * @return {boolean}
      */
@@ -14346,6 +14355,11 @@ var Mesh = Renderable.extend(
         this.joints = [];
     }
 }, {
+
+    isSkinnedMesh: function () {
+        return this.skeleton && this.material.shader.isDefined('vertex', 'SKINNING');
+    },
+
     render: function (renderer, shader) {
         var _gl = renderer.gl;
         shader = shader || this.material.shader;
@@ -14594,21 +14608,19 @@ var Skeleton = Base.extend(function () {
 
             for (var i = 0; i < this.joints.length; i++) {
                 var joint = this.joints[i];
-                // Joint space is relative to root, if have
-                // !!Parent node and joint node must all be updated
-                if (this.relativeRootNode) {
-                    mat4$4.invert(m4, this.relativeRootNode.worldTransform._array);
-                    mat4$4.multiply(
-                        m4,
-                        m4,
-                        joint.node.worldTransform._array
-                    );
-                    mat4$4.invert(m4, m4);
-                }
-                else {
+                // if (this.relativeRootNode) {
+                //     mat4.invert(m4, this.relativeRootNode.worldTransform._array);
+                //     mat4.multiply(
+                //         m4,
+                //         m4,
+                //         joint.node.worldTransform._array
+                //     );
+                //     mat4.invert(m4, m4);
+                // }
+                // else {
                     mat4$4.copy(m4, joint.node.worldTransform._array);
                     mat4$4.invert(m4, m4);
-                }
+                // }
 
                 var offset = i * 16;
                 for (var j = 0; j < 16; j++) {
@@ -14620,9 +14632,9 @@ var Skeleton = Base.extend(function () {
         };
     })(),
 
-    setJointMatricesArray: function (array) {
-        this._invBindPoseMatricesArray = array;
-        this._skinMatricesArray = new Float32Array(array.length);
+    setJointMatricesArray: function (arr) {
+        this._invBindPoseMatricesArray = arr;
+        this._skinMatricesArray = new Float32Array(arr.length);
         this.updateMatricesSubArrays();
     },
 
@@ -14637,7 +14649,7 @@ var Skeleton = Base.extend(function () {
      * Update skinning matrices
      */
     update: (function () {
-        var m4 = mat4$4.create();
+        // var m4 = mat4.create();
         return function () {
             for (var i = 0; i < this.joints.length; i++) {
                 var joint = this.joints[i];
@@ -14648,14 +14660,14 @@ var Skeleton = Base.extend(function () {
                 );
 
                 // Joint space is relative to root, if have
-                if (this.relativeRootNode) {
-                    mat4$4.invert(m4, this.relativeRootNode.worldTransform._array);
-                    mat4$4.multiply(
-                        this._skinMatricesSubArrays[i],
-                        m4,
-                        this._skinMatricesSubArrays[i]
-                    );
-                }
+                // if (this.relativeRootNode) {
+                //     mat4.invert(m4, this.relativeRootNode.worldTransform._array);
+                //     mat4.multiply(
+                //         this._skinMatricesSubArrays[i],
+                //         m4,
+                //         this._skinMatricesSubArrays[i]
+                //     );
+                // }
             }
         };
     })(),
@@ -17834,7 +17846,7 @@ if (Object.defineProperty) {
 
 StaticGeometry.Attribute = Geometry.StaticAttribute;
 
-var utilEssl = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n    const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n    highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n    return fract(sin(sn) * c);\n}\n@end\n@export qtek.util.calculate_attenuation\nuniform float attenuationFactor : 5.0;\nfloat lightAttenuation(float dist, float range)\n{\n    float attenuation = 1.0;\n    attenuation = dist*dist/(range*range+1.0);\n    float att_s = attenuationFactor;\n    attenuation = 1.0/(attenuation*att_s+1.0);\n    att_s = 1.0/(att_s+1.0);\n    attenuation = attenuation - att_s;\n    attenuation /= 1.0 - att_s;\n    return clamp(attenuation, 0.0, 1.0);\n}\n@end\n@export qtek.util.edge_factor\nfloat edgeFactor(float width)\n{\n    vec3 d = fwidth(v_Barycentric);\n    vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n    return min(min(a3.x, a3.y), a3.z);\n}\n@end\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n    const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n    vec4 res = fract(depth * bitShifts);\n    res -= res.xxyz * bit_mask;\n    return res;\n}\n@end\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n    const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n    return dot(color, bitShifts);\n}\n@end\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n  return range * rgbm.rgb * rgbm.a;\n}\n@end\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n    if (dot(color, color) == 0.0) {\n        return vec4(0.0);\n    }\n    vec4 rgbm;\n    color /= range;\n    rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n    rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n    rgbm.rgb = color / rgbm.a;\n    return rgbm;\n}\n@end\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n    return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n    return color;\n#endif\n}\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n    return RGBMEncode(color.xyz, 51.5);\n#else\n    return color;\n#endif\n}\n@end\n@export qtek.util.srgb\nvec4 sRGBToLinear(in vec4 value) {\n    return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\nvec4 linearTosRGB(in vec4 value) {\n    return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n    float j = idx * 4.0;\n    float x = mod(j, skinMatricesTextureSize);\n    float y = floor(j / skinMatricesTextureSize) + 0.5;\n    vec2 scale = vec2(skinMatricesTextureSize);\n    return mat4(\n        texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n    );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n    return skinMatrix[int(idx)];\n}\n#endif\n#endif\n@end\n@export qtek.chunk.skin_matrix\nmat4 skinMatrixWS;\nif (weight.x > 1e-4)\n{\n    skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\n}\nif (weight.y > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (weight.z > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nfloat weightW = 1.0-weight.x-weight.y-weight.z;\nif (weightW > 1e-3)\n{\n    skinMatrixWS += getSkinMatrix(joint.w) * weightW;\n}\n@end\n@export qtek.util.parallax_correct\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n    vec3 first = (boxMax - pos) / dir;\n    vec3 second = (boxMin - pos) / dir;\n    vec3 further = max(first, second);\n    float dist = min(further.x, min(further.y, further.z));\n    vec3 fixedPos = pos + dir * dist;\n    vec3 boxCenter = (boxMax + boxMin) * 0.5;\n    return normalize(fixedPos - boxCenter);\n}\n@end\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n    float eye = step(0.5, coord.x) * 0.5;\n    vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n    vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n    return texture2D(texture, coordClamped);\n}\n@end";
+var utilEssl = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n    const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n    highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n    return fract(sin(sn) * c);\n}\n@end\n@export qtek.util.calculate_attenuation\nuniform float attenuationFactor : 5.0;\nfloat lightAttenuation(float dist, float range)\n{\n    float attenuation = 1.0;\n    attenuation = dist*dist/(range*range+1.0);\n    float att_s = attenuationFactor;\n    attenuation = 1.0/(attenuation*att_s+1.0);\n    att_s = 1.0/(att_s+1.0);\n    attenuation = attenuation - att_s;\n    attenuation /= 1.0 - att_s;\n    return clamp(attenuation, 0.0, 1.0);\n}\n@end\n@export qtek.util.edge_factor\nfloat edgeFactor(float width)\n{\n    vec3 d = fwidth(v_Barycentric);\n    vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n    return min(min(a3.x, a3.y), a3.z);\n}\n@end\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n    const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n    vec4 res = fract(depth * bitShifts);\n    res -= res.xxyz * bit_mask;\n    return res;\n}\n@end\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n    const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n    return dot(color, bitShifts);\n}\n@end\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n  return range * rgbm.rgb * rgbm.a;\n}\n@end\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n    if (dot(color, color) == 0.0) {\n        return vec4(0.0);\n    }\n    vec4 rgbm;\n    color /= range;\n    rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n    rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n    rgbm.rgb = color / rgbm.a;\n    return rgbm;\n}\n@end\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n    return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n    return color;\n#endif\n}\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n    return RGBMEncode(color.xyz, 51.5);\n#else\n    return color;\n#endif\n}\n@end\n@export qtek.util.srgb\nvec4 sRGBToLinear(in vec4 value) {\n    return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\nvec4 linearTosRGB(in vec4 value) {\n    return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n    float j = idx * 4.0;\n    float x = mod(j, skinMatricesTextureSize);\n    float y = floor(j / skinMatricesTextureSize) + 0.5;\n    vec2 scale = vec2(skinMatricesTextureSize);\n    return mat4(\n        texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n    );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n    return skinMatrix[int(idx)];\n}\n#endif\n#endif\n@end\n@export qtek.chunk.skin_matrix\nmat4 skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\nif (weight.y > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (weight.z > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nfloat weightW = 1.0-weight.x-weight.y-weight.z;\nif (weightW > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.w) * weightW;\n}\n@end\n@export qtek.util.parallax_correct\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n    vec3 first = (boxMax - pos) / dir;\n    vec3 second = (boxMin - pos) / dir;\n    vec3 further = max(first, second);\n    float dist = min(further.x, min(further.y, further.z));\n    vec3 fixedPos = pos + dir * dist;\n    vec3 boxCenter = (boxMax + boxMin) * 0.5;\n    return normalize(fixedPos - boxCenter);\n}\n@end\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n    float eye = step(0.5, coord.x) * 0.5;\n    vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n    vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n    return texture2D(texture, coordClamped);\n}\n@end";
 
 var basicEssl = "@export qtek.basic.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Barycentric = barycentric;\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n@end\n@export qtek.basic.fragment\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.util.srgb\nvoid main()\n{\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n    gl_FragColor = vec4(color, alpha);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n#ifdef SRGB_DECODE\n    tex = sRGBToLinear(tex);\n#endif\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n    gl_FragColor.a = tex.a;\n#endif\n    gl_FragColor.rgb *= tex.rgb;\n#endif\n    gl_FragColor.rgb += emission;\n    if( lineWidth > 0.01)\n    {\n        gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n    }\n#ifdef GAMMA_ENCODE\n    gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n#ifdef ALPHA_TEST\n    if (gl_FragColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(gl_FragColor);\n}\n@end";
 
@@ -30269,40 +30281,23 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
 }
 
 function getBoundingBoxWithSkinning(node, out) {
+
     out = out || new BoundingBox();
 
-    var children = node.children();
-    if (children.length === 0) {
-        out.max.set(-Infinity, -Infinity, -Infinity);
-        out.min.set(Infinity, Infinity, Infinity);
-    }
-
-    var tmpBBox = new BoundingBox();
-    for (var i = 0; i < children.length; i++) {
-        var child = children[i];
-        getBoundingBoxWithSkinning(child, tmpBBox);
-        child.updateLocalTransform();
-        if (tmpBBox.isFinite()) {
-            tmpBBox.applyTransform(child.localTransform);
-        }
-        if (i === 0) {
-            out.copy(tmpBBox);
-        }
-        else {
+    node.traverse(function (mesh) {
+        if (mesh.geometry) {
+            var tmpBBox = new BoundingBox();
+            if (mesh.isSkinnedMesh()) {
+                getBoundingBoxOfSkinningMesh(mesh, tmpBBox);
+                mesh.geometry.boundingBox.copy(tmpBBox);
+            }
+            else {
+                tmpBBox.copy(mesh.geometry.boundingBox);
+                tmpBBox.applyTransform(mesh.worldTransform);
+            }
             out.union(tmpBBox);
         }
-    }
-
-    if (node.geometry) {
-        if (node.skeleton && node.joints && node.joints.length) {
-            getBoundingBoxOfSkinningMesh(node, tmpBBox);
-            node.geometry.boundingBox.copy(tmpBBox);
-            out.union(tmpBBox);
-        }
-        else {
-            out.union(node.geometry.boundingBox);
-        }
-    }
+    });
     return out;
 }
 
@@ -32221,8 +32216,16 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         this._modelNode.scale.set(scale, scale, scale);
         this._modelNode.position.copy(center).scale(-scale);
+        this._modelNode.update();
 
         this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
+
+        // FIXME, Do it in the renderer?
+        this._modelNode.traverse(function (mesh) {
+            if (mesh.isSkinnedMesh()) {
+                mesh.geometry.boundingBox.applyTransform(this._modelNode.worldTransform);
+            }
+        }, this);
 
         // Fit the ground
         this._groundMesh.position.y = -size.y * scale / 2;
