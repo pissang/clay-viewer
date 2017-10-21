@@ -315,8 +315,16 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         this._modelNode.scale.set(scale, scale, scale);
         this._modelNode.position.copy(center).scale(-scale);
+        this._modelNode.update();
 
         this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
+
+        // FIXME, Do it in the renderer?
+        this._modelNode.traverse(function (mesh) {
+            if (mesh.isSkinnedMesh()) {
+                mesh.geometry.boundingBox.applyTransform(this._modelNode.worldTransform)
+            }
+        }, this);
 
         // Fit the ground
         this._groundMesh.position.y = -size.y * scale / 2;

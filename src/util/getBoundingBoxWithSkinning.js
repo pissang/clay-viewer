@@ -48,40 +48,23 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
 }
 
 function getBoundingBoxWithSkinning(node, out) {
+
     out = out || new BoundingBox();
 
-    var children = node.children();
-    if (children.length === 0) {
-        out.max.set(-Infinity, -Infinity, -Infinity);
-        out.min.set(Infinity, Infinity, Infinity);
-    }
-
-    var tmpBBox = new BoundingBox();
-    for (var i = 0; i < children.length; i++) {
-        var child = children[i];
-        getBoundingBoxWithSkinning(child, tmpBBox);
-        child.updateLocalTransform();
-        if (tmpBBox.isFinite()) {
-            tmpBBox.applyTransform(child.localTransform);
-        }
-        if (i === 0) {
-            out.copy(tmpBBox);
-        }
-        else {
+    node.traverse(function (mesh) {
+        if (mesh.geometry) {
+            var tmpBBox = new BoundingBox();
+            if (mesh.isSkinnedMesh()) {
+                getBoundingBoxOfSkinningMesh(mesh, tmpBBox);
+                mesh.geometry.boundingBox.copy(tmpBBox);
+            }
+            else {
+                tmpBBox.copy(mesh.geometry.boundingBox);
+                tmpBBox.applyTransform(mesh.worldTransform);
+            }
             out.union(tmpBBox);
         }
-    }
-
-    if (node.geometry) {
-        if (node.skeleton && node.joints && node.joints.length) {
-            getBoundingBoxOfSkinningMesh(node, tmpBBox);
-            node.geometry.boundingBox.copy(tmpBBox);
-            out.union(tmpBBox);
-        }
-        else {
-            out.union(node.geometry.boundingBox);
-        }
-    }
+    });
     return out;
 }
 
