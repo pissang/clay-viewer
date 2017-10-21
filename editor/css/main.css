@@ -147,6 +147,7 @@ body {
 }
 .texture-wrap img {
     height: 80px;
+    max-width: 80px;
     display: inline-block;
     vertical-align: top;
 }
