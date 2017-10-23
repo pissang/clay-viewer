@@ -16681,7 +16681,7 @@ SamplerClip.prototype.setTime = function (time) {
     }
     else {
         if (time < this._cacheTime) {
-            var s = Math.min(len - 2, this._cacheKey);
+            var s = Math.min(len - 1, this._cacheKey + 1);
             for (var i = s; i >= 0; i--) {
                 if (channels.time[i - 1] <= time && channels.time[i] > time) {
                     key = i - 1;
@@ -16690,7 +16690,7 @@ SamplerClip.prototype.setTime = function (time) {
             }
         }
         else {
-            for (var i = this._cacheKey; i < len-1; i++) {
+            for (var i = this._cacheKey; i < len - 1; i++) {
                 if (channels.time[i] <= time && channels.time[i + 1] > time) {
                     key = i;
                     break;
@@ -32437,6 +32437,12 @@ Viewer.prototype.pauseAnimation = function () {
     });
 };
 
+Viewer.prototype.stopAnimation = function () {
+    this._clips.forEach(function (clip) {
+        this._animation.removeClip(clip);
+    }, this);
+};
+
 /**
  * Resume animation
  */
@@ -32750,6 +32756,17 @@ Viewer.prototype.setPose = function (time) {
 
     this.refresh();
 };
+
+/**
+ * Get duration of clip
+ */
+Viewer.prototype.getAnimationDuration = function () {
+    if (this._clips[0]) {
+        return this._clips[0].life;
+    }
+    return 0;
+};
+
 
 Viewer.prototype.refresh = function () {
     this._needsRefresh = true;
