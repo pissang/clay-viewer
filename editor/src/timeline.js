@@ -5,9 +5,6 @@ function showTimeline() {
 function hideTimeline() {
     document.getElementById('timeline').style.display = 'none';
 }
-function setTimelinePercent(percent) {
-    document.getElementById('timeline-control').style.left = percent * 100 + '%';
-}
 
 var isPlay = false;
 var currentTime = 0;
@@ -91,7 +88,10 @@ function updateAnimationUI(_viewer) {
     
     if (duration > 0) {
         startAnimation(duration, _animationToken);
-    } 
+    }
+    else {
+        stopAnimation();
+    }
 }
 
 function updateControlPosition(percent) {

@@ -361,6 +361,8 @@ function reset() {
         project.removeProject();
 
         showTip();
+
+        timeline.updateAnimationUI(viewer);
     }).catch(function () {});
 }
 
