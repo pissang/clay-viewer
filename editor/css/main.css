@@ -114,6 +114,44 @@ body {
     color: #111;
 }
 
+#timeline {
+    position: absolute;
+    width: 400px;
+    right: 50px;
+    bottom: 50px;
+    height: 40px;
+    display: none;
+    border-radius: 5px;
+    background-color: rgba(255,255,255,0.5);
+}
+
+#timeline-progress {
+    background-color: #000;
+    left: 45px;
+    right: 10px;
+    top: 18px;
+    height: 2px;
+    opacity: 0.6;
+    position: absolute;
+}
+#timeline-control {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    top: -7px;
+    border-radius: 10px;
+    background-color: #000;
+    cursor: pointer;
+}
+#timeline-pause-resume {
+    position: absolute;
+    left: 10px;
+    color: #000;
+    font-size: 26px;
+    top: 5px;
+    cursor: pointer;
+}
+
 
 #controlKit .panel .group-list .group .sub-group-list .sub-group ul li.drag-hover {
     border: 2px solid #66f;

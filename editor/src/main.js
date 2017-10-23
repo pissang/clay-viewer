@@ -8,6 +8,7 @@ import BoundingBoxGizmo from './debug/BoundingBoxGizmo';
 import util from 'qtek/src/core/util';
 import zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
+import * as timeline from './timeline';
 
 var boundingBoxGizmo = new BoundingBoxGizmo();
 var gizmoScene = new Scene();
@@ -212,6 +213,9 @@ function init() {
                         viewer.setMaterial(matConfig.name, matConfig);
                     });
                 }
+            }).on('loadmodel', function () {
+                viewer.stopAnimation();
+                timeline.updateAnimationUI(viewer);
             });
 
             pbrRoughnessMetallicPanel.disable();
@@ -401,6 +405,9 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
                     viewer.setMaterial(matConfig.name, matConfig);
                 });
             }
+        }).on('loadmodel', function () {
+            viewer.stopAnimation();
+            timeline.updateAnimationUI(viewer);
         });
     }
     else {

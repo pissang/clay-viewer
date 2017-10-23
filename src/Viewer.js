@@ -536,6 +536,12 @@ Viewer.prototype.pauseAnimation = function () {
     });
 };
 
+Viewer.prototype.stopAnimation = function () {
+    this._clips.forEach(function (clip) {
+        this._animation.removeClip(clip);
+    }, this);
+};
+
 /**
  * Resume animation
  */
@@ -849,6 +855,17 @@ Viewer.prototype.setPose = function (time) {
 
     this.refresh();
 };
+
+/**
+ * Get duration of clip
+ */
+Viewer.prototype.getAnimationDuration = function () {
+    if (this._clips[0]) {
+        return this._clips[0].life;
+    }
+    return 0;
+};
+
 
 Viewer.prototype.refresh = function () {
     this._needsRefresh = true;
