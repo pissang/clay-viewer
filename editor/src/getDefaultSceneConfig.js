@@ -13,7 +13,7 @@ export default function () {
         viewControl: {
             alpha: 20,
             beta: 30,
-            distance: 8
+            distance: 18
         },
     
         ground: {
