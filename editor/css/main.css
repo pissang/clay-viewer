@@ -126,19 +126,21 @@ body {
 }
 
 #timeline-progress {
-    background-color: #000;
     left: 45px;
     right: 10px;
     top: 18px;
-    height: 2px;
+    height: 5px;
+    border-top: 2px solid #000;
     opacity: 0.6;
     position: absolute;
+    cursor: pointer;
 }
 #timeline-control {
     position: absolute;
     width: 15px;
     height: 15px;
-    top: -7px;
+    margin-top: -9px;
+    margin-left: -8px;
     border-radius: 10px;
     background-color: #000;
     cursor: pointer;

@@ -200,7 +200,7 @@ function downloadProject() {
 
         var glTFFile;
         var filesMap = {};
-        files = files.filter(function (file) {
+        files = (files || []).filter(function (file) {
             if (file.name.match(/.gltf$/)) {
                 glTFFile = file;
             }

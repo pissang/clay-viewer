@@ -13,7 +13,10 @@ var isPlay = false;
 var currentTime = 0;
 var viewer;
 var animationToken;
-var listener;
+var pauseBtnClickListener;
+var progressElClickListener;
+var controlBtnMouseDownListener;
+
 
 function updateAnimationUI(_viewer) {
     viewer = _viewer;
@@ -21,8 +24,11 @@ function updateAnimationUI(_viewer) {
     duration > 0 ? (showTimeline()) : (hideTimeline());
 
     var pauseBtn = document.getElementById('timeline-pause-resume');
-    pauseBtn.removeEventListener('click', listener);
-    pauseBtn.addEventListener('click', listener = function () {
+    var controlBtn = document.getElementById('timeline-control');
+    var progressEl = document.getElementById('timeline-progress');
+    
+    pauseBtn.removeEventListener('click', pauseBtnClickListener);
+    pauseBtn.addEventListener('click', pauseBtnClickListener = function () {
         if (isPlay) {
             stopAnimation();
         }
@@ -30,9 +36,47 @@ function updateAnimationUI(_viewer) {
             startAnimation(duration, _animationToken);
         }
     });
+    progressEl.removeEventListener('click', progressElClickListener);
+    progressEl.addEventListener('click', progressElClickListener = function (e) {
+        var percent = e.offsetX / progressEl.clientWidth;
+        currentTime = duration * percent;
+        updateControlPosition(percent);
+        if (!isPlay) {
+            viewer.setPose(currentTime);
+        }
+    });
+    controlBtn.removeEventListener('mousedown', controlBtnMouseDownListener);
+    controlBtn.addEventListener('mousedown', controlBtnMouseDownListener = function (e) {
+        var isPlaying = isPlay;
+        var startX = e.clientX;
+        var controlStartPosition = parseInt(controlBtn.style.left);
+
+        stopAnimation();
+        function drag(e) {
+            var x = e.clientX;
+            var pos = x - startX + controlStartPosition;
+            var percent = Math.min(Math.max(pos / progressEl.clientWidth, 0), 1);
+            updateControlPosition(percent);
+            currentTime = duration * percent;
+            viewer.setPose(currentTime);           
+        }
+        function stopDrag() {
+            if (isPlaying) {
+                startAnimation(duration, _animationToken);
+            }
+            document.body.removeEventListener('mouseup', stopDrag);
+            document.body.removeEventListener('mousemove', drag);
+        }
+
+        document.body.addEventListener('mouseup', stopDrag);
+        document.body.addEventListener('mousemove', drag);
+    });
+
 
     // Reset time
     currentTime = 0;
+    updateControlPosition(0);
+
     var _animationToken = Math.random();
     animationToken = _animationToken;
     
