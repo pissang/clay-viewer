@@ -26,6 +26,7 @@ function updateAnimationUI(_viewer) {
     var pauseBtn = document.getElementById('timeline-pause-resume');
     var controlBtn = document.getElementById('timeline-control');
     var progressEl = document.getElementById('timeline-progress');
+    var dragging = false;
     
     pauseBtn.removeEventListener('click', pauseBtnClickListener);
     pauseBtn.addEventListener('click', pauseBtnClickListener = function () {
@@ -38,6 +39,9 @@ function updateAnimationUI(_viewer) {
     });
     progressEl.removeEventListener('click', progressElClickListener);
     progressEl.addEventListener('click', progressElClickListener = function (e) {
+        if (dragging) {
+            return;
+        }
         var percent = e.offsetX / progressEl.clientWidth;
         currentTime = duration * percent;
         updateControlPosition(percent);
@@ -50,6 +54,7 @@ function updateAnimationUI(_viewer) {
         var isPlaying = isPlay;
         var startX = e.clientX;
         var controlStartPosition = parseInt(controlBtn.style.left);
+        dragging = true;
 
         stopAnimation();
         function drag(e) {
@@ -66,6 +71,10 @@ function updateAnimationUI(_viewer) {
             }
             document.body.removeEventListener('mouseup', stopDrag);
             document.body.removeEventListener('mousemove', drag);
+
+            setTimeout(function () {
+                dragging = false;
+            });
         }
 
         document.body.addEventListener('mouseup', stopDrag);
