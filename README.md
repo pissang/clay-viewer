@@ -199,5 +199,5 @@ npm install
 # Build loader
 npm run build
 # Build editor
-webpack --config editor/webpack/webpack.config.js
+webpack --config editor/webpack.config.js
 ```
