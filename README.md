@@ -191,3 +191,13 @@ viewer.loadModel('asset/xiniu/xiniu.gltf')
         viewer.loadAnimation('asset/xiniu/xiniu_ani.gltf');
     });
 ```
+
+## Build
+
+```bash
+npm install
+# Build loader
+npm run build
+# Build editor
+webpack --config editor/webpack/webpack.config.js
+```
