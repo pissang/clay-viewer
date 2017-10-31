@@ -470,7 +470,7 @@ var util = {
      * @memberOf qtek.core.util
      */
     isArray: function(obj) {
-        return obj instanceof Array;
+        return Array.isArray(obj);
     },
 
     /**
@@ -7932,7 +7932,7 @@ var Shader = Base.extend(function () {
      * @param  {string} symbol
      */
     enableTexture: function (symbol) {
-        if (symbol instanceof Array) {
+        if (Array.isArray(symbol)) {
             for (var i = 0; i < symbol.length; i++) {
                 this.enableTexture(symbol[i]);
             }
@@ -7964,7 +7964,7 @@ var Shader = Base.extend(function () {
      * @param  {string} symbol
      */
     disableTexture: function (symbol) {
-        if (symbol instanceof Array) {
+        if (Array.isArray(symbol)) {
             for (var i = 0; i < symbol.length; i++) {
                 this.disableTexture(symbol[i]);
             }
@@ -8119,7 +8119,7 @@ var Shader = Base.extend(function () {
                 break;
             case 'm4v':
                 // Raw value
-                if (value instanceof Array) {
+                if (Array.isArray(value)) {
                     var array = new vendor.Float32Array(value.length * 16);
                     var cursor = 0;
                     for (var i = 0; i < value.length; i++) {
@@ -8146,9 +8146,10 @@ var Shader = Base.extend(function () {
         return false;
     },
 
+    // Used for creating VAO
     // Enable the attributes passed in and disable the rest
     // Example Usage:
-    // enableAttributes(_gl, ["position", "texcoords"])
+    // enableAttributes(renderer, ["position", "texcoords"])
     enableAttributes: function (renderer, attribList, vao) {
         var _gl = renderer.gl;
         var program = this._cache.get('program');
@@ -8246,7 +8247,7 @@ var Shader = Base.extend(function () {
         this._vertexProcessed = defineStr + '\n' + this._vertexProcessedWithoutDefine;
 
         // FRAGMENT
-        var defineStr = this._getDefineStr(this.fragmentDefines);
+        defineStr = this._getDefineStr(this.fragmentDefines);
         var code = defineStr + '\n' + this._fragmentProcessedWithoutDefine;
 
         // Add precision
@@ -8816,7 +8817,7 @@ ShaderLibrary.prototype.get = function(name, option) {
         fragmentDefines = option.fragmentDefines || {};
         precision = option.precision;
     }
-    else if (option instanceof Array) {
+    else if (Array.isArray(option)) {
         enabledTextures = option;
     }
     var vertexDefineKeys = Object.keys(vertexDefines);
@@ -9294,7 +9295,7 @@ var Material = Base.extend(
                 // Reset slot
                 uniformValue.__slot = -1;
             }
-            else if (uniformValue instanceof Array) {
+            else if (Array.isArray(uniformValue)) {
                 for (var i = 0; i < uniformValue.length; i++) {
                     if (uniformValue[i] instanceof Texture) {
                         uniformValue[i].__slot = -1;
@@ -9347,7 +9348,7 @@ var Material = Base.extend(
                     shader.setUniform(_gl, '1i', symbol, uniformValue.__slot);
                 }
             }
-            else if (uniformValue instanceof Array) {
+            else if (Array.isArray(uniformValue)) {
                 if (uniformValue.length === 0) {
                     continue;
                 }
@@ -9554,7 +9555,7 @@ var Material = Base.extend(
                 if (val instanceof Texture) {
                     val.dispose(renderer);
                 }
-                else if (val instanceof Array) {
+                else if (Array.isArray(val)) {
                     for (var i = 0; i < val.length; i++) {
                         if (val[i] instanceof Texture) {
                             val[i].dispose(renderer);
@@ -10589,7 +10590,7 @@ var Renderer = Base.extend(function () {
      * @return {*}
      */
     getGLParameter: function (name) {
-        return this._glinfo.getExtension(name);
+        return this._glinfo.getParameter(name);
     },
 
     /**
@@ -13153,7 +13154,13 @@ var Scene = Node.extend(function () {
             }
         }
     },
-
+    
+    /**
+     * Determine if light group of the shader is different from scene's
+     * Used to determine whether to update shader and scene's uniforms in Renderer.render
+     * @param {Shader} shader
+     * @returns {Boolean}
+     */
     isShaderLightNumberChanged: function (shader) {
         var group = shader.lightGroup;
         // PENDING Performance
@@ -13170,6 +13177,10 @@ var Scene = Node.extend(function () {
         return false;
     },
 
+    /**
+     * Set shader's light group with scene's
+     * @param {Shader} shader
+     */
     setShaderLightNumber: function (shader) {
         var group = shader.lightGroup;
         for (var type in this._lightNumber[group]) {
@@ -13317,7 +13328,7 @@ function allocateShader(renderer, enabledMaps, jointCount, shaderDefines) {
         shaderUsedCount[renderer.__GUID__] = shaderUsedCount[renderer.__GUID__] || {};
         shaderUsedCount[renderer.__GUID__][key] = 0;
     }
-    shaderUsedCount[key]++;
+    shaderUsedCount[renderer.__GUID__][key]++;
 
     shader.__key__ = key;
 
@@ -18410,7 +18421,7 @@ function () {
         var diffuseProp = uniforms['diffuse'];
         if (diffuseProp) {
             // Color
-            if (diffuseProp instanceof Array) {
+            if (Array.isArray(diffuseProp)) {
                 diffuseProp = diffuseProp.slice(0, 3);
                 isStandardMaterial ? (material.color = diffuseProp)
                     : material.set('color', diffuseProp);
@@ -18423,7 +18434,7 @@ function () {
         var emissionProp = uniforms['emission'];
         if (emissionProp != null) {
             // Color
-            if (emissionProp instanceof Array) {
+            if (Array.isArray(emissionProp)) {
                 emissionProp = emissionProp.slice(0, 3);
                 isStandardMaterial ? (material.emission = emissionProp)
                     : material.set('emission', emissionProp);
@@ -20150,7 +20161,7 @@ Task.makeRequestTask = function(url, responseType) {
     } else if (url.url) {   //  Configure object
         var obj = url;
         return makeRequestTask(obj.url, obj.responseType);
-    } else if (url instanceof Array) {  // Url list
+    } else if (Array.isArray(url)) {  // Url list
         var urlList = url;
         var tasks = [];
         urlList.forEach(function(obj) {
@@ -21693,7 +21704,7 @@ var Pass = Base.extend(function () {
             clearBit = clearBit | _gl.COLOR_BUFFER_BIT;
             _gl.colorMask(true, true, true, true);
             var cc = this.clearColor;
-            if (cc instanceof Array) {
+            if (Array.isArray(cc)) {
                 _gl.clearColor(cc[0], cc[1], cc[2], cc[3]);
             }
         }
@@ -23951,7 +23962,7 @@ var FXLoader = Base.extend(
             var texture;
             var path = textureInfo.path;
             var parameters = this._convertParameter(textureInfo.parameters);
-            if (path instanceof Array && path.length === 6) {
+            if (Array.isArray(path) && path.length === 6) {
                 path = path.map(function(item) {
                     return util.relative2absolute(item, textureRootPath);
                 });
@@ -24670,7 +24681,18 @@ var GBuffer = Base.extend(function () {
         var transparentQueue = scene.transparentQueue;
         var oldBeforeRender = renderer.beforeRenderObject;
 
+        // StandardMaterial needs updateShader method so shader can be created on demand.
+        for (var i = 0; i < opaqueQueue.length; i++) {
+            var material = opaqueQueue[i].material;
+            material.updateShader && material.updateShader(renderer);
+        }
+        for (var i = 0; i < transparentQueue.length; i++) {
+            var material = transparentQueue[i].material;
+            material.updateShader && material.updateShader(renderer);
+        }
+
         opaqueQueue.sort(Renderer.opaqueSortFunc);
+        transparentQueue.sort(Renderer.transparentSortFunc);
 
         var offset = 0;
         var renderQueue = this._renderQueue;
@@ -24686,11 +24708,6 @@ var GBuffer = Base.extend(function () {
         }
         renderQueue.length = offset;
 
-        // StandardMaterial needs updateShader method so shader can be created on demand.
-        for (var i = 0; i < renderQueue.length; i++) {
-            var material = renderQueue[i].material;
-            material.updateShader && material.updateShader(renderer);
-        }
 
         gl.clearColor(0, 0, 0, 0);
         gl.depthMask(true);
@@ -30412,7 +30429,7 @@ var recognizers = {
 };
 
 function convertToArray(val) {
-    if (!(val instanceof Array)) {
+    if (!Array.isArray(val)) {
         val = [val, val];
     }
     return val;
