@@ -689,7 +689,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
                     flipY: textureFlipY,
                     anisotropic: 8
-                }, function () {
+                }, function (texture) {
                     if (propName === 'normalMap' && textureUtil.isHeightImage(texture.image)) {
                         var normalImage = textureUtil.heightToNormal(texture.image);
                         normalImage.srcImage = texture.image;
