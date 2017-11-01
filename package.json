@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "san-mui": "^1.0.3"
+    "san-mui": "^1.0.3",
+    "shelljs": "^0.7.8"
   },
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
