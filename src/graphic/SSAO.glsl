@@ -117,6 +117,9 @@ void main()
 
 @export ecgl.ssao.blur
 
+#define SHADER_NAME SSAO_BLUR
+#define BLUR_SIZE 3
+
 uniform sampler2D ssaoTexture;
 
 uniform vec2 textureSize;
@@ -129,10 +132,9 @@ void main ()
     vec2 texelSize = 1.0 / textureSize;
 
     float ao = 0.0;
-    vec2 hlim = vec2(float(-BLUR_SIZE) * 0.5 + 0.5);
+    vec2 hlim = vec2(floor(float(-BLUR_SIZE) * 0.5));
     float centerAo = texture2D(ssaoTexture, v_Texcoord).r;
     float weightAll = 0.0;
-    float boxWeight = 1.0 / float(BLUR_SIZE) * float(BLUR_SIZE);
     for (int x = 0; x < BLUR_SIZE; x++) {
         for (int y = 0; y < BLUR_SIZE; y++) {
             vec2 coord = (vec2(float(x), float(y)) + hlim) * texelSize + v_Texcoord;
@@ -140,7 +142,7 @@ void main ()
             // http://stackoverflow.com/questions/6538310/anyone-know-where-i-can-find-a-glsl-implementation-of-a-bilateral-filter-blur
             // PENDING
             float closeness = 1.0 - distance(sampleAo, centerAo) / sqrt(3.0);
-            float weight = boxWeight * closeness;
+            float weight = closeness;
             ao += weight * sampleAo;
             weightAll += weight;
         }

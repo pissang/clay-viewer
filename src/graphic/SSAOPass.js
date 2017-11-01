@@ -86,7 +86,7 @@ function SSAOPass(opt) {
 
     this.setNoiseSize(4);
     this.setKernelSize(opt.kernelSize || 12);
-    this.setParameter('blurSize', Math.round(opt.blurSize || 4));
+    this.setParameter('blurSize', Math.round(opt.blurSize || 3));
     if (opt.radius != null) {
         this.setParameter('radius', opt.radius);
     }
