@@ -423,8 +423,8 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         });
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
-            task.trigger('ready');
             this._convertBumpToNormal();
+            task.trigger('ready');
             this.refresh();
         }, this);
 

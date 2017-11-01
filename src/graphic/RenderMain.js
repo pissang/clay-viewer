@@ -267,7 +267,6 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     }
 
     // this._shadowMapPass.renderDebug(renderer);
-    // this._compositor._gBufferPass.renderDebug(renderer);
 };
 
 RenderMain.prototype.afterRenderScene = function (renderer, scene, camera) {};
