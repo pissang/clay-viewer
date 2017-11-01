@@ -479,6 +479,13 @@ Viewer.prototype.getScene = function () {
     return this._renderMain.scene;
 };
 
+/**
+ * @return {qtek.Node}
+ */
+Viewer.prototype.getModelRoot = function () {
+    return this._modelNode;
+};
+
 Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
     var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;

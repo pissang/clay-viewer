@@ -311,7 +311,7 @@ function initUI() {
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
         .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
-        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
@@ -328,7 +328,7 @@ function initUI() {
         .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
         .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
-        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal Map', onChange: changeTexture.bind(null, 'normalMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap') })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap') })
         .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
@@ -441,7 +441,7 @@ setInterval(function () {
             return matConfig;
         });
 
-        viewer.getScene().traverse(function (mesh) {
+        viewer.getModelRoot().traverse(function (mesh) {
             if (mesh.material && materialsMap[mesh.material.name]) {
                 materialsMap[mesh.material.name].targetMeshes.push(mesh.name);
             }

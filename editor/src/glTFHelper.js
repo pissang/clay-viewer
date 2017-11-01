@@ -201,9 +201,9 @@ function updateGLTFMaterials(glTF, sceneConfig) {
 
     var primitivesMap = {};
     glTF.materials = [];
-    glTF.meshes.forEach(function (mesh) {
+    glTF.meshes.forEach(function (mesh, meshIdx) {
         mesh.primitives.forEach(function (primitive, idx) {
-            primitivesMap[GLTF2Loader.generateMeshName(mesh.name, idx)] = primitive;
+            primitivesMap[GLTF2Loader.generateMeshName(glTF.meshes, meshIdx, idx)] = primitive;
         });
     });
     sceneConfig.materials.forEach(function (matConfig, idx) {
