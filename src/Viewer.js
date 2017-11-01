@@ -14,6 +14,7 @@ import Shader from 'qtek/src/Shader';
 import RayPicking from 'qtek/src/picking/RayPicking';
 import notifier from 'qtek/src/core/mixin/notifier';
 import shaderLibrary from 'qtek/src/shader/library';
+import textureUtil from 'qtek/src/util/texture';
 
 import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
@@ -172,7 +173,7 @@ Viewer.prototype._createGround = function () {
         geometry: new PlaneGeometry()
     });
     groundMesh.material.set('color', [1, 1, 1, 1]);
-    groundMesh.scale.set(50, 50, 1);
+    groundMesh.scale.set(40, 40, 1);
     groundMesh.rotation.rotateX(-Math.PI / 2);
     this._groundMesh = groundMesh;
 
@@ -300,10 +301,9 @@ Viewer.prototype.resize = function () {
 Viewer.prototype.autoFitModel = function (fitSize) {
     fitSize = fitSize || 10;
     if (this._modelNode) {
-        this.setPose(0);
+        this.setPose(10);
         this._modelNode.update();
         var bbox = getBoundingBoxWithSkinning(this._modelNode);
-        bbox.applyTransform(this._modelNode.localTransform);
 
         var size = new Vector3();
         size.copy(bbox.max).sub(bbox.min);
@@ -674,6 +674,11 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                     flipY: textureFlipY,
                     anisotropic: 8
                 }, function () {
+                    if (propName === 'normalMap' && textureUtil.isHeightImage(texture.image)) {
+                        var normalImage = textureUtil.heightToNormal(texture.image);
+                        normalImage.srcImage = texture.image;
+                        texture.image = normalImage;
+                    }
                     app.refresh();
                 });
                 // Enable texture.
@@ -762,12 +767,14 @@ Viewer.prototype.getMaterial = function (name) {
     });
     function getTextureUri(propName) {
         var texture = mat.get(propName);
-        if (texture && texture.image && texture.image.src && texture.isRenderable()) {
-            return texture.image.src;
-        }
-        else {
+        if (!texture || !texture.isRenderable()) {
             return '';
         }
+        var image = texture.image;
+        while (image.srcImage) {
+            image = image.srcImage;
+        }
+        return (image && image.src) || '';
     }
     ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
         materialCfg[propName] = getTextureUri(propName);

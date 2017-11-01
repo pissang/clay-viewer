@@ -51,9 +51,9 @@ function getBoundingBoxWithSkinning(node, out) {
 
     out = out || new BoundingBox();
 
+    var tmpBBox = new BoundingBox();
     node.traverse(function (mesh) {
         if (mesh.geometry) {
-            var tmpBBox = new BoundingBox();
             if (mesh.isSkinnedMesh()) {
                 getBoundingBoxOfSkinningMesh(mesh, tmpBBox);
                 mesh.geometry.boundingBox.copy(tmpBBox);

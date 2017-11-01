@@ -68,6 +68,7 @@ function convertTextureToPowerOfTwo(texture) {
             canvas.height = height;
             var ctx = canvas.getContext('2d');
             ctx.drawImage(texture.image, 0, 0, width, height);
+            canvas.srcImage = texture.image;
             texture.image = canvas;
         }
     }

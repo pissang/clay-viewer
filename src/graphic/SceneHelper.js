@@ -152,10 +152,10 @@ SceneHelper.prototype = {
         }
 
         if (this._currentCubemapLights) {
-            if (opts.specularIntensity != null) {
+            if (opts.specularIntensity != null && this._currentCubemapLights.specular) {
                 this._currentCubemapLights.specular.intensity = opts.specularIntensity;
             }
-            if (opts.diffuseIntensity != null) {
+            if (opts.diffuseIntensity != null && this._currentCubemapLights.diffuse) {
                 this._currentCubemapLights.diffuse.intensity = opts.diffuseIntensity;
             }
         }
