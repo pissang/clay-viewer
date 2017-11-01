@@ -174,7 +174,7 @@ void main()
 
 #ifdef NORMALTEX_ENABLED
         vec3 normal = texture2D(normalTex, coord).rgb * 2.0 - 1.0;
-        float w = gaussianKernel[i] * dot(normal, centerNormal);
+        float w = gaussianKernel[i] * clamp(dot(normal, centerNormal), 0.0, 1.0);
 #elif defined(DEPTHTEX_ENABLED)
         float d = getLinearDepth(coord);
         float w = gaussianKernel[i] * (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));
@@ -186,7 +186,8 @@ void main()
         sum += texture2D(ssaoTexture, coord) * w;
     }
 
-   gl_FragColor = sum / weightAll;
+   gl_FragColor = vec4(vec3(sum / weightAll), 1.0);
+//    gl_FragColor = texture2D(ssaoTexture, v_Texcoord);
 }
 
 // #define SHADER_NAME SSAO_BLUR
