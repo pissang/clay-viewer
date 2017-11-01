@@ -184,12 +184,6 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     // Remove previous loaded
     this.removeModel();
 
-    this._skeletons.forEach(function (skeleton) {
-        if (skeleton.__debugScene) {
-            this._renderer.disposeScene(skeleton.__debugScene);
-        }
-    }, this);
-
     this._renderMain.scene.add(modelNode);
 
     this._skeletons = skeletons.slice();
@@ -430,6 +424,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
             task.trigger('ready');
+            this._convertBumpToNormal();
             this.refresh();
         }, this);
 
@@ -443,6 +438,20 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     this._shaderName = shaderName;
 
     return task;
+};
+
+Viewer.prototype._convertBumpToNormal = function () {
+    for (var key in this._materialsMap) {
+        for (var i = 0; i < this._materialsMap[key].length; i++) {
+            var mat = this._materialsMap[key][i];
+            var normalTexture = mat.get('normalMap');
+            if (normalTexture && textureUtil.isHeightImage(normalTexture.image)) {
+                var normalImage = textureUtil.heightToNormal(normalTexture.image);
+                normalImage.srcImage = normalTexture.image;
+                normalTexture.image = normalImage;
+            }
+        }
+    } 
 };
 
 /**
