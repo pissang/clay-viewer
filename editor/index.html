@@ -7,6 +7,8 @@
         <link rel="stylesheet" href="css/controlKit.css">
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/iconfont/iconfont.css">
+        <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.css">
+        <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css">
     </head>
     <body>
         <div id="main">
@@ -33,10 +35,17 @@
                     <a href="https://github.com/automat/controlkit.js" target="_blank">ControlKit</a>
             </div>
             <div id="timeline">
-                <div id="timeline-progress">
-                    <div id="timeline-control"></div>
+                <div id="timeline-range-wrap">
+                    <div id="timeline-range">
+                        <input>
+                    </div>
                 </div>
-                <div id="timeline-pause-resume" class="iconfont icon-pause"></div>
+                <div id="timeline-progress-wrap">
+                    <div id="timeline-progress">
+                        <input>
+                    </div>
+                    <div id="timeline-pause-resume" class="iconfont icon-pause"></div>
+                </div>
             </div>
         </div>
         <div id="loading">
@@ -52,6 +61,9 @@
         <script src="lib/FileSaver.js"></script>
         <script src="lib/sweetalert.min.js"></script>
         <script src="lib/jszip.min.js"></script>
+        <script src="lib/idb.filesystem.js"></script>
+        <script src="lib/jquery.min.js"></script>
+        <script src="lib/ion.rangeSlider.js"></script>
         <script src="bundle.js"></script>
     </body>
     </html>

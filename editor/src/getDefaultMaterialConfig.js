@@ -3,10 +3,10 @@ export default function () {
     return {
 
         name: '',
-        
-        color: '#fff',
 
         type: 'pbrMetallicRoughness',
+        
+        color: '#fff',
 
         transparent: false,
         alpha: 1,

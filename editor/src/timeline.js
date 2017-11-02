@@ -8,22 +8,20 @@ function hideTimeline() {
 
 var isPlay = false;
 var currentTime = 0;
+var startTime = 0;
+var duration;
+
 var viewer;
 var animationToken;
 var pauseBtnClickListener;
-var progressElClickListener;
-var controlBtnMouseDownListener;
 
 
 function updateAnimationUI(_viewer) {
     viewer = _viewer;
-    var duration = _viewer.getAnimationDuration();
+    duration = _viewer.getAnimationDuration();
     duration > 0 ? (showTimeline()) : (hideTimeline());
 
     var pauseBtn = document.getElementById('timeline-pause-resume');
-    var controlBtn = document.getElementById('timeline-control');
-    var progressEl = document.getElementById('timeline-progress');
-    var dragging = false;
     
     pauseBtn.removeEventListener('click', pauseBtnClickListener);
     pauseBtn.addEventListener('click', pauseBtnClickListener = function () {
@@ -31,75 +29,79 @@ function updateAnimationUI(_viewer) {
             stopAnimation();
         }
         else {
-            startAnimation(duration, _animationToken);
+            startAnimation(_animationToken);
         }
-    });
-    progressEl.removeEventListener('click', progressElClickListener);
-    progressEl.addEventListener('click', progressElClickListener = function (e) {
-        if (dragging) {
-            return;
-        }
-        var percent = e.offsetX / progressEl.clientWidth;
-        currentTime = duration * percent;
-        updateControlPosition(percent);
-        if (!isPlay) {
-            viewer.setPose(currentTime);
-        }
-    });
-    controlBtn.removeEventListener('mousedown', controlBtnMouseDownListener);
-    controlBtn.addEventListener('mousedown', controlBtnMouseDownListener = function (e) {
-        var isPlaying = isPlay;
-        var startX = e.clientX;
-        var controlStartPosition = parseInt(controlBtn.style.left);
-        dragging = true;
-
-        stopAnimation();
-        function drag(e) {
-            var x = e.clientX;
-            var pos = x - startX + controlStartPosition;
-            var percent = Math.min(Math.max(pos / progressEl.clientWidth, 0), 1);
-            updateControlPosition(percent);
-            currentTime = duration * percent;
-            viewer.setPose(currentTime);           
-        }
-        function stopDrag() {
-            if (isPlaying) {
-                startAnimation(duration, _animationToken);
-            }
-            document.body.removeEventListener('mouseup', stopDrag);
-            document.body.removeEventListener('mousemove', drag);
-
-            setTimeout(function () {
-                dragging = false;
-            });
-        }
-
-        document.body.addEventListener('mouseup', stopDrag);
-        document.body.addEventListener('mousemove', drag);
     });
 
 
     // Reset time
+    startTime = 0;
     currentTime = 0;
-    updateControlPosition(0);
+
+    updateControlPosition();
 
     var _animationToken = Math.random();
     animationToken = _animationToken;
     
     if (duration > 0) {
-        startAnimation(duration, _animationToken);
+        startAnimation(_animationToken);
     }
     else {
         stopAnimation();
     }
+    if (!$('#timeline-progress input').data('ionRangeSlider')) {
+        $('#timeline-progress input').ionRangeSlider({
+            from_shadow: true,
+            force_edges: true,
+            grid: true,
+            grid_num: 10,
+            onChange: function (data) {
+                currentTime = data.from;
+                viewer.setPose(currentTime);
+            }
+        });
+        $('#timeline-range input').ionRangeSlider({
+            from_shadow: true,
+            force_edges: true,
+            type: 'double',
+            onChange: function (data) {
+                duration = data.to - data.from;
+                startTime = data.from;
+                progressSlider.update({
+                    from_min: data.from,
+                    from_max: data.to
+                });
+            }
+        });
+
+        var progressSlider = $('#timeline-progress input').data('ionRangeSlider');
+        var rangeSlider = $('#timeline-range input').data('ionRangeSlider');
+        progressSlider.update({
+            min: 0,
+            max: duration,
+            from: currentTime,
+            from_min: 0,
+            from_max: duration
+        });
+        rangeSlider.update({
+            min: 0,
+            max: duration,
+            from: 0,
+            to: duration
+        });
+    }
 }
 
-function updateControlPosition(percent) {
-    var timelineProgressWidth = document.getElementById('timeline-progress').clientWidth;
-    document.getElementById('timeline-control').style.left = Math.round(timelineProgressWidth * percent) + 'px';
+function updateControlPosition() {
+    var slider = $('#timeline-progress input').data('ionRangeSlider');
+    if (slider) {
+        slider.update({
+            from: currentTime
+        });
+    }
 }
 
-function startAnimation(animationDuration, _animationToken) {
+function startAnimation(_animationToken) {
 
     isPlay = true;
 
@@ -118,11 +120,15 @@ function startAnimation(animationDuration, _animationToken) {
         }
 
         viewer.setPose(currentTime);
-        updateControlPosition(currentTime / animationDuration);
+        updateControlPosition();
 
         var dTime = Math.min(Date.now() - time, 20);
         time += dTime;
-        currentTime = (currentTime + dTime) % animationDuration;
+
+        currentTime += dTime;
+        if (currentTime > startTime + duration) {
+            currentTime = startTime;
+        }
 
         requestAnimationFrame(update);
     }
@@ -136,7 +142,11 @@ function stopAnimation() {
     var pauseBtn = document.getElementById('timeline-pause-resume');
     pauseBtn.classList.remove('icon-pause');
     pauseBtn.classList.add('icon-resume');
-
 }
 
-export { updateAnimationUI };
+function setTimeRange(_startTime, _endTime) {
+    startTime = _startTime;
+    duration = _endTime - startTime;
+}
+
+export { updateAnimationUI, setTimeRange };
