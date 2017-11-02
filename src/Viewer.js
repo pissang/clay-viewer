@@ -228,15 +228,16 @@ Viewer.prototype._removeAnimationClips = function () {
 
 Viewer.prototype._setAnimationClips = function (clips) {
     var self = this;
+    function refresh() {
+        self.refresh();
+    }
     clips.forEach(function (clip) {
         clip.tracks.forEach(function (track) {
             if (!track.target) {
                 track.target = this._nodes[track.targetNodeIndex];
             }
         }, this);
-        clip.onframe = function () {
-            self.refresh();
-        };
+        clip.onframe = refresh;
 
         this._animation.addClip(clip);
 
@@ -890,7 +891,9 @@ Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
-    this._updateSkeletons();
+    this._skeletons.forEach(function (skeleton) {
+        skeleton.update();
+    });
 
     this.refresh();
 };
@@ -899,10 +902,11 @@ Viewer.prototype.setPose = function (time) {
  * Get duration of clip
  */
 Viewer.prototype.getAnimationDuration = function () {
-    if (this._clips[0]) {
-        return this._clips[0].life;
-    }
-    return 0;
+    var maxLife = 0;
+    this._clips.forEach(function (clip) {
+        maxLife = Math.max(clip.life, maxLife);
+    });
+    return maxLife;
 };
 
 
@@ -924,12 +928,6 @@ Viewer.prototype._updateMaterialsSRGB = function () {
     }
 };
 
-Viewer.prototype._updateSkeletons = function () {
-    this._skeletons.forEach(function (skeleton) {
-        skeleton.update();
-    });
-};
-
 Viewer.prototype._loop = function (deltaTime) {
     if (this._disposed) {
         return;
@@ -939,8 +937,6 @@ Viewer.prototype._loop = function (deltaTime) {
     }
 
     this._needsRefresh = false;
-
-    this._updateSkeletons();
 
     this._renderMain.prepareRender();
     this._renderMain.render();
