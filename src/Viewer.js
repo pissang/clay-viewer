@@ -99,6 +99,12 @@ Viewer.prototype.init = function (dom, opts) {
      * List of animation clips
      */
     this._clips = [];
+
+    /**
+     * List of takes.
+     */
+    this._takes = [];
+
     /**
      * Map of materials
      */
@@ -216,6 +222,8 @@ Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
     }, this);
+    this._clips = [];
+    this._takes = [];
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
@@ -231,6 +239,12 @@ Viewer.prototype._setAnimationClips = function (clips) {
         };
 
         this._animation.addClip(clip);
+
+        this._takes.push({
+            name: clip.name,
+            range: [0, clip.life],
+            clip: clip
+        });
     }, this);
 
     this._clips = clips.slice();
@@ -514,6 +528,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
             mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            mesh.material.shader.define('fragment', 'DOUBLE_SIDED');
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
