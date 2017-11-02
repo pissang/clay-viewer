@@ -1,5 +1,5 @@
 import Renderer from 'qtek/src/Renderer';
-import GLTF2Loader from 'qtek/src/loader/GLTF2';
+import GLTFLoader from 'qtek/src/loader/GLTF';
 import Vector3 from 'qtek/src/math/Vector3';
 import Animation from 'qtek/src/animation/Animation';
 import meshUtil from 'qtek/src/util/mesh';
@@ -221,10 +221,11 @@ Viewer.prototype._removeAnimationClips = function () {
 Viewer.prototype._setAnimationClips = function (clips) {
     var self = this;
     clips.forEach(function (clip) {
-        if (!clip.target) {
-            clip.target = this._nodes[clip.targetNodeIndex];
-        }
-        // Override onframe.
+        clip.tracks.forEach(function (track) {
+            if (!track.target) {
+                track.target = this._nodes[track.targetNodeIndex];
+            }
+        }, this);
         clip.onframe = function () {
             self.refresh();
         };
@@ -372,7 +373,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         loaderOpts.resolveBinaryPath = pathResolver;
     }
 
-    var loader = new GLTF2Loader(loaderOpts);
+    var loader = new GLTFLoader(loaderOpts);
     if (typeof gltfFile === 'string') {
         loader.load(gltfFile);
     }
@@ -530,7 +531,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
  * @param {string} url
  */
 Viewer.prototype.loadAnimation = function (url) {
-    var loader = new GLTF2Loader({
+    var loader = new GLTFLoader({
         rootNode: new Node(),
         crossOrigin: 'Anonymous'
     });
@@ -874,7 +875,7 @@ Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
-    this._updateClipAndSkeletons();
+    this._updateSkeletons();
 
     this.refresh();
 };
@@ -908,19 +909,7 @@ Viewer.prototype._updateMaterialsSRGB = function () {
     }
 };
 
-Viewer.prototype._updateClipAndSkeletons = function () {
-    // Manually sync the transform for nodes not in skeleton
-    this._clips.forEach(function (clip) {
-        if (clip.channels.position) {
-            clip.target.position.setArray(clip.position);
-        }
-        if (clip.channels.rotation) {
-            clip.target.rotation.setArray(clip.rotation);
-        }
-        if (clip.channels.scale) {
-            clip.target.scale.setArray(clip.scale);
-        }
-    });
+Viewer.prototype._updateSkeletons = function () {
     this._skeletons.forEach(function (skeleton) {
         skeleton.update();
     });
@@ -936,7 +925,7 @@ Viewer.prototype._loop = function (deltaTime) {
 
     this._needsRefresh = false;
 
-    this._updateClipAndSkeletons();
+    this._updateSkeletons();
 
     this._renderMain.prepareRender();
     this._renderMain.render();

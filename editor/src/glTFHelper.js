@@ -1,5 +1,5 @@
 import graphicHelper from '../../src/graphic/helper';
-import GLTF2Loader from 'qtek/src/loader/GLTF2';
+import GLTFLoader from 'qtek/src/loader/GLTF';
 import Texture from 'qtek/src/Texture';
 
 var TEXTURES = ['diffuseMap', 'normalMap', 'emissiveMap', 'metalnessMap', 'roughnessMap', 'specularMap', 'glossinessMap']
@@ -203,7 +203,7 @@ function updateGLTFMaterials(glTF, sceneConfig) {
     glTF.materials = [];
     glTF.meshes.forEach(function (mesh, meshIdx) {
         mesh.primitives.forEach(function (primitive, idx) {
-            primitivesMap[GLTF2Loader.generateMeshName(glTF.meshes, meshIdx, idx)] = primitive;
+            primitivesMap[GLTFLoader.generateMeshName(glTF.meshes, meshIdx, idx)] = primitie;
         });
     });
     sceneConfig.materials.forEach(function (matConfig, idx) {
