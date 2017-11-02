@@ -128,13 +128,13 @@ body {
 
 #timeline-range-wrap {
     position: relative;
-    height: 38px;
+    height: 45px;
     margin-top: 10px;
 }
 
 #timeline-progress-wrap {
     position: relative;
-    height: 70px;
+    height: 50px;
 }
 
 #timeline-range {
@@ -154,7 +154,7 @@ body {
     left: 10px;
     color: #fff;
     font-size: 26px;
-    bottom: 20px;
+    bottom: 5px;
     cursor: pointer;
 }
 
@@ -166,7 +166,13 @@ body {
     display: none;
 }
 #timeline-progress .irs-single {
-    top: 5px;
+    top: 42px;
+}
+#timeline-progress .irs-single::after {
+    top: -6px;
+    bottom: auto;
+    border-top-color: transparent;
+    border-bottom-color: #ed5565;
 }
 
 

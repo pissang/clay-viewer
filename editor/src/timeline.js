@@ -53,20 +53,26 @@ function updateAnimationUI(_viewer) {
         $('#timeline-progress input').ionRangeSlider({
             from_shadow: true,
             force_edges: true,
-            grid: true,
-            grid_num: 10,
             onChange: function (data) {
                 currentTime = data.from;
                 viewer.setPose(currentTime);
+                stopAnimation();
+            },
+            onFinish: function () {
+                startAnimation(_animationToken);
             }
         });
         $('#timeline-range input').ionRangeSlider({
             from_shadow: true,
             force_edges: true,
             type: 'double',
+            drag_interval: true,
+            grid: true,
+            grid_num: 10,
             onChange: function (data) {
                 duration = data.to - data.from;
                 startTime = data.from;
+                currentTime = Math.min(Math.max(data.from, currentTime), data.to);
                 progressSlider.update({
                     from_min: data.from,
                     from_max: data.to
@@ -102,10 +108,13 @@ function updateControlPosition() {
 }
 
 function startAnimation(_animationToken) {
+    if (isPlay) {
+        return;
+    }
 
     isPlay = true;
 
-    var time = Date.now();
+    var _time = Date.now();
 
     var pauseBtn = document.getElementById('timeline-pause-resume');
     pauseBtn.classList.remove('icon-resume');
@@ -120,10 +129,11 @@ function startAnimation(_animationToken) {
         }
 
         viewer.setPose(currentTime);
-        updateControlPosition();
 
-        var dTime = Math.min(Date.now() - time, 20);
-        time += dTime;
+        var dTime = Math.min(Date.now() - _time, 20);
+        _time = Date.now();
+
+        updateControlPosition();
 
         currentTime += dTime;
         if (currentTime > startTime + duration) {
@@ -137,6 +147,10 @@ function startAnimation(_animationToken) {
 }
 
 function stopAnimation() {
+    if (!isPlay) {
+        return;
+    }
+
     isPlay = false;
     
     var pauseBtn = document.getElementById('timeline-pause-resume');
