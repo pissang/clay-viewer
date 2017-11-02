@@ -120,7 +120,7 @@ body {
     width: 600px;
     right: 50px;
     bottom: 50px;
-    height: 120px;
+    height: 115px;
     display: none;
     border-radius: 5px;
     background-color: rgba(0,0,0,0.7);
@@ -128,8 +128,8 @@ body {
 
 #timeline-range-wrap {
     position: relative;
-    height: 50px;
-    margin-top: 5px;
+    height: 38px;
+    margin-top: 10px;
 }
 
 #timeline-progress-wrap {
@@ -160,6 +160,13 @@ body {
 
 #timeline-progress .irs-bar {
     opacity: 0.3;
+}
+#timeline-progress .irs-min,
+#timeline-progress .irs-max {
+    display: none;
+}
+#timeline-progress .irs-single {
+    top: 5px;
 }
 
 
@@ -211,6 +218,8 @@ body {
 .texture-wrap .texture-delete::after {
     content: 'x';
 }
+
+
 
 .pace {
 -webkit-pointer-events: none;
