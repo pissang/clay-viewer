@@ -288,15 +288,15 @@ Viewer.prototype._clickHandler = function (e) {
     }
 
     var result = this._picking.pick(e.clientX, e.clientY, true);
-    if (result) {
-        this._renderMain.setDOFFocusOnPoint(result.distance);
-        this.trigger('doffocus', result);
-        this.refresh();
-    }
 
     if (result && !result.target.isGround) {
+        this._renderMain.setDOFFocusOnPoint(result.distance);
+        this.trigger('doffocus', result);
+
         this._selectResult = result;
         this.trigger('select', result);
+
+        this.refresh();
     }
     else {
         if (this._selectResult) {
