@@ -10876,6 +10876,7 @@ var Renderer = Base.extend(function () {
             var worldM = renderable.isSkinnedMesh() ? matrices.IDENTITY : renderable.worldTransform._array;
             // All matrices ralated to world matrix will be updated on demand;
             mat4.multiplyAffine(matrices.WORLDVIEW, matrices.VIEW , worldM);
+            // TODO Skinned mesh may have wrong bounding box.
             if (geometry.boundingBox && !preZ) {
                 if (this.isFrustumCulled(
                     renderable, scene, camera, matrices.WORLDVIEW, matrices.PROJECTION
@@ -11129,8 +11130,8 @@ var Renderer = Base.extend(function () {
             if (scene && object.isRenderable() && object.castShadow) {
                 scene.viewBoundingBoxLastFrame.union(cullingBoundingBox);
             }
-
-            if (object.frustumCulling)  {
+            // Ignore frustum culling if object is skinned mesh.
+            if (object.frustumCulling && !object.isSkinnedMesh())  {
                 if (!cullingBoundingBox.intersectBoundingBox(camera.frustum.boundingBox)) {
                     return true;
                 }
@@ -13234,7 +13235,7 @@ function lightSortFunc(a, b) {
     }
 }
 
-var standardEssl = "\n@export qtek.standard.vertex\n#define SHADER_NAME standard\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n#if defined(AOMAP_ENABLED)\nattribute vec2 texcoord2 : TEXCOORD_1;\n#endif\nattribute vec3 normal : NORMAL;\nattribute vec4 tangent : TANGENT;\n#ifdef VERTEX_COLOR\nattribute vec4 color : COLOR;\n#endif\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nvarying vec3 v_Barycentric;\n#ifdef NORMALMAP_ENABLED\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n#endif\n#ifdef VERTEX_COLOR\nvarying vec4 v_Color;\n#endif\n#if defined(AOMAP_ENABLED)\nvarying vec2 v_Texcoord2;\n#endif\nvoid main()\n{\n    vec3 skinnedPosition = position;\n    vec3 skinnedNormal = normal;\n    vec3 skinnedTangent = tangent.xyz;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n    skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_WorldPosition = (world * vec4(skinnedPosition, 1.0)).xyz;\n    v_Barycentric = barycentric;\n    v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n#ifdef NORMALMAP_ENABLED\n    v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n    v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n#endif\n#ifdef VERTEX_COLOR\n    v_Color = color;\n#endif\n#if defined(AOMAP_ENABLED)\n    v_Texcoord2 = texcoord2;\n#endif\n}\n@end\n@export qtek.standard.fragment\n#define PI 3.14159265358979\n#define GLOSSINESS_CHANNEL 0\n#define ROUGHNESS_CHANNEL 0\n#define METALNESS_CHANNEL 1\nuniform mat4 viewInverse : VIEWINVERSE;\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\n#ifdef NORMALMAP_ENABLED\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\nuniform sampler2D normalMap;\n#endif\n#ifdef DIFFUSEMAP_ENABLED\nuniform sampler2D diffuseMap;\n#endif\n#ifdef SPECULARMAP_ENABLED\nuniform sampler2D specularMap;\n#endif\n#ifdef USE_ROUGHNESS\nuniform float roughness : 0.5;\n    #ifdef ROUGHNESSMAP_ENABLED\nuniform sampler2D roughnessMap;\n    #endif\n#else\nuniform float glossiness: 0.5;\n    #ifdef GLOSSINESSMAP_ENABLED\nuniform sampler2D glossinessMap;\n    #endif\n#endif\n#ifdef METALNESSMAP_ENABLED\nuniform sampler2D metalnessMap;\n#endif\n#ifdef ENVIRONMENTMAP_ENABLED\nuniform samplerCube environmentMap;\n    #ifdef PARALLAX_CORRECTED\nuniform vec3 environmentBoxMin;\nuniform vec3 environmentBoxMax;\n    #endif\n#endif\n#ifdef BRDFLOOKUP_ENABLED\nuniform sampler2D brdfLookup;\n#endif\n#ifdef EMISSIVEMAP_ENABLED\nuniform sampler2D emissiveMap;\n#endif\n#ifdef SSAOMAP_ENABLED\nuniform sampler2D ssaoMap;\nuniform vec4 viewport : VIEWPORT;\n#endif\n#ifdef AOMAP_ENABLED\nuniform sampler2D aoMap;\nuniform float aoIntensity;\nvarying vec2 v_Texcoord2;\n#endif\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\n#ifdef USE_METALNESS\nuniform float metalness : 0.0;\n#else\nuniform vec3 specularColor : [0.1, 0.1, 0.1];\n#endif\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float emissionIntensity: 1;\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n#ifdef ENVIRONMENTMAP_PREFILTER\nuniform float maxMipmapLevel: 5;\n#endif\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef AMBIENT_CUBEMAP_LIGHT_COUNT\n@import qtek.header.ambient_cubemap_light\n#endif\n#ifdef POINT_LIGHT_COUNT\n@import qtek.header.point_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n#ifdef SPOT_LIGHT_COUNT\n@import qtek.header.spot_light\n#endif\n@import qtek.util.calculate_attenuation\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.util.srgb\n@import qtek.plugin.compute_shadow_map\n@import qtek.util.parallax_correct\nfloat G_Smith(float g, float ndv, float ndl)\n{\n    float roughness = 1.0 - g;\n    float k = roughness * roughness / 2.0;\n    float G1V = ndv / (ndv * (1.0 - k) + k);\n    float G1L = ndl / (ndl * (1.0 - k) + k);\n    return G1L * G1V;\n}\nvec3 F_Schlick(float ndv, vec3 spec) {\n    return spec + (1.0 - spec) * pow(1.0 - ndv, 5.0);\n}\nfloat D_Phong(float g, float ndh) {\n    float a = pow(8192.0, g);\n    return (a + 2.0) / 8.0 * pow(ndh, a);\n}\nfloat D_GGX(float g, float ndh) {\n    float r = 1.0 - g;\n    float a = r * r;\n    float tmp = ndh * ndh * (a - 1.0) + 1.0;\n    return a / (PI * tmp * tmp);\n}\nvoid main()\n{\n    vec4 albedoColor = vec4(color, alpha);\n    vec3 eyePos = viewInverse[3].xyz;\n    vec3 V = normalize(eyePos - v_WorldPosition);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 texel = texture2D(diffuseMap, v_Texcoord);\n    #ifdef SRGB_DECODE\n    texel = sRGBToLinear(texel);\n    #endif\n    albedoColor.rgb *= texel.rgb;\n    #ifdef DIFFUSEMAP_ALPHA_ALPHA\n    albedoColor.a *= texel.a;\n    #endif\n#endif\n#ifdef USE_METALNESS\n    float m = metalness;\n    #ifdef METALNESSMAP_ENABLED\n    float m2 = texture2D(metalnessMap, v_Texcoord)[METALNESS_CHANNEL];\n    m = clamp(m2 + (m - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n    vec3 baseColor = albedoColor.rgb;\n    albedoColor.rgb = baseColor * (1.0 - m);\n    vec3 spec = mix(vec3(0.04), baseColor, m);\n#else\n    vec3 spec = specularColor;\n#endif\n#ifdef USE_ROUGHNESS\n    float g = 1.0 - roughness;\n    #ifdef ROUGHNESSMAP_ENABLED\n    float g2 = 1.0 - texture2D(roughnessMap, v_Texcoord)[ROUGHNESS_CHANNEL];\n    g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n#else\n    float g = glossiness;\n    #ifdef GLOSSINESSMAP_ENABLED\n    float g2 = texture2D(glossinessMap, v_Texcoord)[GLOSSINESS_CHANNEL];\n    g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n#endif\n#ifdef SPECULARMAP_ENABLED\n    spec *= sRGBToLinear(texture2D(specularMap, v_Texcoord)).rgb;\n#endif\n    vec3 N = v_Normal;\n#ifdef DOUBLE_SIDED\n    if (dot(N, V) < 0.0) {\n        N = -N;\n    }\n#endif\n#ifdef NORMALMAP_ENABLED\n    if (dot(v_Tangent, v_Tangent) > 0.0) {\n        vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n        if (dot(normalTexel, normalTexel) > 0.0) {            N = normalTexel * 2.0 - 1.0;\n            mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n            N = normalize(tbn * N);\n        }\n    }\n#endif\n    vec3 diffuseTerm = vec3(0.0, 0.0, 0.0);\n    vec3 specularTerm = vec3(0.0, 0.0, 0.0);\n    float ndv = clamp(dot(N, V), 0.0, 1.0);\n    vec3 fresnelTerm = F_Schlick(ndv, spec);\n#ifdef AMBIENT_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseTerm += ambientLightColor[_idx_];\n    }}\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseTerm += calcAmbientSHLight(_idx_, N) * ambientSHLightColor[_idx_];\n    }}\n#endif\n#ifdef POINT_LIGHT_COUNT\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsPoint[POINT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfPointLights(v_WorldPosition, shadowContribsPoint);\n    }\n#endif\n    for(int _idx_ = 0; _idx_ < POINT_LIGHT_COUNT; _idx_++)\n    {{\n        vec3 lightPosition = pointLightPosition[_idx_];\n        vec3 lc = pointLightColor[_idx_];\n        float range = pointLightRange[_idx_];\n        vec3 L = lightPosition - v_WorldPosition;\n        float dist = length(L);\n        float attenuation = lightAttenuation(dist, range);\n        L /= dist;\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n        if(shadowEnabled)\n        {\n            shadowContrib = shadowContribsPoint[_idx_];\n        }\n#endif\n        vec3 li = lc * ndl * attenuation * shadowContrib;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }}\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n    }\n#endif\n    for(int _idx_ = 0; _idx_ < DIRECTIONAL_LIGHT_COUNT; _idx_++)\n    {{\n        vec3 L = -normalize(directionalLightDirection[_idx_]);\n        vec3 lc = directionalLightColor[_idx_];\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n        if(shadowEnabled)\n        {\n            shadowContrib = shadowContribsDir[_idx_];\n        }\n#endif\n        vec3 li = lc * ndl * shadowContrib;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }}\n#endif\n#ifdef SPOT_LIGHT_COUNT\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsSpot[SPOT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfSpotLights(v_WorldPosition, shadowContribsSpot);\n    }\n#endif\n    for(int i = 0; i < SPOT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = spotLightPosition[i];\n        vec3 spotLightDirection = -normalize(spotLightDirection[i]);\n        vec3 lc = spotLightColor[i];\n        float range = spotLightRange[i];\n        float a = spotLightUmbraAngleCosine[i];\n        float b = spotLightPenumbraAngleCosine[i];\n        float falloffFactor = spotLightFalloffFactor[i];\n        vec3 L = lightPosition - v_WorldPosition;\n        float dist = length(L);\n        float attenuation = lightAttenuation(dist, range);\n        L /= dist;\n        float c = dot(spotLightDirection, L);\n        float falloff;\n        falloff = clamp((c - a) /( b - a), 0.0, 1.0);\n        falloff = pow(falloff, falloffFactor);\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n        if (shadowEnabled)\n        {\n            shadowContrib = shadowContribsSpot[i];\n        }\n#endif\n        vec3 li = lc * attenuation * (1.0 - falloff) * shadowContrib * ndl;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }\n#endif\n    vec4 outColor = albedoColor;\n    outColor.rgb *= diffuseTerm;\n    outColor.rgb += specularTerm;\n#ifdef AMBIENT_CUBEMAP_LIGHT_COUNT\n    vec3 L = reflect(-V, N);\n    float rough2 = clamp(1.0 - g, 0.0, 1.0);\n    float bias2 = rough2 * 5.0;\n    vec2 brdfParam2 = texture2D(ambientCubemapLightBRDFLookup[0], vec2(rough2, ndv)).xy;\n    vec3 envWeight2 = spec * brdfParam2.x + brdfParam2.y;\n    vec3 envTexel2;\n    for(int _idx_ = 0; _idx_ < AMBIENT_CUBEMAP_LIGHT_COUNT; _idx_++)\n    {{\n        envTexel2 = RGBMDecode(textureCubeLodEXT(ambientCubemapLightCubemap[_idx_], L, bias2), 51.5);\n        outColor.rgb += ambientCubemapLightColor[_idx_] * envTexel2 * envWeight2;\n    }}\n#endif\n#ifdef ENVIRONMENTMAP_ENABLED\n    vec3 envWeight = g * fresnelTerm;\n    vec3 L = reflect(-V, N);\n    #ifdef PARALLAX_CORRECTED\n    L = parallaxCorrect(L, v_WorldPosition, environmentBoxMin, environmentBoxMax);\n    #endif\n    #ifdef ENVIRONMENTMAP_PREFILTER\n    float rough = clamp(1.0 - g, 0.0, 1.0);\n    float bias = rough * maxMipmapLevel;\n    vec3 envTexel = decodeHDR(textureCubeLodEXT(environmentMap, L, bias)).rgb;\n        #ifdef BRDFLOOKUP_ENABLED\n    vec2 brdfParam = texture2D(brdfLookup, vec2(rough, ndv)).xy;\n    envWeight = spec * brdfParam.x + brdfParam.y;\n        #endif\n    #else\n    vec3 envTexel = textureCube(environmentMap, L).xyz;\n    #endif\n    outColor.rgb += envTexel * envWeight;\n#endif\n    float aoFactor = 1.0;\n#ifdef SSAOMAP_ENABLED\n    aoFactor = min(texture2D(ssaoMap, (gl_FragCoord.xy - viewport.xy) / viewport.zw).r, aoFactor);\n#endif\n#ifdef AOMAP_ENABLED\n    aoFactor = min(1.0 - clamp((1.0 - texture2D(aoMap, v_Texcoord2).r) * aoIntensity, 0.0, 1.0), aoFactor);\n#endif\n    outColor.rgb *= aoFactor;\n    vec3 lEmission = emission;\n#ifdef EMISSIVEMAP_ENABLED\n    lEmission *= texture2D(emissiveMap, v_Texcoord).rgb;\n#endif\n    outColor.rgb += lEmission * emissionIntensity;\n#ifdef GAMMA_ENCODE\n    outColor.rgb = pow(outColor.rgb, vec3(1 / 2.2));\n#endif\n    if(lineWidth > 0.)\n    {\n        outColor.rgb = mix(lineColor, vec3(outColor.rgb), edgeFactor(lineWidth));\n    }\n#ifdef ALPHA_TEST\n    if (outColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(outColor);\n}\n@end\n";
+var standardEssl = "\n@export qtek.standard.vertex\n#define SHADER_NAME standard\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n#if defined(AOMAP_ENABLED)\nattribute vec2 texcoord2 : TEXCOORD_1;\n#endif\nattribute vec3 normal : NORMAL;\nattribute vec4 tangent : TANGENT;\n#ifdef VERTEX_COLOR\nattribute vec4 color : COLOR;\n#endif\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nvarying vec3 v_Barycentric;\n#ifdef NORMALMAP_ENABLED\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n#endif\n#ifdef VERTEX_COLOR\nvarying vec4 v_Color;\n#endif\n#if defined(AOMAP_ENABLED)\nvarying vec2 v_Texcoord2;\n#endif\nvoid main()\n{\n    vec3 skinnedPosition = position;\n    vec3 skinnedNormal = normal;\n    vec3 skinnedTangent = tangent.xyz;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n    skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_WorldPosition = (world * vec4(skinnedPosition, 1.0)).xyz;\n    v_Barycentric = barycentric;\n    v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n#ifdef NORMALMAP_ENABLED\n    v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n    v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n#endif\n#ifdef VERTEX_COLOR\n    v_Color = color;\n#endif\n#if defined(AOMAP_ENABLED)\n    v_Texcoord2 = texcoord2;\n#endif\n}\n@end\n@export qtek.standard.fragment\n#define PI 3.14159265358979\n#define GLOSSINESS_CHANNEL 0\n#define ROUGHNESS_CHANNEL 0\n#define METALNESS_CHANNEL 1\nuniform mat4 viewInverse : VIEWINVERSE;\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\n#ifdef NORMALMAP_ENABLED\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\nuniform sampler2D normalMap;\n#endif\n#ifdef DIFFUSEMAP_ENABLED\nuniform sampler2D diffuseMap;\n#endif\n#ifdef SPECULARMAP_ENABLED\nuniform sampler2D specularMap;\n#endif\n#ifdef USE_ROUGHNESS\nuniform float roughness : 0.5;\n    #ifdef ROUGHNESSMAP_ENABLED\nuniform sampler2D roughnessMap;\n    #endif\n#else\nuniform float glossiness: 0.5;\n    #ifdef GLOSSINESSMAP_ENABLED\nuniform sampler2D glossinessMap;\n    #endif\n#endif\n#ifdef METALNESSMAP_ENABLED\nuniform sampler2D metalnessMap;\n#endif\n#ifdef ENVIRONMENTMAP_ENABLED\nuniform samplerCube environmentMap;\n    #ifdef PARALLAX_CORRECTED\nuniform vec3 environmentBoxMin;\nuniform vec3 environmentBoxMax;\n    #endif\n#endif\n#ifdef BRDFLOOKUP_ENABLED\nuniform sampler2D brdfLookup;\n#endif\n#ifdef EMISSIVEMAP_ENABLED\nuniform sampler2D emissiveMap;\n#endif\n#ifdef SSAOMAP_ENABLED\nuniform sampler2D ssaoMap;\nuniform vec4 viewport : VIEWPORT;\n#endif\n#ifdef AOMAP_ENABLED\nuniform sampler2D aoMap;\nuniform float aoIntensity;\nvarying vec2 v_Texcoord2;\n#endif\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\n#ifdef USE_METALNESS\nuniform float metalness : 0.0;\n#else\nuniform vec3 specularColor : [0.1, 0.1, 0.1];\n#endif\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float emissionIntensity: 1;\nuniform float lineWidth : 0.0;\nuniform vec4 lineColor : [0.0, 0.0, 0.0, 0.6];\nvarying vec3 v_Barycentric;\n#ifdef ENVIRONMENTMAP_PREFILTER\nuniform float maxMipmapLevel: 5;\n#endif\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef AMBIENT_CUBEMAP_LIGHT_COUNT\n@import qtek.header.ambient_cubemap_light\n#endif\n#ifdef POINT_LIGHT_COUNT\n@import qtek.header.point_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n#ifdef SPOT_LIGHT_COUNT\n@import qtek.header.spot_light\n#endif\n@import qtek.util.calculate_attenuation\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.util.srgb\n@import qtek.plugin.compute_shadow_map\n@import qtek.util.parallax_correct\nfloat G_Smith(float g, float ndv, float ndl)\n{\n    float roughness = 1.0 - g;\n    float k = roughness * roughness / 2.0;\n    float G1V = ndv / (ndv * (1.0 - k) + k);\n    float G1L = ndl / (ndl * (1.0 - k) + k);\n    return G1L * G1V;\n}\nvec3 F_Schlick(float ndv, vec3 spec) {\n    return spec + (1.0 - spec) * pow(1.0 - ndv, 5.0);\n}\nfloat D_Phong(float g, float ndh) {\n    float a = pow(8192.0, g);\n    return (a + 2.0) / 8.0 * pow(ndh, a);\n}\nfloat D_GGX(float g, float ndh) {\n    float r = 1.0 - g;\n    float a = r * r;\n    float tmp = ndh * ndh * (a - 1.0) + 1.0;\n    return a / (PI * tmp * tmp);\n}\nvoid main()\n{\n    vec4 albedoColor = vec4(color, alpha);\n    vec3 eyePos = viewInverse[3].xyz;\n    vec3 V = normalize(eyePos - v_WorldPosition);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 texel = texture2D(diffuseMap, v_Texcoord);\n    #ifdef SRGB_DECODE\n    texel = sRGBToLinear(texel);\n    #endif\n    albedoColor.rgb *= texel.rgb;\n    #ifdef DIFFUSEMAP_ALPHA_ALPHA\n    albedoColor.a *= texel.a;\n    #endif\n#endif\n#ifdef USE_METALNESS\n    float m = metalness;\n    #ifdef METALNESSMAP_ENABLED\n    float m2 = texture2D(metalnessMap, v_Texcoord)[METALNESS_CHANNEL];\n    m = clamp(m2 + (m - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n    vec3 baseColor = albedoColor.rgb;\n    albedoColor.rgb = baseColor * (1.0 - m);\n    vec3 spec = mix(vec3(0.04), baseColor, m);\n#else\n    vec3 spec = specularColor;\n#endif\n#ifdef USE_ROUGHNESS\n    float g = 1.0 - roughness;\n    #ifdef ROUGHNESSMAP_ENABLED\n    float g2 = 1.0 - texture2D(roughnessMap, v_Texcoord)[ROUGHNESS_CHANNEL];\n    g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n#else\n    float g = glossiness;\n    #ifdef GLOSSINESSMAP_ENABLED\n    float g2 = texture2D(glossinessMap, v_Texcoord)[GLOSSINESS_CHANNEL];\n    g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    #endif\n#endif\n#ifdef SPECULARMAP_ENABLED\n    spec *= sRGBToLinear(texture2D(specularMap, v_Texcoord)).rgb;\n#endif\n    vec3 N = v_Normal;\n#ifdef DOUBLE_SIDED\n    if (dot(N, V) < 0.0) {\n        N = -N;\n    }\n#endif\n#ifdef NORMALMAP_ENABLED\n    if (dot(v_Tangent, v_Tangent) > 0.0) {\n        vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n        if (dot(normalTexel, normalTexel) > 0.0) {            N = normalTexel * 2.0 - 1.0;\n            mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n            N = normalize(tbn * N);\n        }\n    }\n#endif\n    vec3 diffuseTerm = vec3(0.0, 0.0, 0.0);\n    vec3 specularTerm = vec3(0.0, 0.0, 0.0);\n    float ndv = clamp(dot(N, V), 0.0, 1.0);\n    vec3 fresnelTerm = F_Schlick(ndv, spec);\n#ifdef AMBIENT_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseTerm += ambientLightColor[_idx_];\n    }}\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseTerm += calcAmbientSHLight(_idx_, N) * ambientSHLightColor[_idx_];\n    }}\n#endif\n#ifdef POINT_LIGHT_COUNT\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsPoint[POINT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfPointLights(v_WorldPosition, shadowContribsPoint);\n    }\n#endif\n    for(int _idx_ = 0; _idx_ < POINT_LIGHT_COUNT; _idx_++)\n    {{\n        vec3 lightPosition = pointLightPosition[_idx_];\n        vec3 lc = pointLightColor[_idx_];\n        float range = pointLightRange[_idx_];\n        vec3 L = lightPosition - v_WorldPosition;\n        float dist = length(L);\n        float attenuation = lightAttenuation(dist, range);\n        L /= dist;\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n        if(shadowEnabled)\n        {\n            shadowContrib = shadowContribsPoint[_idx_];\n        }\n#endif\n        vec3 li = lc * ndl * attenuation * shadowContrib;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }}\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n    }\n#endif\n    for(int _idx_ = 0; _idx_ < DIRECTIONAL_LIGHT_COUNT; _idx_++)\n    {{\n        vec3 L = -normalize(directionalLightDirection[_idx_]);\n        vec3 lc = directionalLightColor[_idx_];\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n        if(shadowEnabled)\n        {\n            shadowContrib = shadowContribsDir[_idx_];\n        }\n#endif\n        vec3 li = lc * ndl * shadowContrib;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }}\n#endif\n#ifdef SPOT_LIGHT_COUNT\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsSpot[SPOT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfSpotLights(v_WorldPosition, shadowContribsSpot);\n    }\n#endif\n    for(int i = 0; i < SPOT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = spotLightPosition[i];\n        vec3 spotLightDirection = -normalize(spotLightDirection[i]);\n        vec3 lc = spotLightColor[i];\n        float range = spotLightRange[i];\n        float a = spotLightUmbraAngleCosine[i];\n        float b = spotLightPenumbraAngleCosine[i];\n        float falloffFactor = spotLightFalloffFactor[i];\n        vec3 L = lightPosition - v_WorldPosition;\n        float dist = length(L);\n        float attenuation = lightAttenuation(dist, range);\n        L /= dist;\n        float c = dot(spotLightDirection, L);\n        float falloff;\n        falloff = clamp((c - a) /( b - a), 0.0, 1.0);\n        falloff = pow(falloff, falloffFactor);\n        vec3 H = normalize(L + V);\n        float ndl = clamp(dot(N, L), 0.0, 1.0);\n        float ndh = clamp(dot(N, H), 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n        if (shadowEnabled)\n        {\n            shadowContrib = shadowContribsSpot[i];\n        }\n#endif\n        vec3 li = lc * attenuation * (1.0 - falloff) * shadowContrib * ndl;\n        diffuseTerm += li;\n        specularTerm += li * fresnelTerm * D_Phong(g, ndh);\n    }\n#endif\n    vec4 outColor = albedoColor;\n    outColor.rgb *= diffuseTerm;\n    outColor.rgb += specularTerm;\n#ifdef AMBIENT_CUBEMAP_LIGHT_COUNT\n    vec3 L = reflect(-V, N);\n    float rough2 = clamp(1.0 - g, 0.0, 1.0);\n    float bias2 = rough2 * 5.0;\n    vec2 brdfParam2 = texture2D(ambientCubemapLightBRDFLookup[0], vec2(rough2, ndv)).xy;\n    vec3 envWeight2 = spec * brdfParam2.x + brdfParam2.y;\n    vec3 envTexel2;\n    for(int _idx_ = 0; _idx_ < AMBIENT_CUBEMAP_LIGHT_COUNT; _idx_++)\n    {{\n        envTexel2 = RGBMDecode(textureCubeLodEXT(ambientCubemapLightCubemap[_idx_], L, bias2), 51.5);\n        outColor.rgb += ambientCubemapLightColor[_idx_] * envTexel2 * envWeight2;\n    }}\n#endif\n#ifdef ENVIRONMENTMAP_ENABLED\n    vec3 envWeight = g * fresnelTerm;\n    vec3 L = reflect(-V, N);\n    #ifdef PARALLAX_CORRECTED\n    L = parallaxCorrect(L, v_WorldPosition, environmentBoxMin, environmentBoxMax);\n    #endif\n    #ifdef ENVIRONMENTMAP_PREFILTER\n    float rough = clamp(1.0 - g, 0.0, 1.0);\n    float bias = rough * maxMipmapLevel;\n    vec3 envTexel = decodeHDR(textureCubeLodEXT(environmentMap, L, bias)).rgb;\n        #ifdef BRDFLOOKUP_ENABLED\n    vec2 brdfParam = texture2D(brdfLookup, vec2(rough, ndv)).xy;\n    envWeight = spec * brdfParam.x + brdfParam.y;\n        #endif\n    #else\n    vec3 envTexel = textureCube(environmentMap, L).xyz;\n    #endif\n    outColor.rgb += envTexel * envWeight;\n#endif\n    float aoFactor = 1.0;\n#ifdef SSAOMAP_ENABLED\n    aoFactor = min(texture2D(ssaoMap, (gl_FragCoord.xy - viewport.xy) / viewport.zw).r, aoFactor);\n#endif\n#ifdef AOMAP_ENABLED\n    aoFactor = min(1.0 - clamp((1.0 - texture2D(aoMap, v_Texcoord2).r) * aoIntensity, 0.0, 1.0), aoFactor);\n#endif\n    outColor.rgb *= aoFactor;\n    vec3 lEmission = emission;\n#ifdef EMISSIVEMAP_ENABLED\n    lEmission *= texture2D(emissiveMap, v_Texcoord).rgb;\n#endif\n    outColor.rgb += lEmission * emissionIntensity;\n#ifdef GAMMA_ENCODE\n    outColor.rgb = pow(outColor.rgb, vec3(1 / 2.2));\n#endif\n    if(lineWidth > 0.)\n    {\n        outColor.rgb = mix(outColor.rgb, lineColor.rgb, (1.0 - edgeFactor(lineWidth)) * lineColor.a);\n    }\n#ifdef ALPHA_TEST\n    if (outColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(outColor);\n}\n@end\n";
 
 // Import standard shader
 Shader['import'](standardEssl);
@@ -14368,7 +14369,7 @@ var Mesh = Renderable.extend(
 }, {
 
     isSkinnedMesh: function () {
-        return this.skeleton && this.material.shader.isDefined('vertex', 'SKINNING');
+        return !!(this.skeleton && this.material.shader.isDefined('vertex', 'SKINNING'));
     },
 
     render: function (renderer, shader) {
@@ -14543,15 +14544,15 @@ var Skeleton = Base.extend(function () {
             maps[i] = -1;
         }
         // Create avatar
-        for (var i = 0; i < clip.jointClips.length; i++) {
+        for (var i = 0; i < clip.tracks.length; i++) {
             for (var j = 0; j < this.joints.length; j++) {
                 var joint = this.joints[j];
-                var jointPose = clip.jointClips[i];
+                var track = clip.tracks[i];
                 var jointName = joint.name;
                 if (mapRule) {
                     jointName = mapRule[jointName];
                 }
-                if (jointPose.name === jointName) {
+                if (track.name === jointName) {
                     maps[j] = i;
                     break;
                 }
@@ -14714,7 +14715,7 @@ var Skeleton = Base.extend(function () {
                 if (maps[i] === -1) {
                     continue;
                 }
-                var pose = clip.jointClips[maps[i]];
+                var pose = clip.tracks[maps[i]];
 
                 // Not update if there is no data.
                 // PENDING If sync pose.position, pose.rotation, pose.scale
@@ -16266,18 +16267,14 @@ Clip.prototype = {
 };
 Clip.prototype.constructor = Clip;
 
-var quat$4 = glmatrix.quat;
-var vec3$10 = glmatrix.vec3;
-
-function keyframeSort(a, b) {
-    return a.time - b.time;
-}
+var quat$3 = glmatrix.quat;
+var vec3$9 = glmatrix.vec3;
 
 /**
  * @constructor
- * @alias qtek.animation.TransformClip
- * @extends qtek.animation.Clip
+ * @alias qtek.animation.TrackClip
  *
+ * @extends qtek.animation.Clip
  * @param {Object} [opts]
  * @param {string} [opts.name]
  * @param {Object} [opts.target]
@@ -16286,18 +16283,219 @@ function keyframeSort(a, b) {
  * @param {number} [opts.gap]
  * @param {number} [opts.playbackRatio]
  * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
- * @param {string|Function} [opts.easing]
- * @param {Function} [opts.onframe]
- * @param {Function} [opts.onfinish]
- * @param {Function} [opts.onrestart]
- * @param {object[]} [opts.keyFrames]
+ * @param {string|function} [opts.easing]
+ * @param {function} [opts.onframe]
+ * @param {function} [opts.onfinish]
+ * @param {function} [opts.onrestart]
  */
-var TransformClip = function (opts) {
+var TrackClip = function (opts) {
 
     opts = opts || {};
 
     Clip.call(this, opts);
 
+    this.tracks = opts.tracks || [];
+};
+
+TrackClip.prototype = Object.create(Clip.prototype);
+
+TrackClip.prototype.constructor = TrackClip;
+
+TrackClip.prototype.step = function (time, dTime, silent) {
+
+    var ret = Clip.prototype.step.call(this, time, dTime, true);
+
+    if (ret !== 'finish') {
+        var time = this.getElapsedTime();
+        // TODO life may be changed.
+        if (this._range) {
+            time = this._range[0] + time;
+        }
+        this.setTime(time);
+    }
+
+    // PENDING Schedule
+    if (!silent && ret !== 'paused') {
+        this.fire('frame');
+    }
+    
+    return ret;
+};
+
+/**
+ * @param {Array.<number>} range
+ */
+TrackClip.prototype.setRange = function (range) {
+    this.calcLifeFromTracks();
+    this._range = range;
+    if (range) {
+        range[1] = Math.min(range[1], this.life);
+        range[0] = Math.min(range[0], this.life);
+        this.life = (range[1] - range[0]);
+    }
+};
+
+TrackClip.prototype.setTime = function (time) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        this.tracks[i].setTime(time);
+    }
+};
+
+TrackClip.prototype.calcLifeFromTracks = function () {
+    this.life = 0;
+    for (var i = 0; i < this.tracks.length; i++) {
+        this.life = Math.max(this.life, this.tracks[i].getMaxTime());
+    }
+};
+
+/**
+ * @param {qtek.animation.TransformTrack|qtek.animation.SamplerTrack} jointClip
+ */
+TrackClip.prototype.addTrack = function (track) {
+    this.tracks.push(track);
+};
+
+/**
+ * @param {qtek.animation.TransformTrack|qtek.animation.SamplerTrack} jointClip
+ */
+TrackClip.prototype.removeTarck = function (track) {
+    var idx = this.tracks.indexOf(track);
+    if (idx >= 0) {
+        this.tracks.splice(idx, 1);
+    }
+};
+
+/**
+ * @param {number} startTime
+ * @param {number} endTime
+ * @param {boolean} isLoop
+ * @return {qtek.animation.TrackClip}
+ */
+TrackClip.prototype.getSubClip = function (startTime, endTime, isLoop) {
+    var subClip = new TrackClip({
+        name: this.name
+    });
+
+    for (var i = 0; i < this.tracks.length; i++) {
+        var subTrack = this.tracks[i].getSubTrack(startTime, endTime);
+        subClip.addTrack(subTrack);
+    }
+
+    if (isLoop !== undefined) {
+        subClip.setLoop(isLoop);
+    }
+
+    subClip.life = endTime - startTime;
+
+    return subClip;
+};
+
+/**
+ * 1d blending between two skinning clips
+ * @param  {qtek.animation.TrackClip} clip1
+ * @param  {qtek.animation.TrackClip} clip2
+ * @param  {number} w
+ */
+TrackClip.prototype.blend1D = function (clip1, clip2, w) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        var c1 = clip1.tracks[i];
+        var c2 = clip2.tracks[i];
+        var tClip = this.tracks[i];
+
+        tClip.blend1D(c1, c2, w);
+    }
+};
+
+/**
+ * Additive blending between two skinning clips
+ * @param  {qtek.animation.TrackClip} clip1
+ * @param  {qtek.animation.TrackClip} clip2
+ */
+TrackClip.prototype.additiveBlend = function (clip1, clip2) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        var c1 = clip1.tracks[i];
+        var c2 = clip2.tracks[i];
+        var tClip = this.tracks[i];
+
+        tClip.additiveBlend(c1, c2);
+    }
+};
+
+/**
+ * Subtractive blending between two skinning clips
+ * @param  {qtek.animation.TrackClip} clip1
+ * @param  {qtek.animation.TrackClip} clip2
+ */
+TrackClip.prototype.subtractiveBlend = function (clip1, clip2) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        var c1 = clip1.tracks[i];
+        var c2 = clip2.tracks[i];
+        var tClip = this.tracks[i];
+
+        tClip.subtractiveBlend(c1, c2);
+    }
+};
+
+/**
+ * 2D blending between three skinning clips
+ * @param  {qtek.animation.TrackClip} clip1
+ * @param  {qtek.animation.TrackClip} clip2
+ * @param  {qtek.animation.TrackClip} clip3
+ * @param  {number} f
+ * @param  {number} g
+ */
+TrackClip.prototype.blend2D = function (clip1, clip2, clip3, f, g) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        var c1 = clip1.tracks[i];
+        var c2 = clip2.tracks[i];
+        var c3 = clip3.tracks[i];
+        var tClip = this.tracks[i];
+
+        tClip.blend2D(c1, c2, c3, f, g);
+    }
+};
+
+/**
+ * Copy SRT of all joints clips from another TrackClip
+ * @param  {qtek.animation.TrackClip} clip
+ */
+TrackClip.prototype.copy = function (clip) {
+    for (var i = 0; i < this.tracks.length; i++) {
+        var sTrack = clip.tracks[i];
+        var tTrack = this.tracks[i];
+
+        vec3$9.copy(tTrack.position, sTrack.position);
+        vec3$9.copy(tTrack.scale, sTrack.scale);
+        quat$3.copy(tTrack.rotation, sTrack.rotation);
+    }
+};
+
+TrackClip.prototype.clone = function () {
+    var clip = Clip.prototype.clone.call(this);
+    for (var i = 0; i < this.tracks.length; i++) {
+        clip.addTrack(this.tracks[i].clone());
+    }
+    clip.life = this.life;
+    return clip;
+};
+
+var quat$5 = glmatrix.quat;
+var vec3$11 = glmatrix.vec3;
+
+function keyframeSort(a, b) {
+    return a.time - b.time;
+}
+
+/**
+ * @constructor
+ * @alias qtek.animation.TransformTrack
+ * @extends qtek.animation.Clip
+ *
+ * @param {object[]} [opts.keyFrames]
+ */
+var TransformTrack = function (opts) {
+
+    this.name = opts.name || '';
     //[{
     //  time: //ms
     //  position:  // optional
@@ -16312,26 +16510,26 @@ var TransformClip = function (opts) {
     /**
      * @type {Float32Array}
      */
-    this.position = vec3$10.create();
+    this.position = vec3$11.create();
     /**
      * Rotation is represented by a quaternion
      * @type {Float32Array}
      */
-    this.rotation = quat$4.create();
+    this.rotation = quat$5.create();
     /**
      * @type {Float32Array}
      */
-    this.scale = vec3$10.fromValues(1, 1, 1);
+    this.scale = vec3$11.fromValues(1, 1, 1);
 
     this._cacheKey = 0;
     this._cacheTime = 0;
 };
 
-TransformClip.prototype = Object.create(Clip.prototype);
+TransformTrack.prototype = Object.create(Clip.prototype);
 
-TransformClip.prototype.constructor = TransformClip;
+TransformTrack.prototype.constructor = TransformTrack;
 
-TransformClip.prototype.step = function (time, dTime, silent) {
+TransformTrack.prototype.step = function (time, dTime, silent) {
 
     var ret = Clip.prototype.step.call(this, time, dTime, true);
 
@@ -16347,19 +16545,28 @@ TransformClip.prototype.step = function (time, dTime, silent) {
     return ret;
 };
 
-TransformClip.prototype.setTime = function (time) {
+TransformTrack.prototype.setTime = function (time) {
     this._interpolateField(time, 'position');
     this._interpolateField(time, 'rotation');
     this._interpolateField(time, 'scale');
 };
+
+/**
+ * @return {number}
+ */
+TransformTrack.prototype.getMaxTime = function () {
+    var kf = this.keyFrames[this.keyFrames.length - 1];
+    return kf ? kf.time : 0;
+};
+
 /**
  * Add a key frame
  * @param {Object} kf
  */
-TransformClip.prototype.addKeyFrame = function (kf) {
+TransformTrack.prototype.addKeyFrame = function (kf) {
     for (var i = 0; i < this.keyFrames.length - 1; i++) {
         var prevFrame = this.keyFrames[i];
-        var nextFrame = this.keyFrames[i+1];
+        var nextFrame = this.keyFrames[i + 1];
         if (prevFrame.time <= kf.time && nextFrame.time >= kf.time) {
             this.keyFrames.splice(i, 0, kf);
             return i;
@@ -16374,7 +16581,7 @@ TransformClip.prototype.addKeyFrame = function (kf) {
  * Add keyframes
  * @param {object[]} kfs
  */
-TransformClip.prototype.addKeyFrames = function (kfs) {
+TransformTrack.prototype.addKeyFrames = function (kfs) {
     for (var i = 0; i < kfs.length; i++) {
         this.keyFrames.push(kfs[i]);
     }
@@ -16384,7 +16591,7 @@ TransformClip.prototype.addKeyFrames = function (kfs) {
     this.life = this.keyFrames[this.keyFrames.length - 1].time;
 };
 
-TransformClip.prototype._interpolateField = function (time, fieldName) {
+TransformTrack.prototype._interpolateField = function (time, fieldName) {
     var kfs = this.keyFrames;
     var len = kfs.length;
     var start;
@@ -16425,9 +16632,9 @@ TransformClip.prototype._interpolateField = function (time, fieldName) {
         var percent = (time - start.time) / (end.time - start.time);
         percent = Math.max(Math.min(percent, 1), 0);
         if (fieldName === 'rotation') {
-            quat$4.slerp(this[fieldName], start[fieldName], end[fieldName], percent);
+            quat$5.slerp(this[fieldName], start[fieldName], end[fieldName], percent);
         } else {
-            vec3$10.lerp(this[fieldName], start[fieldName], end[fieldName], percent);
+            vec3$11.lerp(this[fieldName], start[fieldName], end[fieldName], percent);
         }
     } else {
         this._cacheKey = 0;
@@ -16435,74 +16642,74 @@ TransformClip.prototype._interpolateField = function (time, fieldName) {
     }
 };
 /**
- * 1D blending between two clips
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * 1D blending between two tracks
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t1
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t2
  * @param  {number} w
  */
-TransformClip.prototype.blend1D = function (c1, c2, w) {
-    vec3$10.lerp(this.position, c1.position, c2.position, w);
-    vec3$10.lerp(this.scale, c1.scale, c2.scale, w);
-    quat$4.slerp(this.rotation, c1.rotation, c2.rotation, w);
+TransformTrack.prototype.blend1D = function (t1, t2, w) {
+    vec3$11.lerp(this.position, t1.position, t2.position, w);
+    vec3$11.lerp(this.scale, t1.scale, t2.scale, w);
+    quat$5.slerp(this.rotation, t1.rotation, t2.rotation, w);
 };
 
 /**
- * 2D blending between three clips
+ * 2D blending between three tracks
  * @method
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c3
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t1
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t2
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t3
  * @param  {number} f
  * @param  {number} g
  */
-TransformClip.prototype.blend2D = (function () {
-    var q1 = quat$4.create();
-    var q2 = quat$4.create();
-    return function (c1, c2, c3, f, g) {
+TransformTrack.prototype.blend2D = (function () {
+    var q1 = quat$5.create();
+    var q2 = quat$5.create();
+    return function (t1, t2, t3, f, g) {
         var a = 1 - f - g;
 
-        this.position[0] = c1.position[0] * a + c2.position[0] * f + c3.position[0] * g;
-        this.position[1] = c1.position[1] * a + c2.position[1] * f + c3.position[1] * g;
-        this.position[2] = c1.position[2] * a + c2.position[2] * f + c3.position[2] * g;
+        this.position[0] = t1.position[0] * a + t2.position[0] * f + t3.position[0] * g;
+        this.position[1] = t1.position[1] * a + t2.position[1] * f + t3.position[1] * g;
+        this.position[2] = t1.position[2] * a + t2.position[2] * f + t3.position[2] * g;
 
-        this.scale[0] = c1.scale[0] * a + c2.scale[0] * f + c3.scale[0] * g;
-        this.scale[1] = c1.scale[1] * a + c2.scale[1] * f + c3.scale[1] * g;
-        this.scale[2] = c1.scale[2] * a + c2.scale[2] * f + c3.scale[2] * g;
+        this.scale[0] = t1.scale[0] * a + t2.scale[0] * f + t3.scale[0] * g;
+        this.scale[1] = t1.scale[1] * a + t2.scale[1] * f + t3.scale[1] * g;
+        this.scale[2] = t1.scale[2] * a + t2.scale[2] * f + t3.scale[2] * g;
 
         // http://msdn.microsoft.com/en-us/library/windows/desktop/bb205403(v=vs.85).aspx
         // http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.quaternion.xmquaternionbarycentric(v=vs.85).aspx
         var s = f + g;
         if (s === 0) {
-            quat$4.copy(this.rotation, c1.rotation);
+            quat$5.copy(this.rotation, t1.rotation);
         } else {
-            quat$4.slerp(q1, c1.rotation, c2.rotation, s);
-            quat$4.slerp(q2, c1.rotation, c3.rotation, s);
-            quat$4.slerp(this.rotation, q1, q2, g / s);
+            quat$5.slerp(q1, t1.rotation, t2.rotation, s);
+            quat$5.slerp(q2, t1.rotation, c3.rotation, s);
+            quat$5.slerp(this.rotation, q1, q2, g / s);
         }
     };
 })();
 
 /**
- * Additive blending between two clips
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * Additive blending between two tracks
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t1
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t2
  */
-TransformClip.prototype.additiveBlend = function (c1, c2) {
-    vec3$10.add(this.position, c1.position, c2.position);
-    vec3$10.add(this.scale, c1.scale, c2.scale);
-    quat$4.multiply(this.rotation, c2.rotation, c1.rotation);
+TransformTrack.prototype.additiveBlend = function (t1, t2) {
+    vec3$11.add(this.position, t1.position, t2.position);
+    vec3$11.add(this.scale, t1.scale, t2.scale);
+    quat$5.multiply(this.rotation, t2.rotation, t1.rotation);
 };
 
 /**
- * Subtractive blending between two clips
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * Subtractive blending between two tracks
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t1
+ * @param  {qtek.animation.SamplerClip|qtek.animation.TransformTrack} t2
  */
-TransformClip.prototype.subtractiveBlend = function (c1, c2) {
-    vec3$10.sub(this.position, c1.position, c2.position);
-    vec3$10.sub(this.scale, c1.scale, c2.scale);
-    quat$4.invert(this.rotation, c2.rotation);
-    quat$4.multiply(this.rotation, this.rotation, c1.rotation);
+TransformTrack.prototype.subtractiveBlend = function (t1, t2) {
+    vec3$11.sub(this.position, t1.position, t2.position);
+    vec3$11.sub(this.scale, t1.scale, t2.scale);
+    quat$5.invert(this.rotation, t2.rotation);
+    quat$5.multiply(this.rotation, this.rotation, t1.rotation);
 };
 
 /**
@@ -16510,24 +16717,24 @@ TransformClip.prototype.subtractiveBlend = function (c1, c2) {
  * @param {number} endTime
  * @param {boolean} isLoop
  */
-TransformClip.prototype.getSubClip = function (startTime, endTime) {
+TransformTrack.prototype.getSubClip = function (startTime, endTime) {
     // TODO
     console.warn('TODO');
 };
 
 /**
- * Clone a new TransformClip
- * @return {qtek.animation.TransformClip}
+ * Clone a new TransformTrack
+ * @return {qtek.animation.TransformTrack}
  */
-TransformClip.prototype.clone = function () {
-    var clip = Clip.prototype.clone.call(this);
-    clip.keyFrames = this.keyFrames;
+TransformTrack.prototype.clone = function () {
+    var track = TransformTrack.prototype.clone.call(this);
+    track.keyFrames = this.keyFrames;
 
-    vec3$10.copy(clip.position, this.position);
-    quat$4.copy(clip.rotation, this.rotation);
-    vec3$10.copy(clip.scale, this.scale);
+    vec3$11.copy(track.position, this.position);
+    quat$5.copy(track.rotation, this.rotation);
+    vec3$11.copy(track.scale, this.scale);
 
-    return clip;
+    return track;
 };
 
 // Sampler clip is especially for the animation sampler in glTF
@@ -16535,8 +16742,8 @@ TransformClip.prototype.clone = function () {
 //
 // TODO Sync target transform
 
-var quat$3 = glmatrix.quat;
-var vec3$9 = glmatrix.vec3;
+var quat$4 = glmatrix.quat;
+var vec3$10 = glmatrix.vec3;
 
 // lerp function with offset in large array
 function vec3lerp(out, a, b, t, oa, ob) {
@@ -16592,43 +16799,27 @@ function quatSlerp(out, a, b, t, oa, ob) {
     return out;
 }
 
-/**
- * @constructor
- * @alias qtek.animation.SamplerClip
- * @extends qtek.animation.Clip
- *
- * @param {Object} [opts]
- * @param {string} [opts.name]
- * @param {Object} [opts.target]
- * @param {number} [opts.life]
- * @param {number} [opts.delay]
- * @param {number} [opts.gap]
- * @param {number} [opts.playbackRatio]
- * @param {boolean|number} [opts.loop] If loop is a number, it indicate the loop count of animation
- * @param {string|Function} [opts.easing]
- * @param {Function} [opts.onframe]
- * @param {Function} [opts.onfinish]
- * @param {Function} [opts.onrestart]
- */
-var SamplerClip = function(opts) {
-
+var SamplerTrack = function (opts) {
     opts = opts || {};
 
-    Clip.call(this, opts);
-
+    this.name = opts.name || '';
+    /**
+     * @param {qtek.Node}
+     */
+    this.target = opts.target || null;
     /**
      * @type {Float32Array}
      */
-    this.position = vec3$9.create();
+    this.position = vec3$10.create();
     /**
      * Rotation is represented by a quaternion
      * @type {Float32Array}
      */
-    this.rotation = quat$3.create();
+    this.rotation = quat$4.create();
     /**
      * @type {Float32Array}
      */
-    this.scale = vec3$9.fromValues(1, 1, 1);
+    this.scale = vec3$10.fromValues(1, 1, 1);
 
     this.channels = {
         time: null,
@@ -16641,27 +16832,7 @@ var SamplerClip = function(opts) {
     this._cacheTime = 0;
 };
 
-SamplerClip.prototype = Object.create(Clip.prototype);
-
-SamplerClip.prototype.constructor = SamplerClip;
-
-SamplerClip.prototype.step = function (time, dTime, silent) {
-
-    var ret = Clip.prototype.step.call(this, time, dTime, true);
-
-    if (ret !== 'finish') {
-        this.setTime(this.getElapsedTime());
-    }
-
-    // PENDING Schedule, puased ?
-    if (!silent && ret !== 'paused') {
-        this.fire('frame');
-    }
-
-    return ret;
-};
-
-SamplerClip.prototype.setTime = function (time) {
+SamplerTrack.prototype.setTime = function (time) {
     if (!this.channels.time) {
         return;
     }
@@ -16671,13 +16842,13 @@ SamplerClip.prototype.setTime = function (time) {
     // Only one frame
     if (len === 1) {
         if (channels.rotation) {
-            quat$3.copy(this.rotation, channels.rotation);
+            quat$4.copy(this.rotation, channels.rotation);
         }
         if (channels.position) {
-            vec3$9.copy(this.position, channels.position);
+            vec3$10.copy(this.position, channels.position);
         }
         if (channels.scale) {
-            vec3$9.copy(this.scale, channels.scale);
+            vec3$10.copy(this.scale, channels.scale);
         }
         return;
     }
@@ -16734,16 +16905,41 @@ SamplerClip.prototype.setTime = function (time) {
         this._cacheKey = 0;
         this._cacheTime = 0;
     }
+
+    this.updateTarget();
+};
+
+SamplerTrack.prototype.updateTarget = function () {
+    var channels = this.channels;
+    if (this.target) {
+        // Only update target prop if have data.
+        if (channels.position) {
+            this.target.position.setArray(this.position);
+        }
+        if (channels.rotation) {
+            this.target.rotation.setArray(this.rotation);
+        }
+        if (channels.scale) {
+            this.target.scale.setArray(this.scale);
+        }
+    }
+};
+
+/**
+ * @return {number}
+ */
+SamplerTrack.prototype.getMaxTime = function () {
+    return this.channels.time[this.channels.time.length - 1];
 };
 
 /**
  * @param {number} startTime
  * @param {number} endTime
- * @return {qtek.animation.SamplerClip}
+ * @return {qtek.animation.SamplerTrack}
  */
-SamplerClip.prototype.getSubClip = function(startTime, endTime) {
+SamplerTrack.prototype.getSubTrack = function (startTime, endTime) {
 
-    var subClip = new SamplerClip({
+    var subClip = new SamplerTrack({
         name: this.name
     });
     var minTime = this.channels.time[0];
@@ -16805,7 +17001,7 @@ SamplerClip.prototype.getSubClip = function(startTime, endTime) {
     return subClip;
 };
 
-SamplerClip.prototype._findRange = function(time) {
+SamplerTrack.prototype._findRange = function (time) {
     var channels = this.channels;
     var len = channels.time.length;
     var start = -1;
@@ -16827,53 +17023,56 @@ SamplerClip.prototype._findRange = function(time) {
 /**
  * 1D blending between two clips
  * @method
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c1
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c2
  * @param  {number} w
  */
-SamplerClip.prototype.blend1D = TransformClip.prototype.blend1D;
+SamplerTrack.prototype.blend1D = TransformTrack.prototype.blend1D;
 /**
  * 2D blending between three clips
  * @method
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c3
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c1
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c2
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c3
  * @param  {number} f
  * @param  {number} g
  */
-SamplerClip.prototype.blend2D = TransformClip.prototype.blend2D;
+SamplerTrack.prototype.blend2D = TransformTrack.prototype.blend2D;
 /**
  * Additive blending between two clips
  * @method
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c1
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c2
  */
-SamplerClip.prototype.additiveBlend = TransformClip.prototype.additiveBlend;
+SamplerTrack.prototype.additiveBlend = TransformTrack.prototype.additiveBlend;
 /**
  * Subtractive blending between two clips
  * @method
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c1
- * @param  {qtek.animation.SamplerClip|qtek.animation.TransformClip} c2
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c1
+ * @param  {qtek.animation.SamplerTrack|qtek.animation.TransformTrack} c2
  */
-SamplerClip.prototype.subtractiveBlend = TransformClip.prototype.subtractiveBlend;
+SamplerTrack.prototype.subtractiveBlend = TransformTrack.prototype.subtractiveBlend;
 
 /**
- * Clone a new SamplerClip
- * @return {qtek.animation.SamplerClip}
+ * Clone a new SamplerTrack
+ * @return {qtek.animation.SamplerTrack}
  */
-SamplerClip.prototype.clone = function () {
-    var clip = Clip.prototype.clone.call(this);
-    clip.channels = {
+SamplerTrack.prototype.clone = function () {
+    var track = SamplerTrack.prototype.clone.call(this);
+    track.channels = {
         time: this.channels.time || null,
         position: this.channels.position || null,
         rotation: this.channels.rotation || null,
         scale: this.channels.scale || null
     };
-    vec3$9.copy(clip.position, this.position);
-    quat$3.copy(clip.rotation, this.rotation);
-    vec3$9.copy(clip.scale, this.scale);
+    vec3$10.copy(track.position, this.position);
+    quat$4.copy(track.rotation, this.rotation);
+    vec3$10.copy(track.scale, this.scale);
 
-    return clip;
+    track.target = this.target;
+    track.updateTarget();
+
+    return track;
 
 };
 
@@ -17204,12 +17403,12 @@ Geometry.StaticAttribute = StaticAttribute$1;
  * StaticGeometry can not be changed once they've been setup
  */
 var mat4$6 = glmatrix.mat4;
-var vec3$11 = glmatrix.vec3;
+var vec3$12 = glmatrix.vec3;
 
 var StaticAttribute = Geometry.StaticAttribute;
-var vec3Create = vec3$11.create;
-var vec3Add = vec3$11.add;
-var vec3Set$2 = vec3$11.set;
+var vec3Create = vec3$12.create;
+var vec3Add = vec3$12.add;
+var vec3Set$2 = vec3$12.set;
 
 function makeAttrKey(attrName) {
     return 'attr_' + attrName;
@@ -17263,8 +17462,8 @@ var StaticGeometry = Geometry.extend(function () {
             var max = bbox.max;
             var minArr = min._array;
             var maxArr = max._array;
-            vec3$11.set(minArr, posArr[0], posArr[1], posArr[2]);
-            vec3$11.set(maxArr, posArr[0], posArr[1], posArr[2]);
+            vec3$12.set(minArr, posArr[0], posArr[1], posArr[2]);
+            vec3$12.set(maxArr, posArr[0], posArr[1], posArr[2]);
             for (var i = 3; i < posArr.length;) {
                 var x = posArr[i++];
                 var y = posArr[i++];
@@ -17529,9 +17728,9 @@ var StaticGeometry = Geometry.extend(function () {
             vec3Set$2(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
             vec3Set$2(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
 
-            vec3$11.sub(v21, p1, p2);
-            vec3$11.sub(v32, p2, p3);
-            vec3$11.cross(n, v21, v32);
+            vec3$12.sub(v21, p1, p2);
+            vec3$12.sub(v32, p2, p3);
+            vec3$12.cross(n, v21, v32);
             // Already be weighted by the triangle area
             for (var i = 0; i < 3; i++) {
                 normals[i1*3+i] = normals[i1*3+i] + n[i];
@@ -17542,7 +17741,7 @@ var StaticGeometry = Geometry.extend(function () {
 
         for (var i = 0; i < normals.length;) {
             vec3Set$2(n, normals[i], normals[i+1], normals[i+2]);
-            vec3$11.normalize(n, n);
+            vec3$12.normalize(n, n);
             normals[i++] = n[0];
             normals[i++] = n[1];
             normals[i++] = n[2];
@@ -17584,11 +17783,11 @@ var StaticGeometry = Geometry.extend(function () {
             vec3Set$2(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
             vec3Set$2(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
 
-            vec3$11.sub(v21, p1, p2);
-            vec3$11.sub(v32, p2, p3);
-            vec3$11.cross(n, v21, v32);
+            vec3$12.sub(v21, p1, p2);
+            vec3$12.sub(v32, p2, p3);
+            vec3$12.cross(n, v21, v32);
 
-            vec3$11.normalize(n, n);
+            vec3$12.normalize(n, n);
 
             for (var i = 0; i < 3; i++) {
                 normals[i1*3 + i] = n[i];
@@ -17689,16 +17888,16 @@ var StaticGeometry = Geometry.extend(function () {
             var t = tan1[i];
 
             // Gram-Schmidt orthogonalize
-            vec3$11.scale(tmp, n, vec3$11.dot(n, t));
-            vec3$11.sub(tmp, t, tmp);
-            vec3$11.normalize(tmp, tmp);
+            vec3$12.scale(tmp, n, vec3$12.dot(n, t));
+            vec3$12.sub(tmp, t, tmp);
+            vec3$12.normalize(tmp, tmp);
             // Calculate handedness.
-            vec3$11.cross(nCrossT, n, t);
+            vec3$12.cross(nCrossT, n, t);
             tangents[i * 4] = tmp[0];
             tangents[i * 4 + 1] = tmp[1];
             tangents[i * 4 + 2] = tmp[2];
             // PENDING can config ?
-            tangents[i * 4 + 3] = vec3$11.dot(nCrossT, tan2[i]) < 0.0 ? 1.0 : -1.0;
+            tangents[i * 4 + 3] = vec3$12.dot(nCrossT, tan2[i]) < 0.0 ? 1.0 : -1.0;
         }
         this.dirty();
     },
@@ -17791,8 +17990,8 @@ var StaticGeometry = Geometry.extend(function () {
         mat4$6.invert(inverseTransposeMatrix, matrix);
         mat4$6.transpose(inverseTransposeMatrix, inverseTransposeMatrix);
 
-        var vec3TransformMat4 = vec3$11.transformMat4;
-        var vec3ForEach = vec3$11.forEach;
+        var vec3TransformMat4 = vec3$12.transformMat4;
+        var vec3ForEach = vec3$12.forEach;
         vec3ForEach(positions, 3, 0, null, vec3TransformMat4, matrix);
         if (normals) {
             vec3ForEach(normals, 3, 0, null, vec3TransformMat4, inverseTransposeMatrix);
@@ -17859,9 +18058,9 @@ StaticGeometry.Attribute = Geometry.StaticAttribute;
 
 var utilEssl = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n    const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n    highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n    return fract(sin(sn) * c);\n}\n@end\n@export qtek.util.calculate_attenuation\nuniform float attenuationFactor : 5.0;\nfloat lightAttenuation(float dist, float range)\n{\n    float attenuation = 1.0;\n    attenuation = dist*dist/(range*range+1.0);\n    float att_s = attenuationFactor;\n    attenuation = 1.0/(attenuation*att_s+1.0);\n    att_s = 1.0/(att_s+1.0);\n    attenuation = attenuation - att_s;\n    attenuation /= 1.0 - att_s;\n    return clamp(attenuation, 0.0, 1.0);\n}\n@end\n@export qtek.util.edge_factor\nfloat edgeFactor(float width)\n{\n    vec3 d = fwidth(v_Barycentric);\n    vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n    return min(min(a3.x, a3.y), a3.z);\n}\n@end\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n    const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n    vec4 res = fract(depth * bitShifts);\n    res -= res.xxyz * bit_mask;\n    return res;\n}\n@end\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n    const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n    return dot(color, bitShifts);\n}\n@end\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n  return range * rgbm.rgb * rgbm.a;\n}\n@end\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n    if (dot(color, color) == 0.0) {\n        return vec4(0.0);\n    }\n    vec4 rgbm;\n    color /= range;\n    rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n    rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n    rgbm.rgb = color / rgbm.a;\n    return rgbm;\n}\n@end\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n    return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n    return color;\n#endif\n}\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n    return RGBMEncode(color.xyz, 51.5);\n#else\n    return color;\n#endif\n}\n@end\n@export qtek.util.srgb\nvec4 sRGBToLinear(in vec4 value) {\n    return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\nvec4 linearTosRGB(in vec4 value) {\n    return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n    float j = idx * 4.0;\n    float x = mod(j, skinMatricesTextureSize);\n    float y = floor(j / skinMatricesTextureSize) + 0.5;\n    vec2 scale = vec2(skinMatricesTextureSize);\n    return mat4(\n        texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n    );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n    return skinMatrix[int(idx)];\n}\n#endif\n#endif\n@end\n@export qtek.chunk.skin_matrix\nmat4 skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\nif (weight.y > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (weight.z > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nfloat weightW = 1.0-weight.x-weight.y-weight.z;\nif (weightW > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.w) * weightW;\n}\n@end\n@export qtek.util.parallax_correct\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n    vec3 first = (boxMax - pos) / dir;\n    vec3 second = (boxMin - pos) / dir;\n    vec3 further = max(first, second);\n    float dist = min(further.x, min(further.y, further.z));\n    vec3 fixedPos = pos + dir * dist;\n    vec3 boxCenter = (boxMax + boxMin) * 0.5;\n    return normalize(fixedPos - boxCenter);\n}\n@end\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n    float eye = step(0.5, coord.x) * 0.5;\n    vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n    vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n    return texture2D(texture, coordClamped);\n}\n@end";
 
-var basicEssl = "@export qtek.basic.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Barycentric = barycentric;\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n@end\n@export qtek.basic.fragment\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.util.srgb\nvoid main()\n{\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n    gl_FragColor = vec4(color, alpha);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n#ifdef SRGB_DECODE\n    tex = sRGBToLinear(tex);\n#endif\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n    gl_FragColor.a = tex.a;\n#endif\n    gl_FragColor.rgb *= tex.rgb;\n#endif\n    gl_FragColor.rgb += emission;\n    if( lineWidth > 0.01)\n    {\n        gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n    }\n#ifdef GAMMA_ENCODE\n    gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n#ifdef ALPHA_TEST\n    if (gl_FragColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(gl_FragColor);\n}\n@end";
+var basicEssl = "@export qtek.basic.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 position : POSITION;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Barycentric = barycentric;\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n}\n@end\n@export qtek.basic.fragment\nvarying vec2 v_Texcoord;\nuniform sampler2D diffuseMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\nuniform float lineWidth : 0.0;\nuniform vec4 lineColor : [0.0, 0.0, 0.0, 0.6];\nvarying vec3 v_Barycentric;\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.util.srgb\nvoid main()\n{\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n    gl_FragColor = vec4(color, alpha);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = decodeHDR(texture2D(diffuseMap, v_Texcoord));\n#ifdef SRGB_DECODE\n    tex = sRGBToLinear(tex);\n#endif\n#if defined(DIFFUSEMAP_ALPHA_ALPHA)\n    gl_FragColor.a = tex.a;\n#endif\n    gl_FragColor.rgb *= tex.rgb;\n#endif\n    gl_FragColor.rgb += emission;\n    if( lineWidth > 0.)\n    {\n        gl_FragColor.rgb = mix(gl_FragColor.rgb, lineColor.rgb, (1.0 - edgeFactor(lineWidth)) * lineColor.a);\n    }\n#ifdef GAMMA_ENCODE\n    gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1 / 2.2));\n#endif\n#ifdef ALPHA_TEST\n    if (gl_FragColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(gl_FragColor);\n}\n@end";
 
-var lambertEssl = "\n@export qtek.lambert.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 normal : NORMAL;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n    vec3 skinnedNormal = normal;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4( skinnedPosition, 1.0 );\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Normal = normalize( ( worldInverseTranspose * vec4(skinnedNormal, 0.0) ).xyz );\n    v_WorldPosition = ( world * vec4( skinnedPosition, 1.0) ).xyz;\n    v_Barycentric = barycentric;\n}\n@end\n@export qtek.lambert.fragment\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nuniform sampler2D diffuseMap;\nuniform sampler2D alphaMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\nuniform float lineWidth : 0.0;\nuniform vec3 lineColor : [0.0, 0.0, 0.0];\nvarying vec3 v_Barycentric;\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef POINT_LIGHT_COUNT\n@import qtek.header.point_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n#ifdef SPOT_LIGHT_COUNT\n@import qtek.header.spot_light\n#endif\n@import qtek.util.calculate_attenuation\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.plugin.compute_shadow_map\nvoid main()\n{\n#ifdef RENDER_NORMAL\n    gl_FragColor = vec4(v_Normal * 0.5 + 0.5, 1.0);\n    return;\n#endif\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n    gl_FragColor = vec4(color, alpha);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = texture2D( diffuseMap, v_Texcoord );\n#ifdef SRGB_DECODE\n    tex.rgb = pow(tex.rgb, vec3(2.2));\n#endif\n    gl_FragColor.rgb *= tex.rgb;\n#ifdef DIFFUSEMAP_ALPHA_ALPHA\n    gl_FragColor.a *= tex.a;\n#endif\n#endif\n    vec3 diffuseColor = vec3(0.0, 0.0, 0.0);\n#ifdef AMBIENT_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n    {\n        diffuseColor += ambientLightColor[_idx_];\n    }\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseColor += calcAmbientSHLight(_idx_, v_Normal) * ambientSHLightColor[_idx_];\n    }}\n#endif\n#ifdef POINT_LIGHT_COUNT\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsPoint[POINT_LIGHT_COUNT];\n    if( shadowEnabled )\n    {\n        computeShadowOfPointLights(v_WorldPosition, shadowContribsPoint);\n    }\n#endif\n    for(int i = 0; i < POINT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = pointLightPosition[i];\n        vec3 lightColor = pointLightColor[i];\n        float range = pointLightRange[i];\n        vec3 lightDirection = lightPosition - v_WorldPosition;\n        float dist = length(lightDirection);\n        float attenuation = lightAttenuation(dist, range);\n        lightDirection /= dist;\n        float ndl = dot( v_Normal, lightDirection );\n        float shadowContrib = 1.0;\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsPoint[i];\n        }\n#endif\n        diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * attenuation * shadowContrib;\n    }\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n    }\n#endif\n    for(int i = 0; i < DIRECTIONAL_LIGHT_COUNT; i++)\n    {\n        vec3 lightDirection = -directionalLightDirection[i];\n        vec3 lightColor = directionalLightColor[i];\n        float ndl = dot(v_Normal, normalize(lightDirection));\n        float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsDir[i];\n        }\n#endif\n        diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * shadowContrib;\n    }\n#endif\n#ifdef SPOT_LIGHT_COUNT\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsSpot[SPOT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfSpotLights(v_WorldPosition, shadowContribsSpot);\n    }\n#endif\n    for(int i = 0; i < SPOT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = -spotLightPosition[i];\n        vec3 spotLightDirection = -normalize( spotLightDirection[i] );\n        vec3 lightColor = spotLightColor[i];\n        float range = spotLightRange[i];\n        float a = spotLightUmbraAngleCosine[i];\n        float b = spotLightPenumbraAngleCosine[i];\n        float falloffFactor = spotLightFalloffFactor[i];\n        vec3 lightDirection = lightPosition - v_WorldPosition;\n        float dist = length(lightDirection);\n        float attenuation = lightAttenuation(dist, range);\n        lightDirection /= dist;\n        float c = dot(spotLightDirection, lightDirection);\n        float falloff;\n        falloff = clamp((c - a) /( b - a), 0.0, 1.0);\n        falloff = pow(falloff, falloffFactor);\n        float ndl = dot(v_Normal, lightDirection);\n        ndl = clamp(ndl, 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsSpot[i];\n        }\n#endif\n        diffuseColor += lightColor * ndl * attenuation * (1.0-falloff) * shadowContrib;\n    }\n#endif\n    gl_FragColor.rgb *= diffuseColor;\n    gl_FragColor.rgb += emission;\n    if(lineWidth > 0.01)\n    {\n        gl_FragColor.rgb = gl_FragColor.rgb * mix(lineColor, vec3(1.0), edgeFactor(lineWidth));\n    }\n#ifdef ALPHA_TEST\n    if (gl_FragColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(gl_FragColor);\n}\n@end";
+var lambertEssl = "\n@export qtek.lambert.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat : [1.0, 1.0];\nuniform vec2 uvOffset : [0.0, 0.0];\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\nattribute vec3 normal : NORMAL;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n    vec3 skinnedNormal = normal;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4( skinnedPosition, 1.0 );\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n    v_Normal = normalize( ( worldInverseTranspose * vec4(skinnedNormal, 0.0) ).xyz );\n    v_WorldPosition = ( world * vec4( skinnedPosition, 1.0) ).xyz;\n    v_Barycentric = barycentric;\n}\n@end\n@export qtek.lambert.fragment\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nuniform sampler2D diffuseMap;\nuniform sampler2D alphaMap;\nuniform vec3 color : [1.0, 1.0, 1.0];\nuniform vec3 emission : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\n#ifdef ALPHA_TEST\nuniform float alphaCutoff: 0.9;\n#endif\nuniform float lineWidth : 0.0;\nuniform vec4 lineColor : [0.0, 0.0, 0.0, 0.6];\nvarying vec3 v_Barycentric;\n#ifdef AMBIENT_LIGHT_COUNT\n@import qtek.header.ambient_light\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n@import qtek.header.ambient_sh_light\n#endif\n#ifdef POINT_LIGHT_COUNT\n@import qtek.header.point_light\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n@import qtek.header.directional_light\n#endif\n#ifdef SPOT_LIGHT_COUNT\n@import qtek.header.spot_light\n#endif\n@import qtek.util.calculate_attenuation\n@import qtek.util.edge_factor\n@import qtek.util.rgbm\n@import qtek.plugin.compute_shadow_map\nvoid main()\n{\n#ifdef RENDER_NORMAL\n    gl_FragColor = vec4(v_Normal * 0.5 + 0.5, 1.0);\n    return;\n#endif\n#ifdef RENDER_TEXCOORD\n    gl_FragColor = vec4(v_Texcoord, 1.0, 1.0);\n    return;\n#endif\n    gl_FragColor = vec4(color, alpha);\n#ifdef DIFFUSEMAP_ENABLED\n    vec4 tex = texture2D( diffuseMap, v_Texcoord );\n#ifdef SRGB_DECODE\n    tex.rgb = pow(tex.rgb, vec3(2.2));\n#endif\n    gl_FragColor.rgb *= tex.rgb;\n#ifdef DIFFUSEMAP_ALPHA_ALPHA\n    gl_FragColor.a *= tex.a;\n#endif\n#endif\n    vec3 diffuseColor = vec3(0.0, 0.0, 0.0);\n#ifdef AMBIENT_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_LIGHT_COUNT; _idx_++)\n    {\n        diffuseColor += ambientLightColor[_idx_];\n    }\n#endif\n#ifdef AMBIENT_SH_LIGHT_COUNT\n    for(int _idx_ = 0; _idx_ < AMBIENT_SH_LIGHT_COUNT; _idx_++)\n    {{\n        diffuseColor += calcAmbientSHLight(_idx_, v_Normal) * ambientSHLightColor[_idx_];\n    }}\n#endif\n#ifdef POINT_LIGHT_COUNT\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsPoint[POINT_LIGHT_COUNT];\n    if( shadowEnabled )\n    {\n        computeShadowOfPointLights(v_WorldPosition, shadowContribsPoint);\n    }\n#endif\n    for(int i = 0; i < POINT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = pointLightPosition[i];\n        vec3 lightColor = pointLightColor[i];\n        float range = pointLightRange[i];\n        vec3 lightDirection = lightPosition - v_WorldPosition;\n        float dist = length(lightDirection);\n        float attenuation = lightAttenuation(dist, range);\n        lightDirection /= dist;\n        float ndl = dot( v_Normal, lightDirection );\n        float shadowContrib = 1.0;\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsPoint[i];\n        }\n#endif\n        diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * attenuation * shadowContrib;\n    }\n#endif\n#ifdef DIRECTIONAL_LIGHT_COUNT\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsDir[DIRECTIONAL_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfDirectionalLights(v_WorldPosition, shadowContribsDir);\n    }\n#endif\n    for(int i = 0; i < DIRECTIONAL_LIGHT_COUNT; i++)\n    {\n        vec3 lightDirection = -directionalLightDirection[i];\n        vec3 lightColor = directionalLightColor[i];\n        float ndl = dot(v_Normal, normalize(lightDirection));\n        float shadowContrib = 1.0;\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsDir[i];\n        }\n#endif\n        diffuseColor += lightColor * clamp(ndl, 0.0, 1.0) * shadowContrib;\n    }\n#endif\n#ifdef SPOT_LIGHT_COUNT\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n    float shadowContribsSpot[SPOT_LIGHT_COUNT];\n    if(shadowEnabled)\n    {\n        computeShadowOfSpotLights(v_WorldPosition, shadowContribsSpot);\n    }\n#endif\n    for(int i = 0; i < SPOT_LIGHT_COUNT; i++)\n    {\n        vec3 lightPosition = -spotLightPosition[i];\n        vec3 spotLightDirection = -normalize( spotLightDirection[i] );\n        vec3 lightColor = spotLightColor[i];\n        float range = spotLightRange[i];\n        float a = spotLightUmbraAngleCosine[i];\n        float b = spotLightPenumbraAngleCosine[i];\n        float falloffFactor = spotLightFalloffFactor[i];\n        vec3 lightDirection = lightPosition - v_WorldPosition;\n        float dist = length(lightDirection);\n        float attenuation = lightAttenuation(dist, range);\n        lightDirection /= dist;\n        float c = dot(spotLightDirection, lightDirection);\n        float falloff;\n        falloff = clamp((c - a) /( b - a), 0.0, 1.0);\n        falloff = pow(falloff, falloffFactor);\n        float ndl = dot(v_Normal, lightDirection);\n        ndl = clamp(ndl, 0.0, 1.0);\n        float shadowContrib = 1.0;\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\n        if( shadowEnabled )\n        {\n            shadowContrib = shadowContribsSpot[i];\n        }\n#endif\n        diffuseColor += lightColor * ndl * attenuation * (1.0-falloff) * shadowContrib;\n    }\n#endif\n    gl_FragColor.rgb *= diffuseColor;\n    gl_FragColor.rgb += emission;\n    if(lineWidth > 0.)\n    {\n        gl_FragColor.rgb = mix(gl_FragColor.rgb, lineColor.rgb, (1.0 - edgeFactor(lineWidth)) * lineColor.a);\n    }\n#ifdef ALPHA_TEST\n    if (gl_FragColor.a < alphaCutoff) {\n        discard;\n    }\n#endif\n    gl_FragColor = encodeHDR(gl_FragColor);\n}\n@end";
 
 var wireframeEssl = "@export qtek.wireframe.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 world : WORLD;\nattribute vec3 position : POSITION;\nattribute vec3 barycentric;\n@import qtek.chunk.skinning_header\nvarying vec3 v_Barycentric;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0 );\n    v_Barycentric = barycentric;\n}\n@end\n@export qtek.wireframe.fragment\nuniform vec3 color : [0.0, 0.0, 0.0];\nuniform float alpha : 1.0;\nuniform float lineWidth : 1.0;\nvarying vec3 v_Barycentric;\n@import qtek.util.edge_factor\nvoid main()\n{\n    gl_FragColor.rgb = color;\n    gl_FragColor.a = (1.0-edgeFactor(lineWidth)) * alpha;\n}\n@end";
 
@@ -18870,22 +19069,6 @@ function () {
             return channelInfo.target.node + '_' + animationInfo.samplers[channelInfo.sampler].input;
         }
 
-        function clipOnframe() {
-            var targetNode = this.target;
-            if (targetNode) {
-                var channels = this.channels;
-                if (channels.position) {
-                    targetNode.position.setArray(this.position);
-                }
-                if (channels.rotation) {
-                    targetNode.rotation.setArray(this.rotation);
-                }
-                if (channels.scale) {
-                    targetNode.scale.setArray(this.scale);
-                }
-            }
-        }
-
         var timeAccessorMultiplied = {};
         util.each(json.animations, function (animationInfo, idx) {
             var channels = animationInfo.channels.filter(checkChannelPath);
@@ -18893,35 +19076,29 @@ function () {
             if (!channels.length) {
                 return;
             }
-
-            var clips = {};
+            var tracks = {};
             for (var i = 0; i < channels.length; i++) {
                 var channelInfo = channels[i];
                 var channelHash = getChannelHash(channelInfo, animationInfo);
 
                 var targetNode = lib.nodes[channelInfo.target.node];
-                var clip = clips[channelHash];
+                var track = tracks[channelHash];
                 var samplerInfo = animationInfo.samplers[channelInfo.sampler];
 
-                if (!clip) {
-                    clip = clips[channelHash] = new SamplerClip({
-                        target: targetNode,
+                if (!track) {
+                    track = tracks[channelHash] = new SamplerTrack({
                         name: targetNode ? targetNode.name : '',
-                        // PENDING, If write here
-                        loop: true,
-                        onframe: clipOnframe
+                        target: targetNode
                     });
-                    clip.targetNodeIndex = channelInfo.target.node;
-                    clip.channels.time = getAccessorData(json, lib, samplerInfo.input);
-                    var frameLen = clip.channels.time.length;
+                    track.targetNodeIndex = channelInfo.target.node;
+                    track.channels.time = getAccessorData(json, lib, samplerInfo.input);
+                    var frameLen = track.channels.time.length;
                     if (!timeAccessorMultiplied[samplerInfo.input]) {
                         for (var k = 0; k < frameLen; k++) {
-                            clip.channels.time[k] *= 1000;
+                            track.channels.time[k] *= 1000;
                         }
                         timeAccessorMultiplied[samplerInfo.input] = true;
                     }
-
-                    clip.life = clip.channels.time[frameLen - 1];
                 }
 
                 var interpolation = samplerInfo.interpolation || 'LINEAR';
@@ -18934,12 +19111,17 @@ function () {
                     path = 'position';
                 }
 
-                clip.channels[path] = getAccessorData(json, lib, samplerInfo.output);
+                track.channels[path] = getAccessorData(json, lib, samplerInfo.output);
             }
-
-            for (var key in clips) {
-                lib.clips.push(clips[key]);
+            var clip = new TrackClip({
+                name: animationInfo.name,
+                loop: true
+            });
+            for (var hash in tracks) {
+                clip.addTrack(tracks[hash]);
             }
+            clip.calcLifeFromTracks();
+            lib.clips.push(clip);
         }, this);
 
 
@@ -19710,7 +19892,7 @@ var Animation = Base.extend(function () {
 
 // TODO test
 var mat4$7 = glmatrix.mat4;
-var vec3$12 = glmatrix.vec3;
+var vec3$13 = glmatrix.vec3;
 
 /**
  * @namespace qtek.util.mesh
@@ -19805,10 +19987,10 @@ var meshUtil = {
                 }
                 // Transform position, normal and tangent
                 if (name === 'position') {
-                    vec3$12.forEach(targetAttr.value, size, offset, count, vec3$12.transformMat4, matrix);
+                    vec3$13.forEach(targetAttr.value, size, offset, count, vec3$13.transformMat4, matrix);
                 }
                 else if (name === 'normal' || name === 'tangent') {
-                    vec3$12.forEach(targetAttr.value, size, offset, count, vec3$12.transformMat4, inverseTransposeMatrix);
+                    vec3$13.forEach(targetAttr.value, size, offset, count, vec3$13.transformMat4, inverseTransposeMatrix);
                 }
             }
 
@@ -20481,6 +20663,8 @@ var Plane$2 = StaticGeometry.extend(
     }
 });
 
+var vec3$14 = glmatrix.vec3;
+
 /**
  * @constructor qtek.picking.RayPicking
  * @extends qtek.core.Base
@@ -20572,15 +20756,22 @@ var RayPicking = Base.extend(
 
         return function (renderable, out) {
 
+            var isSkinnedMesh = renderable.isSkinnedMesh();
             ray.copy(this._ray);
             Matrix4.invert(worldInverse, renderable.worldTransform);
-
-            ray.applyTransform(worldInverse);
+            
+            // Skinned mesh will ignore the world transform.
+            if (!isSkinnedMesh) {
+                ray.applyTransform(worldInverse);
+            }
 
             var geometry = renderable.geometry;
-            if (geometry.boundingBox) {
-                if (!ray.intersectBoundingBox(geometry.boundingBox)) {
-                    return;
+            // Ignore bounding box of skinned mesh?
+            if (!isSkinnedMesh) {
+                if (geometry.boundingBox) {
+                    if (!ray.intersectBoundingBox(geometry.boundingBox)) {
+                        return;
+                    }
                 }
             }
             // Use user defined picking algorithm
@@ -20604,18 +20795,60 @@ var RayPicking = Base.extend(
 
             var point;
             var indices = geometry.indices;
-            var positionsAttr = geometry.attributes.position;
+            var positionAttr = geometry.attributes.position;
+            var weightAttr = geometry.attributes.weight;
+            var jointAttr = geometry.attributes.joint;
+            var skinMatricesArray;
+            var skinMatrices = [];
             // Check if valid.
-            if (!positionsAttr || !positionsAttr.value || !indices) {
+            if (!positionAttr || !positionAttr.value || !indices) {
                 return;
             }
+            if (isSkinnedMesh) {
+                skinMatricesArray = renderable.skeleton.getSubSkinMatrices(renderable.__GUID__, renderable.joints);
+                for (var i = 0; i < renderable.joints.length; i++) {
+                    skinMatrices[i] = skinMatrices[i] || [];
+                    for (var k = 0; k < 16; k++) {
+                        skinMatrices[i][k] = skinMatricesArray[i * 16 + k];
+                    }
+                }
+                var pos = [];
+                var weight = [];
+                var joint = [];
+                var skinnedPos = [];
+                var tmp = [];
+                var skinnedPositionAttr = geometry.attributes.skinnedPosition;
+                if (!skinnedPositionAttr || !skinnedPositionAttr.value) {
+                    geometry.createAttribute('skinnedPosition', 'f', 3);
+                    skinnedPositionAttr = geometry.attributes.skinnedPosition;
+                    skinnedPositionAttr.init(geometry.vertexCount);
+                }
+                for (var i = 0; i < geometry.vertexCount; i++) {
+                    positionAttr.get(i, pos);
+                    weightAttr.get(i, weight);
+                    jointAttr.get(i, joint);
+                    weight[3] = 1 - weight[0] - weight[1] - weight[2];
+                    vec3$14.set(skinnedPos, 0, 0, 0);
+                    for (var k = 0; k < 4; k++) {
+                        if (joint[k] >= 0 && weight[k] > 1e-4) {
+                            vec3$14.transformMat4(tmp, pos, skinMatrices[joint[k]]);
+                            vec3$14.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
+                        }   
+                    }
+                    skinnedPositionAttr.set(i, skinnedPos);
+                }
+            }
+
             for (var i = 0; i < indices.length; i += 3) {
                 var i1 = indices[i];
                 var i2 = indices[i + 1];
                 var i3 = indices[i + 2];
-                positionsAttr.get(i1, v1._array);
-                positionsAttr.get(i2, v2._array);
-                positionsAttr.get(i3, v3._array);
+                var finalPosAttr = isSkinnedMesh
+                    ? geometry.attributes.skinnedPosition
+                    : positionAttr;
+                finalPosAttr.get(i1, v1._array);
+                finalPosAttr.get(i2, v2._array);
+                finalPosAttr.get(i3, v3._array);
 
                 if (cullBack) {
                     point = ray.intersectTriangle(v1, v2, v3, renderable.culling);
@@ -20625,7 +20858,13 @@ var RayPicking = Base.extend(
                 }
                 if (point) {
                     var pointW = new Vector3();
-                    Vector3.transformMat4(pointW, point, renderable.worldTransform);
+                    if (!isSkinnedMesh) {
+                        Vector3.transformMat4(pointW, point, renderable.worldTransform);
+                    }
+                    else {
+                        // TODO point maybe not right.
+                        Vector3.copy(pointW, point);
+                    }
                     out.push(new RayPicking.Intersection(
                         point, pointW, renderable, [i1, i2, i3], i / 3,
                         Vector3.dist(pointW, this._ray.origin)
@@ -25895,54 +26134,6 @@ var GBuffer = Base.extend(function () {
     }
 });
 
-function EdgePass(opt) {
-    opt = opt || {};
-
-    this._edgePass = new Pass({
-        fragment: Shader.source('ecgl.edge')
-    });
-
-    this._edgePass.setUniform('normalTexture', opt.normalTexture);
-    this._edgePass.setUniform('depthTexture', opt.depthTexture);
-
-    this._targetTexture = new Texture2D({
-        type: Texture.HALF_FLOAT
-    });
-
-    this._frameBuffer = new FrameBuffer();
-    this._frameBuffer.attach(this._targetTexture);
-}
-
-EdgePass.prototype.update = function (renderer, camera, sourceTexture, frame) {
-    var width = renderer.getWidth();
-    var height = renderer.getHeight();
-    var texture = this._targetTexture;
-    texture.width = width;
-    texture.height = height;
-    var frameBuffer = this._frameBuffer;
-
-    frameBuffer.bind(renderer);
-    this._edgePass.setUniform('projectionInv', camera.invProjectionMatrix._array);
-    this._edgePass.setUniform('textureSize', [width, height]);
-    this._edgePass.setUniform('texture', sourceTexture);
-    this._edgePass.render(renderer);
-
-    frameBuffer.unbind(renderer);
-};
-
-EdgePass.prototype.getTargetTexture = function () {
-    return this._targetTexture;
-};
-
-EdgePass.prototype.setParameter = function (name, val) {
-    this._edgePass.setUniform(name, val);
-};
-
-EdgePass.prototype.dispose = function (renderer) {
-    this._targetTexture.dispose(renderer);
-    this._frameBuffer.dispose(renderer);
-};
-
 // Simple LRU cache use doubly linked list
 // @module zrender/core/LRU
 
@@ -26763,7 +26954,7 @@ var AmbientSHLight = Light.extend({
 });
 
 // Spherical Harmonic Helpers
-var vec3$15 = glmatrix.vec3;
+var vec3$17 = glmatrix.vec3;
 var sh = {};
 
 var targets$3 = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
@@ -26814,15 +27005,15 @@ var normalTransform = {
 // Project on cpu.
 function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
     var coeff = new vendor.Float32Array(9 * 3);
-    var normal = vec3$15.create();
-    var texel = vec3$15.create();
-    var fetchNormal = vec3$15.create();
+    var normal = vec3$17.create();
+    var texel = vec3$17.create();
+    var fetchNormal = vec3$17.create();
     for (var m = 0; m < 9; m++) {
-        var result = vec3$15.create();
+        var result = vec3$17.create();
         for (var k = 0; k < targets$3.length; k++) {
             var pixels = cubePixels[targets$3[k]];
 
-            var sideResult = vec3$15.create();
+            var sideResult = vec3$17.create();
             var divider = 0;
             var i = 0;
             var transform = normalTransform[targets$3[k]];
@@ -26833,7 +27024,7 @@ function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
                     // TODO Flip y?
                     normal[1] = y / (height - 1.0) * 2.0 - 1.0;
                     normal[2] = -1.0;
-                    vec3$15.normalize(normal, normal);
+                    vec3$17.normalize(normal, normal);
 
                     fetchNormal[0] = normal[transform[0]] * transform[3];
                     fetchNormal[1] = normal[transform[1]] * transform[4];
@@ -26848,12 +27039,12 @@ function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
                     texel[1] *= scale;
                     texel[2] *= scale;
 
-                    vec3$15.scaleAndAdd(sideResult, sideResult, texel, harmonics(fetchNormal, m) * -normal[2]);
+                    vec3$17.scaleAndAdd(sideResult, sideResult, texel, harmonics(fetchNormal, m) * -normal[2]);
                     // -normal.z equals cos(theta) of Lambertian
                     divider += -normal[2];
                 }
             }
-            vec3$15.scaleAndAdd(result, result, sideResult, 1 / divider);
+            vec3$17.scaleAndAdd(result, result, sideResult, 1 / divider);
         }
 
         coeff[m * 3] = result[0] / 6.0;
@@ -28348,6 +28539,7 @@ var dofGLSL = "@export ecgl.dof.coc\n\nuniform sampler2D depth;\n\nuniform float
 
 var edgeGLSL = "@export ecgl.edge\n\nuniform sampler2D texture;\n\nuniform sampler2D normalTexture;\nuniform sampler2D depthTexture;\n\nuniform mat4 projectionInv;\n\nuniform vec2 textureSize;\n\nuniform vec4 edgeColor: [0,0,0,0.8];\n\nvarying vec2 v_Texcoord;\n\nvec3 packColor(vec2 coord) {\n float z = texture2D(depthTexture, coord).r * 2.0 - 1.0;\n vec4 p = vec4(v_Texcoord * 2.0 - 1.0, z, 1.0);\n vec4 p4 = projectionInv * p;\n\n return vec3(\n texture2D(normalTexture, coord).rg,\n -p4.z / p4.w / 5.0\n );\n}\n\nvoid main() {\n vec2 cc = v_Texcoord;\n vec3 center = packColor(cc);\n\n float size = clamp(1.0 - (center.z - 10.0) / 100.0, 0.0, 1.0) * 0.5;\n float dx = size / textureSize.x;\n float dy = size / textureSize.y;\n\n vec2 coord;\n vec3 topLeft = packColor(cc+vec2(-dx, -dy));\n vec3 top = packColor(cc+vec2(0.0, -dy));\n vec3 topRight = packColor(cc+vec2(dx, -dy));\n vec3 left = packColor(cc+vec2(-dx, 0.0));\n vec3 right = packColor(cc+vec2(dx, 0.0));\n vec3 bottomLeft = packColor(cc+vec2(-dx, dy));\n vec3 bottom = packColor(cc+vec2(0.0, dy));\n vec3 bottomRight = packColor(cc+vec2(dx, dy));\n\n vec3 v = -topLeft-2.0*top-topRight+bottomLeft+2.0*bottom+bottomRight;\n vec3 h = -bottomLeft-2.0*left-topLeft+bottomRight+2.0*right+topRight;\n\n float edge = sqrt(dot(h, h) + dot(v, v));\n\n edge = smoothstep(0.8, 1.0, edge);\n\n gl_FragColor = mix(texture2D(texture, v_Texcoord), vec4(edgeColor.rgb, 1.0), edgeColor.a * edge);\n}\n@end";
 
+// import EdgePass from './EdgePass';
 Shader['import'](blurGLSL);
 Shader['import'](outputGLSL);
 Shader['import'](brightGLSL);
@@ -28422,7 +28614,7 @@ function EffectCompositor() {
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
-    this._edgePass = new EdgePass(gBufferObj);
+    // this._edgePass = new EdgePass(gBufferObj);
 }
 
 EffectCompositor.prototype.resize = function (width, height, dpr) {
@@ -28734,10 +28926,10 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
  * Set color of edge
  */
 EffectCompositor.prototype.setEdgeColor = function (value) {
-    if (value == null) {
-        return;
-    }
-    this._edgePass.setParameter('edgeColor', value);
+    // if (value == null) {
+    //     return;
+    // }
+    // this._edgePass.setParameter('edgeColor', value);
 };
 
 EffectCompositor.prototype.setExposure = function (value) {
@@ -28762,10 +28954,10 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
 
     var sourceTexture = this._sourceTexture;
     var targetTexture = sourceTexture;
-    if (this._enableEdge) {
-        this._edgePass.update(renderer, camera, sourceTexture, frame);
-        sourceTexture = targetTexture = this._edgePass.getTargetTexture();
-    }
+    // if (this._enableEdge) {
+    //     this._edgePass.update(renderer, camera, sourceTexture, frame);
+    //     sourceTexture = targetTexture = this._edgePass.getTargetTexture();
+    // }
     if (this._enableSSR) {
         this._ssrPass.update(renderer, camera, sourceTexture, frame);
         targetTexture = this._ssrPass.getTargetTexture();
@@ -29215,10 +29407,12 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         }
     }
 
+    this.afterRenderAll(renderer, scene, camera);
     // this._shadowMapPass.renderDebug(renderer);
 };
 
 RenderMain.prototype.afterRenderScene = function (renderer, scene, camera) {};
+RenderMain.prototype.afterRenderAll = function (renderer, scene, camera) {};
 
 RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {
     var ifEnableSSAO = this._enableSSAO && this._enablePostEffect;
@@ -29619,6 +29813,10 @@ SceneHelper.prototype = {
 
 var defaultSceneConfig = {
     devicePixelRatio: null,
+
+    // If enable picking
+    picking: false,
+
     // If enable shadow
     shadow: true,
     // Environment panorama texture url.
@@ -30345,7 +30543,7 @@ var defaultSceneConfig = {
     };
     var util_1 = util$2;
 
-var vec3$16 = glmatrix.vec3;
+var vec3$18 = glmatrix.vec3;
 
 function getBoundingBoxOfSkinningMesh(mesh, out) {
     var pos = [];
@@ -30377,16 +30575,16 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
         jointAttr.get(i, joint);
         weight[3] = 1 - weight[0] - weight[1] - weight[2];
 
-        vec3$16.set(skinnedPos, 0, 0, 0);
+        vec3$18.set(skinnedPos, 0, 0, 0);
         for (var k = 0; k < 4; k++) {
-            if (joint[k] >= 0) {
-                vec3$16.transformMat4(tmp, pos, skinMatrices[joint[k]]);
-                vec3$16.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
+            if (joint[k] >= 0 && weight[k] > 1e-6) {
+                vec3$18.transformMat4(tmp, pos, skinMatrices[joint[k]]);
+                vec3$18.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
             }   
         }
 
-        vec3$16.min(min, min, skinnedPos);
-        vec3$16.max(max, max, skinnedPos);
+        vec3$18.min(min, min, skinnedPos);
+        vec3$18.max(max, max, skinnedPos);
     }
     out.min.setArray(min);
     out.max.setArray(max);
@@ -32045,6 +32243,7 @@ Shader.import(groundGLSLCode);
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [sceneConfig]
+ * @param {boolean} [sceneConfig.enablePicking]
  * @param {Object} [sceneConfig.shadow]
  * @param {boolean} [sceneConfig.devicePixelRatio]
  * @param {Object} [sceneConfig.postEffect]
@@ -32062,7 +32261,7 @@ function Viewer(dom, sceneConfig) {
 
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
-
+    
     /**
      * @type {HTMLDivElement}
      */
@@ -32088,6 +32287,9 @@ Viewer.prototype.init = function (dom, opts) {
     this._renderMain.afterRenderScene = (function (renderer, scene, camera) {
         this.trigger('renderscene', renderer, scene, camera);
     }).bind(this);
+    this._renderMain.afterRenderAll = (function (renderer, scene, camera) {
+        this.trigger('afterrender', renderer, scene, camera);
+    }).bind(this);
 
     var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,
@@ -32111,6 +32313,12 @@ Viewer.prototype.init = function (dom, opts) {
      * List of animation clips
      */
     this._clips = [];
+
+    /**
+     * List of takes.
+     */
+    this._takes = [];
+
     /**
      * Map of materials
      */
@@ -32155,6 +32363,8 @@ Viewer.prototype.init = function (dom, opts) {
         center: [0, 0, 0]
     });
 
+    this._enablePicking = opts.picking || false;
+
     this._initHandlers();
 
     cameraControl.on('update', function () {
@@ -32168,7 +32378,7 @@ Viewer.prototype.init = function (dom, opts) {
         this.refresh();
     }, this);
 
-    this._shaderLibrary = library.createLibrary();
+    this.shaderLibrary = library.createLibrary();
 };
 
 Viewer.prototype._createGround = function () {
@@ -32228,20 +32438,30 @@ Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
         this._animation.removeClip(clip);
     }, this);
+    this._clips = [];
+    this._takes = [];
 };
 
 Viewer.prototype._setAnimationClips = function (clips) {
     var self = this;
+    function refresh() {
+        self.refresh();
+    }
     clips.forEach(function (clip) {
-        if (!clip.target) {
-            clip.target = this._nodes[clip.targetNodeIndex];
-        }
-        // Override onframe.
-        clip.onframe = function () {
-            self.refresh();
-        };
+        clip.tracks.forEach(function (track) {
+            if (!track.target) {
+                track.target = this._nodes[track.targetNodeIndex];
+            }
+        }, this);
+        clip.onframe = refresh;
 
         this._animation.addClip(clip);
+
+        this._takes.push({
+            name: clip.name,
+            range: [0, clip.life],
+            clip: clip
+        });
     }, this);
 
     this._clips = clips.slice();
@@ -32268,6 +32488,9 @@ Viewer.prototype._mouseDownHandler = function (e) {
 };
 
 Viewer.prototype._clickHandler = function (e) {
+    if (!this._enablePicking && !this._renderMain.isDOFEnabled()) {
+        return;
+    }
     var dx = e.clientX - this._startX;
     var dy = e.clientY - this._startY;
     if (Math.sqrt(dx * dx + dy * dy) >= 10) {
@@ -32293,6 +32516,16 @@ Viewer.prototype._clickHandler = function (e) {
     }
 };
 
+
+Viewer.prototype.enablePicking = function () {
+    this._enablePicking = true;
+};
+Viewer.prototype.disablePicking = function () {
+    this._enablePicking = false;
+};
+/**
+ * Resize the viewport
+ */
 Viewer.prototype.resize = function () {
     var renderer = this._renderer;
     renderer.resize(this.root.clientWidth, this.root.clientHeight);
@@ -32377,7 +32610,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
         textureFlipY: opts.textureFlipY,
-        shaderLibrary: this._shaderLibrary
+        shaderLibrary: this.shaderLibrary
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -32502,7 +32735,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
     var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
     var shaderName = opts.shader || 'standard';
-    var shaderLibrary = this._shaderLibrary;
+    var shaderLibrary = this.shaderLibrary;
 
     var meshNeedsSplit = [];
     rootNode.traverse(function (mesh) {
@@ -32518,13 +32751,10 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
             mesh.geometry.updateBoundingBox();
             mesh.culling = false;
         }
-        if (mesh.skeleton) {
-            // Avoid wrong culling when skinning matrices transforms alot.
-            mesh.frustumCulling = false;
-        }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
             mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            mesh.material.shader.define('fragment', 'DOUBLE_SIDED');
             mesh.material.shader.precision = 'mediump';
             mesh.material.set('alphaCutoff', alphaCutoff);
 
@@ -32764,7 +32994,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         for (var texName in textures) {
             mat.set(texName, textures[texName]);
         }
-        mat.attachShader(this._shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
+        mat.attachShader(this.shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
             fragmentDefines: mat.shader.fragmentDefines,
             textures: enabledTextures,
             vertexDefines: mat.shader.vertexDefines,
@@ -32886,7 +33116,9 @@ Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
-    this._updateClipAndSkeletons();
+    this._skeletons.forEach(function (skeleton) {
+        skeleton.update();
+    });
 
     this.refresh();
 };
@@ -32895,10 +33127,11 @@ Viewer.prototype.setPose = function (time) {
  * Get duration of clip
  */
 Viewer.prototype.getAnimationDuration = function () {
-    if (this._clips[0]) {
-        return this._clips[0].life;
-    }
-    return 0;
+    var maxLife = 0;
+    this._clips.forEach(function (clip) {
+        maxLife = Math.max(clip.life, maxLife);
+    });
+    return maxLife;
 };
 
 
@@ -32920,24 +33153,6 @@ Viewer.prototype._updateMaterialsSRGB = function () {
     }
 };
 
-Viewer.prototype._updateClipAndSkeletons = function () {
-    // Manually sync the transform for nodes not in skeleton
-    this._clips.forEach(function (clip) {
-        if (clip.channels.position) {
-            clip.target.position.setArray(clip.position);
-        }
-        if (clip.channels.rotation) {
-            clip.target.rotation.setArray(clip.rotation);
-        }
-        if (clip.channels.scale) {
-            clip.target.scale.setArray(clip.scale);
-        }
-    });
-    this._skeletons.forEach(function (skeleton) {
-        skeleton.update();
-    });
-};
-
 Viewer.prototype._loop = function (deltaTime) {
     if (this._disposed) {
         return;
@@ -32947,8 +33162,6 @@ Viewer.prototype._loop = function (deltaTime) {
     }
 
     this._needsRefresh = false;
-
-    this._updateClipAndSkeletons();
 
     this._renderMain.prepareRender();
     this._renderMain.render();
@@ -33022,6 +33235,12 @@ Viewer.prototype.dispose = function () {
     this.root.removeEventListener('mousedown', this._mouseDownHandler);
     this.root.removeEventListener('click', this._clickHandler);
     this.root.innerHTML = '';
+
+    this.off('select');
+    this.off('doffocus');
+    this.off('unselect');
+    this.off('afterrender');
+    this.off('updatecamera');
 
     this.stop();
 };
