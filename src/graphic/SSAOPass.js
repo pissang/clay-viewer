@@ -199,7 +199,7 @@ SSAOPass.prototype.setNoiseSize = function (size) {
 };
 
 SSAOPass.prototype.dispose = function (renderer) {
-    this._targetTexture.dispose(renderer);
+    this._blurTexture.dispose(renderer);
     this._ssaoTexture.dispose(renderer);
 };
 

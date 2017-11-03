@@ -1,18 +1,13 @@
-import Scene from 'qtek/src/Scene';
 import QMV from '../../index';
 import getDefaultSceneConfig from './getDefaultSceneConfig';
 import getDefaultMaterialConfig from './getDefaultMaterialConfig';
 import * as project from './project';
 import env from './env';
-import BoundingBoxGizmo from './debug/BoundingBoxGizmo';
 import util from 'qtek/src/core/util';
 import zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
-
-var boundingBoxGizmo = new BoundingBoxGizmo();
-var gizmoScene = new Scene();
 
 var config = getDefaultSceneConfig();
 var materialConfig = getDefaultMaterialConfig();
@@ -114,6 +109,7 @@ function changeTexture(type, file, val) {
 var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
+var selectedMesh;
 
 function showTip() {
     document.getElementById('tip').style.display = 'block';
@@ -128,7 +124,6 @@ function createViewer() {
     viewer.setCameraControl(config.viewControl);
     viewer.start();
 
-    var selectedMesh;
     viewer.on('select', function (result) {
         viewer.refresh();
         selectMaterial(result.target.material);
@@ -344,11 +339,11 @@ function reset() {
     }).then(function () {
         zrUtil.merge(config, getDefaultSceneConfig(), true);
         zrUtil.merge(materialConfig, getDefaultMaterialConfig(), true);
-        config.materials = [];
         controlKit.update();
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
 
+        selectedMesh = null;
         viewer.dispose();
         createViewer();
         
@@ -365,6 +360,7 @@ function download() {
 }
 
 function afterLoadModel() {
+    selectedMesh = null;
     viewer.stopAnimation();
     timeline.updateAnimationUI(viewer);
 }
@@ -437,11 +433,13 @@ setInterval(function () {
             return matConfig;
         });
 
-        viewer.getModelRoot().traverse(function (mesh) {
-            if (mesh.material && materialsMap[mesh.material.name]) {
-                materialsMap[mesh.material.name].targetMeshes.push(mesh.name);
-            }
-        });
+        if (viewer.getModelRoot()) {
+            viewer.getModelRoot().traverse(function (mesh) {
+                if (mesh.material && materialsMap[mesh.material.name]) {
+                    materialsMap[mesh.material.name].targetMeshes.push(mesh.name);
+                }
+            });
+        }
 
         env.AUTO_SAVE && project.saveSceneConfig(config);
     }
