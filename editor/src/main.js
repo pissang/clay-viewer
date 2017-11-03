@@ -9,6 +9,7 @@ import util from 'qtek/src/core/util';
 import zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
+import renderOutline from './debug/renderOutline';
 
 var boundingBoxGizmo = new BoundingBoxGizmo();
 var gizmoScene = new Scene();
@@ -127,13 +128,12 @@ function createViewer() {
     viewer.setCameraControl(config.viewControl);
     viewer.start();
 
+    var selectedMesh;
     viewer.on('select', function (result) {
         viewer.refresh();
-        gizmoScene.add(boundingBoxGizmo);
-        boundingBoxGizmo.target = result.target;
-
         selectMaterial(result.target.material);
 
+        selectedMesh = result.target;
     });
     viewer.on('doffocus', function (result) {
         if (config.postEffect.depthOfField.enable) {
@@ -143,17 +143,15 @@ function createViewer() {
     });
     viewer.on('unselect', function () {
         viewer.refresh();
-        gizmoScene.remove(boundingBoxGizmo);
-        boundingBoxGizmo.target = null;
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
+        selectedMesh = null;
     });
 
-    viewer.on('renderscene', function (renderer, scene, camera) {
-        renderer.saveClear();
-        renderer.clearBit = 0;
-        renderer.render(gizmoScene, camera);
-        renderer.restoreClear();
+    viewer.on('afterrender', function (renderer, scene, camera) {
+        if (selectedMesh) {
+            renderOutline(viewer, [selectedMesh], camera);
+        }
     });
 
     viewer.on('updatecamera', function (params) {
@@ -215,10 +213,7 @@ function init() {
                         viewer.setMaterial(matConfig.name, matConfig);
                     });
                 }
-            }).on('loadmodel', function () {
-                viewer.stopAnimation();
-                timeline.updateAnimationUI(viewer);
-            });
+            }).on('loadmodel', afterLoadModel);
 
             pbrRoughnessMetallicPanel.disable();
             pbrSpecularGlossinessPanel.disable();
@@ -372,6 +367,11 @@ function download() {
     project.downloadProject();
 }
 
+function afterLoadModel() {
+    viewer.stopAnimation();
+    timeline.updateAnimationUI(viewer);
+}
+
 var filesMapInverse;
 var inited = false;
 
@@ -409,10 +409,7 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
                     viewer.setMaterial(matConfig.name, matConfig);
                 });
             }
-        }).on('loadmodel', function () {
-            viewer.stopAnimation();
-            timeline.updateAnimationUI(viewer);
-        });
+        }).on('loadmodel', afterLoadModel);
     }
     else {
         showTip();

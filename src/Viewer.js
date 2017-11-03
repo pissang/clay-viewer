@@ -77,6 +77,9 @@ Viewer.prototype.init = function (dom, opts) {
     this._renderMain.afterRenderScene = (function (renderer, scene, camera) {
         this.trigger('renderscene', renderer, scene, camera);
     }).bind(this);
+    this._renderMain.afterRenderAll = (function (renderer, scene, camera) {
+        this.trigger('afterrender', renderer, scene, camera);
+    }).bind(this);
 
     var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,
@@ -165,7 +168,7 @@ Viewer.prototype.init = function (dom, opts) {
         this.refresh();
     }, this);
 
-    this._shaderLibrary = shaderLibrary.createLibrary();
+    this.shaderLibrary = shaderLibrary.createLibrary();
 };
 
 Viewer.prototype._createGround = function () {
@@ -275,7 +278,7 @@ Viewer.prototype._mouseDownHandler = function (e) {
 };
 
 Viewer.prototype._clickHandler = function (e) {
-    if (!this._enablePicking) {
+    if (!this._enablePicking && !this._renderMain.isDOFEnabled()) {
         return;
     }
     var dx = e.clientX - this._startX;
@@ -397,7 +400,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
         textureFlipY: opts.textureFlipY,
-        shaderLibrary: this._shaderLibrary
+        shaderLibrary: this.shaderLibrary
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -522,7 +525,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
     var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
     var shaderName = opts.shader || 'standard';
-    var shaderLibrary = this._shaderLibrary;
+    var shaderLibrary = this.shaderLibrary;
 
     var meshNeedsSplit = [];
     rootNode.traverse(function (mesh) {
@@ -781,7 +784,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         for (var texName in textures) {
             mat.set(texName, textures[texName]);
         }
-        mat.attachShader(this._shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
+        mat.attachShader(this.shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
             fragmentDefines: mat.shader.fragmentDefines,
             textures: enabledTextures,
             vertexDefines: mat.shader.vertexDefines,

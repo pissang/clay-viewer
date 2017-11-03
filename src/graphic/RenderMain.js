@@ -266,10 +266,12 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         }
     }
 
+    this.afterRenderAll(renderer, scene, camera);
     // this._shadowMapPass.renderDebug(renderer);
 };
 
 RenderMain.prototype.afterRenderScene = function (renderer, scene, camera) {};
+RenderMain.prototype.afterRenderAll = function (renderer, scene, camera) {};
 
 RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {
     var ifEnableSSAO = this._enableSSAO && this._enablePostEffect;

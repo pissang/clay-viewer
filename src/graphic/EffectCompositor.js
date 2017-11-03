@@ -7,7 +7,7 @@ import SSAOPass from './SSAOPass';
 import SSRPass from './SSRPass';
 import poissonKernel from './poissonKernel';
 import GBuffer from 'qtek/src/deferred/GBuffer';
-import EdgePass from './EdgePass';
+// import EdgePass from './EdgePass';
 import Matrix4 from 'qtek/src/math/Matrix4';
 import graphicHelper from './helper';
 
@@ -100,7 +100,7 @@ function EffectCompositor() {
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
-    this._edgePass = new EdgePass(gBufferObj);
+    // this._edgePass = new EdgePass(gBufferObj);
 }
 
 EffectCompositor.prototype.resize = function (width, height, dpr) {
@@ -412,10 +412,10 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
  * Set color of edge
  */
 EffectCompositor.prototype.setEdgeColor = function (value) {
-    if (value == null) {
-        return;
-    }
-    this._edgePass.setParameter('edgeColor', value);
+    // if (value == null) {
+    //     return;
+    // }
+    // this._edgePass.setParameter('edgeColor', value);
 };
 
 EffectCompositor.prototype.setExposure = function (value) {
@@ -440,10 +440,10 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
 
     var sourceTexture = this._sourceTexture;
     var targetTexture = sourceTexture;
-    if (this._enableEdge) {
-        this._edgePass.update(renderer, camera, sourceTexture, frame);
-        sourceTexture = targetTexture = this._edgePass.getTargetTexture();
-    }
+    // if (this._enableEdge) {
+    //     this._edgePass.update(renderer, camera, sourceTexture, frame);
+    //     sourceTexture = targetTexture = this._edgePass.getTargetTexture();
+    // }
     if (this._enableSSR) {
         this._ssrPass.update(renderer, camera, sourceTexture, frame);
         targetTexture = this._ssrPass.getTargetTexture();
