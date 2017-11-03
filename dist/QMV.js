@@ -25446,7 +25446,7 @@ SSAOPass.prototype.setNoiseSize = function (size) {
 };
 
 SSAOPass.prototype.dispose = function (renderer) {
-    this._targetTexture.dispose(renderer);
+    this._blurTexture.dispose(renderer);
     this._ssaoTexture.dispose(renderer);
 };
 
@@ -32493,7 +32493,7 @@ Viewer.prototype._clickHandler = function (e) {
     }
     var dx = e.clientX - this._startX;
     var dy = e.clientY - this._startY;
-    if (Math.sqrt(dx * dx + dy * dy) >= 10) {
+    if (Math.sqrt(dx * dx + dy * dy) >= 40) {
         return;
     }
 
