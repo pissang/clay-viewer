@@ -349,9 +349,6 @@ function reset() {
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
 
-        gizmoScene.remove(boundingBoxGizmo);
-        boundingBoxGizmo.target = null;
-
         viewer.dispose();
         createViewer();
         

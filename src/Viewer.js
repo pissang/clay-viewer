@@ -1026,6 +1026,12 @@ Viewer.prototype.dispose = function () {
     this.root.removeEventListener('click', this._clickHandler);
     this.root.innerHTML = '';
 
+    this.off('select');
+    this.off('doffocus');
+    this.off('unselect');
+    this.off('afterrender');
+    this.off('updatecamera');
+
     this.stop();
 };
 
