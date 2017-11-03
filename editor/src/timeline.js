@@ -49,6 +49,7 @@ function updateAnimationUI(_viewer) {
     else {
         stopAnimation();
     }
+    var _oldIsPlay = null;
     if (!$('#timeline-progress input').data('ionRangeSlider')) {
         $('#timeline-progress input').ionRangeSlider({
             from_shadow: true,
@@ -56,10 +57,16 @@ function updateAnimationUI(_viewer) {
             onChange: function (data) {
                 currentTime = data.from;
                 viewer.setPose(currentTime);
+                if (_oldIsPlay == null) {
+                    _oldIsPlay = isPlay;
+                }
                 stopAnimation();
             },
             onFinish: function () {
-                startAnimation(_animationToken);
+                if (_oldIsPlay) {
+                    startAnimation(_animationToken);
+                }
+                _oldIsPlay = null;
             }
         });
         $('#timeline-range input').ionRangeSlider({
@@ -73,6 +80,7 @@ function updateAnimationUI(_viewer) {
                 duration = data.to - data.from;
                 startTime = data.from;
                 currentTime = Math.min(Math.max(data.from, currentTime), data.to);
+                viewer.setPose(currentTime);
                 progressSlider.update({
                     from_min: data.from,
                     from_max: data.to

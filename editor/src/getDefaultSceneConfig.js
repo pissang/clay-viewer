@@ -2,6 +2,10 @@ import env from './env';
 
 export default function () {
     return {
+        materials: [],
+
+        takes: [],
+
         textureFlipY: false,
     
         zUpToYUp: false,

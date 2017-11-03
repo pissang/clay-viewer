@@ -1,5 +1,9 @@
 export default {
     devicePixelRatio: null,
+
+    // If enable picking
+    picking: false,
+
     // If enable shadow
     shadow: true,
     // Environment panorama texture url.

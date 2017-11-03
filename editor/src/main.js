@@ -123,6 +123,7 @@ function hideTip() {
 
 function createViewer() {
     viewer = new QMV.Viewer(document.getElementById('viewport'), config);
+    viewer.enablePicking();
     viewer.setCameraControl(config.viewControl);
     viewer.start();
 
@@ -145,6 +146,7 @@ function createViewer() {
         gizmoScene.remove(boundingBoxGizmo);
         boundingBoxGizmo.target = null;
         pbrRoughnessMetallicPanel.disable();
+        pbrSpecularGlossinessPanel.disable();
     });
 
     viewer.on('renderscene', function (renderer, scene, camera) {

@@ -33,6 +33,7 @@ Shader.import(groundGLSLCode);
  * @constructor
  * @param {HTMLDivElement} dom Root node
  * @param {Object} [sceneConfig]
+ * @param {boolean} [sceneConfig.enablePicking]
  * @param {Object} [sceneConfig.shadow]
  * @param {boolean} [sceneConfig.devicePixelRatio]
  * @param {Object} [sceneConfig.postEffect]
@@ -50,7 +51,7 @@ function Viewer(dom, sceneConfig) {
 
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
-
+    
     /**
      * @type {HTMLDivElement}
      */
@@ -148,6 +149,8 @@ Viewer.prototype.init = function (dom, opts) {
         maxDistance: 100,
         center: [0, 0, 0]
     });
+
+    this._enablePicking = opts.picking || false;
 
     this._initHandlers();
 
@@ -272,6 +275,9 @@ Viewer.prototype._mouseDownHandler = function (e) {
 };
 
 Viewer.prototype._clickHandler = function (e) {
+    if (!this._enablePicking) {
+        return;
+    }
     var dx = e.clientX - this._startX;
     var dy = e.clientY - this._startY;
     if (Math.sqrt(dx * dx + dy * dy) >= 10) {
@@ -297,6 +303,16 @@ Viewer.prototype._clickHandler = function (e) {
     }
 };
 
+
+Viewer.prototype.enablePicking = function () {
+    this._enablePicking = true;
+};
+Viewer.prototype.disablePicking = function () {
+    this._enablePicking = false;
+};
+/**
+ * Resize the viewport
+ */
 Viewer.prototype.resize = function () {
     var renderer = this._renderer;
     renderer.resize(this.root.clientWidth, this.root.clientHeight);
@@ -521,10 +537,6 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         if (mesh.geometry) {
             mesh.geometry.updateBoundingBox();
             mesh.culling = false;
-        }
-        if (mesh.skeleton) {
-            // Avoid wrong culling when skinning matrices transforms alot.
-            mesh.frustumCulling = false;
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
