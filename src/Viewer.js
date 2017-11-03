@@ -283,7 +283,7 @@ Viewer.prototype._clickHandler = function (e) {
     }
     var dx = e.clientX - this._startX;
     var dy = e.clientY - this._startY;
-    if (Math.sqrt(dx * dx + dy * dy) >= 10) {
+    if (Math.sqrt(dx * dx + dy * dy) >= 40) {
         return;
     }
 
