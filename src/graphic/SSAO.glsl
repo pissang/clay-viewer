@@ -29,7 +29,7 @@ uniform float intensity: 1.0;
 
 varying vec2 v_Texcoord;
 
-float ssaoEstimator(in vec3 originPos, in mat3 kernelBasis) {
+float ssaoEstimator(in vec3 originPos, in vec3 N, in mat3 kernelBasis) {
     float occlusion = 0.0;
 
     for (int i = 0; i < KERNEL_SIZE; i++) {
@@ -41,8 +41,9 @@ float ssaoEstimator(in vec3 originPos, in mat3 kernelBasis) {
 
         vec4 texCoord = projection * vec4(samplePos, 1.0);
         texCoord.xy /= texCoord.w;
+        texCoord.xy = texCoord.xy * 0.5 + 0.5;
 
-        vec4 depthTexel = texture2D(depthTex, texCoord.xy * 0.5 + 0.5);
+        vec4 depthTexel = texture2D(depthTex, texCoord.xy);
 
         float sampleDepth = depthTexel.r * 2.0 - 1.0;
         if (projection[3][3] == 0.0) {
@@ -54,13 +55,13 @@ float ssaoEstimator(in vec3 originPos, in mat3 kernelBasis) {
             // PENDING
             sampleDepth = (sampleDepth - projection[3][2]) / projection[2][2];
         }
-        // Consider orthographic projection
-        // vec4 projectedPos = vec4(texCoord.xy, sampleDepth, 1.0);
-        // vec4 p4 = projectionInv * projectedPos;
-        // sampleDepth = p4.z / p4.w;
+        float factor = step(samplePos.z, sampleDepth - bias);
+#ifdef NORMALTEX_ENABLED
+        vec3 normTexel = texture2D(depthTex, texCoord.xy);
+#endif
 
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - sampleDepth));
-        occlusion += rangeCheck * step(samplePos.z, sampleDepth - bias);
+        occlusion += rangeCheck * factor;
     }
 #ifdef NORMALTEX_ENABLED
     occlusion = 1.0 - occlusion / float(KERNEL_SIZE);
@@ -107,7 +108,7 @@ void main()
 
     vec3 position = p4.xyz / p4.w;
 
-    float ao = ssaoEstimator(position, kernelBasis);
+    float ao = ssaoEstimator(position, N, kernelBasis);
     ao = clamp(1.0 - (1.0 - ao) * intensity, 0.0, 1.0);
     gl_FragColor = vec4(vec3(ao), 1.0);
 }
@@ -190,37 +191,4 @@ void main()
 //    gl_FragColor = texture2D(ssaoTexture, v_Texcoord);
 }
 
-// #define SHADER_NAME SSAO_BLUR
-// #define BLUR_SIZE 5
-
-// uniform sampler2D ssaoTexture;
-
-// uniform vec2 textureSize;
-
-// varying vec2 v_Texcoord;
-
-// void main ()
-// {
-
-//     vec2 texelSize = 1.0 / textureSize;
-
-//     vec2 hlim = vec2(-floor(float(BLUR_SIZE) * 0.5));
-//     float centerAo = 1.0 - texture2D(ssaoTexture, v_Texcoord).r;
-//     float aoFactor = 0.0;
-//     float weightAll = 0.0;
-//     for (int x = 0; x < BLUR_SIZE; x++) {
-//         for (int y = 0; y < BLUR_SIZE; y++) {
-//             vec2 coord = (vec2(float(x), float(y)) + hlim) * texelSize + v_Texcoord;
-//             float sampleAo = 1.0 - texture2D(ssaoTexture, coord).r;
-//             // http://stackoverflow.com/questions/6538310/anyone-know-where-i-can-find-a-glsl-implementation-of-a-bilateral-filter-blur
-//             // PENDING
-//             float closeness = 1.0 - distance(sampleAo, centerAo) / sqrt(3.0);
-//             float weight = closeness;
-//             aoFactor += sampleAo * closeness;
-//             weightAll += weight;
-//         }
-//     }
-
-//     gl_FragColor = vec4(vec3(1.0 - clamp(aoFactor / weightAll, 0.0, 1.0)), 1.0);
-// }
 @end

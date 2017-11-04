@@ -21,6 +21,9 @@ function updateAnimationUI(_viewer) {
     duration = _viewer.getAnimationDuration();
     duration > 0 ? (showTimeline()) : (hideTimeline());
 
+    if (duration <= 0) {
+        return;
+    }
     var pauseBtn = document.getElementById('timeline-pause-resume');
     
     pauseBtn.removeEventListener('click', pauseBtnClickListener);

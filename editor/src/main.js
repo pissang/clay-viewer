@@ -304,6 +304,8 @@ function initUI() {
         .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'parallaxOcclusionMap', { label: 'Parallax Occlusion Map', onChange: changeTexture.bind(null, 'parallaxOcclusionMap') })
+        .addSlider(materialConfig, 'parallaxOcclusionScale', '$parallaxOcclusionScaleRange', { label: 'Scale', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
@@ -321,6 +323,8 @@ function initUI() {
         .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
         .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
         .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'parallaxOcclusionMap', { label: 'Parallax Occlusion Map', onChange: changeTexture.bind(null, 'parallaxOcclusionMap') })
+        .addSlider(materialConfig, 'parallaxOcclusionScale', '$parallaxOcclusionScaleRange', { label: 'Scale', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap') })
         .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap') })
         .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });

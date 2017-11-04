@@ -13,6 +13,8 @@ export default function () {
 
         diffuseMap: '',
         normalMap: '',
+        parallaxOcclusionScale: 0.01,
+        parallaxOcclusionMap: '',
 
         emission: '#fff',
         emissionIntensity: 0,
@@ -36,6 +38,7 @@ export default function () {
         $metalnessRange: [0, 1],
         $roughnessRange: [0, 1],
         $glossinessRange: [0, 1],
+        $parallaxOcclusionScaleRange: [0, 0.2],
 
         $textureTiling: 1
     };

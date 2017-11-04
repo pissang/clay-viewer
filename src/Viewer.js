@@ -745,7 +745,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         }
     }
     var textures = {};
-    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+    ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
         addTexture(propName);
     }, this);
     if (materials[0].shader.isDefined('fragment', 'USE_METALNESS')) {
@@ -759,10 +759,12 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         }, this);
     }
 
-    if (textures.normalMap) {
+    if (textures.normalMap || textures.parallaxOcclusionMap) {
         this._modelNode.traverse(function (mesh) {
             if (mesh.material && mesh.material.name === matName) {
-                mesh.geometry.generateTangents();       
+                if (!mesh.geometry.attributes.tangent.value) {
+                    mesh.geometry.generateTangents();
+                }
             }
         });
     }
@@ -776,7 +778,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, graphicHelper.parseColor(materialCfg[propName]));
             }
         });
-        ['alpha', 'alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
+        ['alpha', 'alphaCutoff', 'metalness', 'roughness', 'glossiness', 'emissionIntensity', 'uvRepeat', 'parallaxOcclusionScale'].forEach(function (propName) {
             if (materialCfg[propName] != null) {
                 mat.set(propName, materialCfg[propName]);
             }
@@ -810,7 +812,7 @@ Viewer.prototype.getMaterial = function (name) {
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
     });
-    ['alpha', 'alphaCutoff', 'emissionIntensity', 'uvRepeat'].forEach(function (propName) {
+    ['alpha', 'alphaCutoff', 'emissionIntensity', 'uvRepeat', 'parallaxOcclusionScale'].forEach(function (propName) {
         materialCfg[propName] = mat.get(propName);
     });
     function getTextureUri(propName) {
@@ -824,7 +826,7 @@ Viewer.prototype.getMaterial = function (name) {
         }
         return (image && image.src) || '';
     }
-    ['diffuseMap', 'normalMap', 'emissiveMap'].forEach(function (propName) {
+    ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
         materialCfg[propName] = getTextureUri(propName);
     });
     if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
