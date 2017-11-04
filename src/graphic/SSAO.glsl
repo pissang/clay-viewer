@@ -57,7 +57,7 @@ float ssaoEstimator(in vec3 originPos, in vec3 N, in mat3 kernelBasis) {
         }
         float factor = step(samplePos.z, sampleDepth - bias);
 #ifdef NORMALTEX_ENABLED
-        vec3 normTexel = texture2D(depthTex, texCoord.xy);
+        // vec3 normTexel = texture2D(depthTex, texCoord.xy);
 #endif
 
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - sampleDepth));
