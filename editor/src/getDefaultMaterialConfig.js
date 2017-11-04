@@ -38,7 +38,7 @@ export default function () {
         $metalnessRange: [0, 1],
         $roughnessRange: [0, 1],
         $glossinessRange: [0, 1],
-        $parallaxOcclusionScaleRange: [0, 0.2],
+        $parallaxOcclusionScaleRange: [0, 0.1],
 
         $textureTiling: 1
     };

@@ -2,6 +2,9 @@ import env from './env';
 
 export default function () {
     return {
+
+        preZ: true,
+
         materials: [],
 
         takes: [],

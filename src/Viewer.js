@@ -80,6 +80,7 @@ Viewer.prototype.init = function (dom, opts) {
     this._renderMain.afterRenderAll = (function (renderer, scene, camera) {
         this.trigger('afterrender', renderer, scene, camera);
     }).bind(this);
+    this._renderMain.preZ = opts.preZ || false;
 
     var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,

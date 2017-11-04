@@ -1,6 +1,8 @@
 export default {
     devicePixelRatio: null,
 
+    // If enable preZ
+    preZ: false,
     // If enable picking
     picking: false,
 
