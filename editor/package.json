@@ -1,0 +1,14 @@
+{
+  "name": "qtek-model-editor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "electron.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Yi Shen",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^1.7.9"
+  }
+}

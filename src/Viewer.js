@@ -368,6 +368,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
  * @param {boolean} [opts.includeTexture=true]
  * @param {Object} [opts.files] Pre-read files map
+ * @param {Array.<ArrayBuffer>} [opts.buffers]
  * @param {boolean} [opts.zUpToYUp=false] Change model to y up
  * @param {boolean} [opts.textureFlipY=false]
  */
@@ -413,7 +414,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         loader.load(gltfFile);
     }
     else {
-        loader.parse(gltfFile);
+        loader.parse(gltfFile, opts.buffers);
     }
 
     if (opts.zUpToYUp) {

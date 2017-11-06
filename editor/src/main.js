@@ -174,11 +174,10 @@ function init() {
     FileAPI.event.dnd(document.getElementById('main'), function (over) {
 
     }, function (files) {
-        files = files.filter(function (file) {
-            return file.name.match(/.(gltf|bin)$/)
-                || file.type.match(/image/);
-        });
-        project.loadModelFiles(files, function (glTF, filesMap) {
+        project.createModelFilesURL(files).then(function (res) {
+            var glTF = res.glTF;
+            var filesMap = res.filesMap;
+            var buffers = res.buffers;
             hideTip();
 
             filesMapInverse = {};
@@ -194,6 +193,7 @@ function init() {
             }
             viewer.loadModel(glTF, {
                 files: filesMap,
+                buffers: buffers,
                 textureFlipY: config.textureFlipY,
                 zUpToYUp: config.zUpToYUp,
                 includeTexture: !haveQMVConfig
@@ -212,8 +212,14 @@ function init() {
 
             pbrRoughnessMetallicPanel.disable();
             pbrSpecularGlossinessPanel.disable();
+        }).catch(function (err) {
+            console.log(err);
+            swal(err.toString());
         });
-        env.AUTO_SAVE && project.saveModelFiles(files);
+        env.AUTO_SAVE && project.saveModelFiles(files.filter(function (file) {
+            return file.name.match(/.(gltf|bin)$/)
+                || file.type.match(/image/);
+        }));
     });
 
     document.body.addEventListener('drop', function (e) {

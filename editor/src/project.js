@@ -1,8 +1,15 @@
 import Filer from 'filer.js';
+import env from './env';
 import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, TEXTURES } from './glTFHelper';
+import convert from 'vendor/convert';
 
 var filer = new Filer();
 var filerInited = false;
+
+function getExt(fileName) {
+    var idx = fileName.lastIndexOf('.');
+    return idx >= 0 ? fileName.substr(idx + 1).toLowerCase() : '';
+}
 
 function init(cb) {
     filer.init({
@@ -103,8 +110,8 @@ function loadModelFromFS() {
                 resolve([]);
             }
             else {
-                loadModelFiles(files, function (glTF, filesMap) {
-                    resolve([glTF, filesMap]);
+                createModelFilesURL(files).then(function (res) {
+                    resolve([res.glTF, res.filesMap]);
                 });
             }
         });
@@ -119,40 +126,88 @@ function writeTextureImage(file) {
     });
 }
 
-var filesMap = {};
-function loadModelFiles(files, cb) {
-    var glTFFile = files.find(function (file) {
-        return file.name.match(/.gltf$/);
-    });
-    if (!glTFFile) {
-        swal('glTF file nout found');
-    }
-
-    // Unload urls after use
-    for (var name in filesMap) {
-        URL.revokeObjectURL(filesMap[name]);
-    }
-    filesMap = {};
-
-    function readAllFiles(cb) {
-        var count = 0;
-        files.forEach(function (file) {
-            if (file !== glTFFile) {
-                count++;
-                filesMap[file.name] = URL.createObjectURL(file);
-            }
+/**
+ * Create urls from files need for model loading.
+ */
+var currentFilesMap = {};
+function createModelFilesURL(files) {
+    return new Promise(function (resolve, reject) {
+        var glTFFile = files.find(function (file) {
+            return file.name.match(/.gltf$/);
         });
-        cb && cb(filesMap);
-    }
-    FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
-        if (evt.type == 'load') {
-            // Success
-             var json = JSON.parse(evt.result);
-             readAllFiles(function (filesMap) {
-                cb && cb(json, filesMap);
-             });
-        } else if(evt.type =='progress'){
-            var pr = evt.loaded / evt.total * 100;
+        if (!glTFFile) {
+            if (process.env.TARGET === 'electron') {
+                var validModelFiles = files.filter(function (file) {
+                    var ext = getExt(file.name);
+                    return env.SUPPORTED_MODEL_FILES.indexOf(ext) >= 0;
+                });
+                if (validModelFiles.length > 0) {
+                    convert(validModelFiles).then(function (result) {
+                        var _buffer = result.buffer;
+                        // Buffer to array buffer
+                        var glTFBuffer = _buffer.buffer.slice(_buffer.byteOffset, _buffer.byteOffset + _buffer.byteLength);
+                        afterFileConvert(result.json, glTFBuffer);
+                    }, function (err) {
+                        reject('Failed to convert file:' + err.toString());
+                    });
+                }
+                else {
+                    reject('No model file found');
+                }
+            }
+            else {
+                reject('No glTF file found');
+            }
+        }
+        else {
+            afterFileConvert();
+        }
+
+        function afterFileConvert(glTFText, glTFBuffer) {
+            files = files.filter(function (file) {
+                return file.name.match(/.(gltf|bin)$/)
+                    || file.type.match(/image/);
+            });
+    
+            // Unload urls after use
+            for (var name in currentFilesMap) {
+                URL.revokeObjectURL(currentFilesMap[name]);
+            }
+            var filesMap = {};
+            currentFilesMap = filesMap;
+    
+            function readAllFiles(cb) {
+                var count = 0;
+                files.forEach(function (file) {
+                    if (file !== glTFFile) {
+                        count++;
+                        filesMap[file.name] = URL.createObjectURL(file);
+                    }
+                });
+                cb && cb(filesMap);
+            }
+    
+            if (glTFText) {
+                resolve({
+                    glTF: JSON.parse(glTFText),
+                    filesMap: filesMap, 
+                    buffers: [glTFBuffer]
+                });
+            }
+            else {
+                FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
+                    if (evt.type == 'load') {
+                        // Success
+                         var json = JSON.parse(evt.result);
+                         readAllFiles(function (filesMap) {
+                            resolve({
+                                glTF: json,
+                                filesMapfilesMap
+                            });
+                         });
+                    }
+                });
+            }
         }
     });
 }
@@ -294,7 +349,7 @@ function downloadProject() {
 export {
     init,
     saveModelFiles,
-    loadModelFiles,
+    createModelFilesURL,
     saveSceneConfig,
     writeTextureImage,
     removeProject,
