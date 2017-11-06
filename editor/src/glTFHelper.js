@@ -201,11 +201,22 @@ function updateGLTFMaterials(glTF, sceneConfig) {
 
     var primitivesMap = {};
     glTF.materials = [];
-    glTF.meshes.forEach(function (mesh, meshIdx) {
-        mesh.primitives.forEach(function (primitive, idx) {
-            primitivesMap[GLTFLoader.generateMeshName(glTF.meshes, meshIdx, idx)] = primitie;
-        });
+    glTF.nodes.forEach(function (nodeInfo, nodeIdx) {
+        if (nodeInfo.mesh != null) {
+            var meshInfo = glTF.meshes[nodeInfo.mesh];
+            if (meshInfo.primitives.length === 1) {
+                // Use node name instead of mesh name.
+                // FIXME Hard coded
+                primitivesMap[nodeInfo.name] = meshInfo.primitives[0];
+            }
+            else {
+                meshInfo.primitives.forEach(function (primitive, idx) {
+                    primitivesMap[GLTFLoader.generateMeshName(glTF.meshes, nodeInfo.mesh, idx)] = primitive;
+                });
+            }
+        }
     });
+
     sceneConfig.materials.forEach(function (matConfig, idx) {
         var gltfMat = {
             name: matConfig.name,
