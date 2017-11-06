@@ -1,5 +1,7 @@
 @export ecgl.ssao.estimate
 
+#define SHADER_NAME SSAO
+
 uniform sampler2D depthTex;
 
 uniform sampler2D normalTex;
@@ -44,24 +46,35 @@ float ssaoEstimator(in vec3 originPos, in vec3 N, in mat3 kernelBasis) {
         texCoord.xy = texCoord.xy * 0.5 + 0.5;
 
         vec4 depthTexel = texture2D(depthTex, texCoord.xy);
+        float z = depthTexel.r * 2.0 - 1.0;
+#ifdef ALCHEMY
+        vec4 projectedPos = vec4(texCoord.xy * 2.0 - 1.0, z, 1.0);
+        vec4 p4 = projectionInv * projectedPos;
+        p4.xyz /= p4.w;
+        vec3 cDir = p4.xyz - originPos;
 
-        float sampleDepth = depthTexel.r * 2.0 - 1.0;
+        float vv = dot(cDir, cDir);
+        float vn = dot(cDir, N);
+
+        float radius2 = radius * radius;
+
+        vn = max(vn + p4.z * bias, 0.0);
+        float f = max(radius2 - vv, 0.0) / radius2;
+        occlusion += f * f * f * max(vn / (0.01 + vv), 0.0);
+#else
         if (projection[3][3] == 0.0) {
             // Perspective
-            sampleDepth = projection[3][2] / (sampleDepth * projection[2][3] - projection[2][2]);
+            z = projection[3][2] / (z * projection[2][3] - projection[2][2]);
         }
         else {
             // Symmetrical orthographic
             // PENDING
-            sampleDepth = (sampleDepth - projection[3][2]) / projection[2][2];
+            z = (z - projection[3][2]) / projection[2][2];
         }
-        float factor = step(samplePos.z, sampleDepth - bias);
-#ifdef NORMALTEX_ENABLED
-        // vec3 normTexel = texture2D(depthTex, texCoord.xy);
-#endif
-
-        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - sampleDepth));
+        float factor = step(samplePos.z, z - bias);
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - z));
         occlusion += rangeCheck * factor;
+#endif
     }
 #ifdef NORMALTEX_ENABLED
     occlusion = 1.0 - occlusion / float(KERNEL_SIZE);
