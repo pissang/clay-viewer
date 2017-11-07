@@ -10,6 +10,7 @@ export default function () {
 
         transparent: false,
         alpha: 1,
+        alphaCutoff: 0,
 
         diffuseMap: '',
         normalMap: '',
@@ -35,6 +36,7 @@ export default function () {
         specularMap: '',
 
         $alphaRange: [0, 1],
+        $alphaCutoffRange: [0, 1],
         $metalnessRange: [0, 1],
         $roughnessRange: [0, 1],
         $glossinessRange: [0, 1],
