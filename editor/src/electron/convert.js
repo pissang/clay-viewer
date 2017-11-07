@@ -36,6 +36,7 @@ module.exports = function (files) {
             }, function (code, stdout, stderr) {
                 if (fs.existsSync(glTFPath)) {
                     resolve({
+                        name: glTFFileName,
                         json: fs.readFileSync(glTFPath, 'utf-8'),
                         buffer: fs.readFileSync(glTFBinPath)
                     });

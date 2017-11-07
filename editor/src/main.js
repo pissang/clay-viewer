@@ -178,6 +178,8 @@ function init() {
             var glTF = res.glTF;
             var filesMap = res.filesMap;
             var buffers = res.buffers;
+            var files = res.allFiles;
+            
             hideTip();
 
             filesMapInverse = {};
@@ -212,14 +214,12 @@ function init() {
 
             pbrRoughnessMetallicPanel.disable();
             pbrSpecularGlossinessPanel.disable();
+
+            env.AUTO_SAVE && project.saveModelFiles(files);
         }).catch(function (err) {
             console.log(err);
             swal(err.toString());
         });
-        env.AUTO_SAVE && project.saveModelFiles(files.filter(function (file) {
-            return file.name.match(/.(gltf|bin)$/)
-                || file.type.match(/image/);
-        }));
     });
 
     document.body.addEventListener('drop', function (e) {

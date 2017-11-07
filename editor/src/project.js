@@ -146,7 +146,7 @@ function createModelFilesURL(files) {
                         var _buffer = result.buffer;
                         // Buffer to array buffer
                         var glTFBuffer = _buffer.buffer.slice(_buffer.byteOffset, _buffer.byteOffset + _buffer.byteLength);
-                        afterFileConvert(result.json, glTFBuffer);
+                        afterFileConvert(result.name, result.json, glTFBuffer);
                     }, function (err) {
                         reject('Failed to convert file:' + err.toString());
                     });
@@ -163,7 +163,7 @@ function createModelFilesURL(files) {
             afterFileConvert();
         }
 
-        function afterFileConvert(glTFText, glTFBuffer) {
+        function afterFileConvert(glTFName, glTFText, glTFBuffer) {
             files = files.filter(function (file) {
                 return file.name.match(/.(gltf|bin)$/)
                     || file.type.match(/image/);
@@ -188,10 +188,20 @@ function createModelFilesURL(files) {
             }
     
             if (glTFText) {
+                files.push(new File(
+                    [glTFText],
+                    glTFName + '.gltf',
+                    { type: 'application/json' }
+                ), new File(
+                    [glTFBuffer],
+                    glTFName + '.bin',
+                    { type: 'application/octet-stream' }
+                ));
                 resolve({
                     glTF: JSON.parse(glTFText),
                     filesMap: filesMap, 
-                    buffers: [glTFBuffer]
+                    buffers: [glTFBuffer],
+                    allFiles: files
                 });
             }
             else {
@@ -202,7 +212,8 @@ function createModelFilesURL(files) {
                          readAllFiles(function (filesMap) {
                             resolve({
                                 glTF: json,
-                                filesMapfilesMap
+                                filesMap: filesMap,
+                                allFiles: files
                             });
                          });
                     }
