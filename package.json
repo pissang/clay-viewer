@@ -1,7 +1,7 @@
 {
   "name": "qtek-model-viewer",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "QTEK Model Viewer built on top of WebGL, Supported FBX, DAE, OBJ, glTF2.0 model formats.",
   "main": "index.js",
   "dependencies": {},
   "devDependencies": {
@@ -19,6 +19,11 @@
   },
   "scripts": {
     "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/QMV.js > dist/QMV.min.js",
+    "build:browser": "webpack -p --config editor/webpack.config.js",
+    "build:electron": "TARGET=electron webpack --config editor/webpack.config.js",
+    "build:fbx2gltf": "pyinstaller editor/electron/convert/fbx2gltf.py && rm -rf editor/electron/convert/build",
+    "dist:electron": "npm run build:electron && build",
+    "cdist:electron": "export ELECTRON_MIRROR=https://npm.taobao.org/mirrors/electron/ && dist:electron",
     "dev": "rollup -c -w",
     "glsl2js": "node build/glsl2js.js"
   },
