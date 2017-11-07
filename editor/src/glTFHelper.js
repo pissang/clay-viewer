@@ -259,9 +259,129 @@ function updateGLTFMaterials(glTF, sceneConfig) {
     return glTF;
 }
 
+function convertToBinary(glTF, binaryBuffers, imageBuffersMap) {
+
+    function alignedLength(len) {
+        return Math.ceil(len / 4) * 4;
+    }
+
+    var bufferOffset = 0;
+    var bufferOffsets = [];
+    var buffers = binaryBuffers.slice();
+    glTF.buffers.forEach(function (buffer) {
+        bufferOffsets.push(bufferOffset);
+        bufferOffset += alignedLength(buffer.byteLength);
+        delete buffer.uri;
+    });
+
+    glTF.bufferViews.forEach(function (bufferView) {
+        if (bufferView.byteOffset == null) {
+            bufferView.byteOffset = 0;
+        }
+        else {
+            bufferView.byteOffset = bufferView.byteOffset + bufferOffsets[bufferView.buffer];
+        }
+    });
+
+    (glTF.images || []).forEach(function (imageInfo, idx) {
+        var uri = imageInfo.uri;
+        var imageBuffer = imageBuffersMap[uri];
+        delete imageInfo.uri;
+        if (!imageBuffer) {
+            return;
+        }
+        var bufferView = {
+            buffer: 0,
+            byteOffset: bufferOffset,
+            byteLength: imageBuffer.byteLength
+        };
+        bufferOffsets.push(bufferOffset);
+        bufferOffset += alignedLength(imageBuffer.byteLength);
+        imageInfo.bufferView = glTF.bufferViews.length;
+        imageInfo.mimeType = getMimeType(uri);
+        glTF.bufferViews.push(bufferView);
+        buffers.push(imageBuffer);
+    });
+    var binBufferSize = bufferOffset;
+    glTF.buffers = [{
+        byteLength: binBufferSize
+    }];
+    var enc = new TextEncoder();
+    var jsonBuffer = enc.encode(JSON.stringify(glTF));
+    var jsonAlignedLength = alignedLength(jsonBuffer.length);
+    var padding;
+    if (jsonAlignedLength !== jsonBuffer.length) {
+        padding = jsonAlignedLength- jsonBuffer.length;
+    }
+    var totalSize = 12 + // file header: magic + version + length
+        8 + // json chunk header: json length + type
+        jsonAlignedLength +
+        8 + // bin chunk header: chunk length + type
+        binBufferSize;
+    var outBuffer = new ArrayBuffer(totalSize);
+    var dataView = new DataView(outBuffer);
+    var bufIndex = 0;
+    // Magic number
+    dataView.setUint32(bufIndex, 0x46546C67, true);
+    bufIndex += 4;
+    // Version
+    dataView.setUint32(bufIndex, 2, true);
+    bufIndex += 4;
+    dataView.setUint32(bufIndex, totalSize, true);
+    bufIndex += 4;
+    // JSON
+    dataView.setUint32(bufIndex, jsonAlignedLength, true);
+    bufIndex += 4;
+    dataView.setUint32(bufIndex, 0x4E4F534A, true);
+    bufIndex += 4;
+    for (var j = 0; j< jsonBuffer.length; j++){
+        dataView.setUint8(bufIndex++, jsonBuffer[j]);
+    }
+    if (padding != null) {
+        for (var j = 0; j< padding;j++) {
+            dataView.setUint8(bufIndex++, 0x20);
+        }   
+    }
+    // BIN
+    dataView.setUint32(bufIndex, binBufferSize, true);
+    bufIndex += 4;
+    dataView.setUint32(bufIndex, 0x004E4942, true);
+    bufIndex += 4;
+    for (var i = 0; i < buffers.length; i++) {
+        var bufoffset = bufIndex + bufferOffsets[i];
+        var buf = new Uint8Array(buffers[i]);
+        var thisbufindex = bufoffset;
+        for (var j = 0; j < buf.byteLength; j++) {
+            dataView.setUint8(thisbufindex, buf[j]);
+            thisbufindex++;
+        }
+    }
+
+    return outBuffer;
+}
+// https://github.com/sbtron/makeglb/blob/master/index.html
+function getMimeType(filename) {
+    for (var mimeType in MILE_TYPES) {
+        for (var extensionIndex in MILE_TYPES[mimeType]) {
+            var extension = MILE_TYPES[mimeType][extensionIndex];
+            if (filename.toLowerCase().endsWith('.' + extension)) {
+                return mimeType;
+            }
+        }
+    }
+    return 'application/octet-stream';
+}
+var MILE_TYPES = {
+    'image/png': ['png'],
+    'image/jpeg': ['jpg', 'jpeg'],
+    'text/plain': ['glsl', 'vert', 'vs', 'frag', 'fs', 'txt'],
+    'image/vnd-ms.dds': ['dds']
+};
+
 export { 
     updateGLTFMaterials,
     mergeMetallicRoughness,
     mergeSpecularGlossiness,
+    convertToBinary,
     TEXTURES
 };

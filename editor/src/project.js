@@ -1,6 +1,6 @@
 import Filer from 'filer.js';
 import env from './env';
-import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, TEXTURES } from './glTFHelper';
+import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, convertToBinary, TEXTURES } from './glTFHelper';
 import convert from 'vendor/convert';
 
 var filer = new Filer();
@@ -256,7 +256,7 @@ function readModelFilesFromFS() {
     });
 }
 
-function downloadProject() {
+function downloadProject(format) {
     Promise.all([
         readModelFilesFromFS(),
         loadSceneFromFS()
@@ -282,12 +282,6 @@ function downloadProject() {
             swal('No glTF file in project!');
         }
 
-        function removeFile(file) {
-            var idx = files.indexOf(file);
-            if (idx >= 0) {
-                files.splice(idx, 1);
-            }
-        }
 
         Promise.all(loadedSceneCfg.materials.map(function (matConfig, idx) {
             // TODO Different material use same metalnessMap and roughnessMap.
@@ -342,16 +336,41 @@ function downloadProject() {
                             });
                         }
                         // Other is binary file.
-                        return true;
+                        else if (file.name.endsWith('.bin')) {
+                            return true;
+                        }
                     });
-                    zip.file(glTFFile.name, JSON.stringify(newGLTF, null, 2));
                     files.forEach(function (file) {
                         zip.file(file.name, file);         
                     });
-                    zip.generateAsync({ type: 'blob' })
+
+                    if (format === 'glb') {
+                        var binaryFiles = [];
+                        var imageFiles = [];
+                        zip.forEach(function (path, file) {
+                            (path.endsWith('.bin') ? binaryFiles : imageFiles).push({
+                                reader: zip.file(path).async('arraybuffer'),
+                                name: path
+                            });
+                        });
+                        Promise.all([
+                            Promise.all(binaryFiles.map(function (a) {return a.reader; })),
+                            Promise.all(imageFiles.map(function (a) { return a.reader; }))
+                        ]).then(function (res) {
+                            var ab = convertToBinary(newGLTF, res[0], res[1].reduce(function (obj, ab, idx) {
+                                obj[imageFiles[idx].name] = ab;
+                                return obj;
+                            }, {}));
+                            saveAs(new Blob([ab], {type: 'model/json-binary'}), 'model.glb');
+                        });
+                    }
+                    else {
+                        zip.file(glTFFile.name, JSON.stringify(newGLTF, null, 2));
+                        zip.generateAsync({ type: 'blob' })
                         .then(function (blob) {
                             saveAs(blob, 'model.zip');
                         });
+                    }
                 }
             });
         });

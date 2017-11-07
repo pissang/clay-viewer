@@ -383,7 +383,16 @@ function reset() {
 }
 
 function download() {
-    project.downloadProject();
+    swal({
+        title: 'Select download format.',
+        input: 'radio',
+        inputOptions: {
+            'glb': 'GLB',
+            'zip': 'ZIP'
+        }
+    }).then(function (result) {
+        project.downloadProject(result);
+    });
 }
 
 function afterLoadModel() {
