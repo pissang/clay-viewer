@@ -1,9 +1,11 @@
 
 function showTimeline() {
     document.getElementById('timeline').style.display = 'block';
+    startAnimation();
 }
 function hideTimeline() {
     document.getElementById('timeline').style.display = 'none';
+    stopAnimation();
 }
 
 var isPlay = false;
@@ -18,7 +20,7 @@ var pauseBtnClickListener;
 
 function updateAnimationUI(_viewer) {
     viewer = _viewer;
-    duration = _viewer.getAnimationDuration();
+    duration = Math.floor(_viewer.getAnimationDuration());
     duration > 0 ? (showTimeline()) : (hideTimeline());
 
     if (duration <= 0) {
@@ -174,4 +176,4 @@ function setTimeRange(_startTime, _endTime) {
     duration = _endTime - startTime;
 }
 
-export { updateAnimationUI, setTimeRange };
+export { updateAnimationUI, setTimeRange, hideTimeline, showTimeline };

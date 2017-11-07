@@ -157,13 +157,23 @@ function createViewer() {
             distance: params.distance
         };
     });
+}
 
+
+var loadingEl = document.getElementById('loading');
+function showLoading(text) {
+    document.body.appendChild(loadingEl);
+    loadingEl.querySelector('#loading-text').innerHTML = text || 'LOADING';
+}
+function hideLoading() {
+    // Remove loading
+    loadingEl.parentNode.removeChild(loadingEl);
 }
 
 function init() {
-    // Remove loading
-    var loadingEl = document.getElementById('loading');
-    loadingEl.parentNode.removeChild(loadingEl);
+    hideLoading();
+
+    
     document.getElementById('toolbar').style.display = 'block';
     document.getElementById('reset').addEventListener('click', reset);
     document.getElementById('download').addEventListener('click', download);
@@ -174,6 +184,11 @@ function init() {
     FileAPI.event.dnd(document.getElementById('main'), function (over) {
 
     }, function (files) {
+
+        showLoading('Loading models');
+        viewer.removeModel();
+        timeline.hideTimeline();
+
         project.createModelFilesURL(files).then(function (res) {
             var glTF = res.glTF;
             var filesMap = res.filesMap;
@@ -200,6 +215,9 @@ function init() {
                 zUpToYUp: config.zUpToYUp,
                 includeTexture: !haveQMVConfig
             }).on('ready', function () {
+
+                hideLoading();
+
                 if (haveQMVConfig) {
                     (glTF.extras.qtekModelViewerConfig.materials || []).forEach(function (matConfig) {
                         for (var key in matConfig) {

@@ -1,73 +1,78 @@
 <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <script src="lib/pace.min.js"></script>
-            <title>QTEK Model Viewer</title>
-            <link rel="stylesheet" href="css/controlKit.css">
-            <link rel="stylesheet" href="css/main.css">
-            <link rel="stylesheet" href="css/iconfont/iconfont.css">
-            <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.css">
-            <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css">
-        </head>
-        <body>
-            <div id="main">
-                <div id="viewport"></div>
-                <div id="tip">
-                    Drag glTF2.0 and texture files or folder on the viewport.
-                    <div class="hint">
-                        Get glTF2.0 models from
-                        <ul>
-                            <li>
-                                <a href="https://github.com/KhronosGroup/glTF-Sample-Models" target="_blank">glTF Sample Models</a>
-                            </li>
-                            <li>
-                                <a href="https://sketchfab.com/features/gltf" target="_blank">Sketchfab</a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                <div id="credits">
-                    <a href="https://github.com/pissang/qtek-model-viewer" target="_blank" class="source">Source Code</a>
-                    Built on top of
-                        <a href="https://github.com/pissang/qtek" target="_blank">QTEK</a>,
-                        <a href="https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md" target="_blank">glTF2.0</a>,
-                        <a href="https://github.com/automat/controlkit.js" target="_blank">ControlKit</a>
-                </div>
-                <div id="timeline">
-                    <div id="timeline-range-wrap">
-                        <div id="timeline-range">
-                            <input>
-                        </div>
-                    </div>
-                    <div id="timeline-progress-wrap">
-                        <div id="timeline-progress">
-                            <input>
-                        </div>
-                        <div id="timeline-pause-resume" class="iconfont icon-pause"></div>
-                    </div>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script src="lib/pace.min.js"></script>
+        <title>QTEK Model Viewer</title>
+        <link rel="stylesheet" href="css/controlKit.css">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/iconfont/iconfont.css">
+        <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.css">
+        <link rel="stylesheet" href="lib/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css">
+    </head>
+    <body>
+        <div id="main">
+            <div id="viewport"></div>
+            <div id="tip">
+                Drag glTF2.0 and texture files or folder on the viewport.
+                <div class="hint">
+                    Get glTF2.0 models from
+                    <ul>
+                        <li>
+                            <a href="https://github.com/KhronosGroup/glTF-Sample-Models" target="_blank">glTF Sample Models</a>
+                        </li>
+                        <li>
+                            <a href="https://sketchfab.com/features/gltf" target="_blank">Sketchfab</a>
+                        </li>
+                    </ul>
                 </div>
             </div>
-            <div id="loading">
-                <img src="./img/loading.gif" alt="">
-                <div>LOADING...</div>
+            <div id="credits">
+                <a href="https://github.com/pissang/qtek-model-viewer" target="_blank" class="source">Source Code</a>
+                Built on top of
+                    <a href="https://github.com/pissang/qtek" target="_blank">QTEK</a>,
+                    <a href="https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md" target="_blank">glTF2.0</a>,
+                    <a href="https://github.com/automat/controlkit.js" target="_blank">ControlKit</a>
             </div>
-            <div id="toolbar">
-                <span class="iconfont icon-download" id="download" title="Download"></span>
-                <span class="iconfont icon-reset" id="reset" title="Reset"></span>
+            <div id="timeline">
+                <div id="timeline-range-wrap">
+                    <div id="timeline-range">
+                        <input>
+                    </div>
+                </div>
+                <div id="timeline-progress-wrap">
+                    <div id="timeline-progress">
+                        <input>
+                    </div>
+                    <div id="timeline-pause-resume" class="iconfont icon-pause"></div>
+                </div>
             </div>
-            <script src="lib/controlKit.js"></script>
-            <script src="lib/FileAPI.js"></script>
-            <script src="lib/FileSaver.js"></script>
-            <script src="lib/sweetalert.min.js"></script>
-            <script src="lib/jszip.min.js"></script>
-            <!-- <script src="lib/idb.filesystem.js"></script> -->
-            <script>
-                window.$ = window.jQuery = require('./lib/jquery.min');
-            </script>
-            <script src="lib/ion.rangeSlider.js"></script>
-            <script>
-                require('./electron/bundle.js');
-            </script>
-        </body>
-        </html>
+        </div>
+        <div id="loading">
+            <div class="sk-folding-cube">
+                <div class="sk-cube1 sk-cube"></div>
+                <div class="sk-cube2 sk-cube"></div>
+                <div class="sk-cube4 sk-cube"></div>
+                <div class="sk-cube3 sk-cube"></div>
+            </div>
+            <div id="loading-text">LOADING</div>
+        </div>
+        <div id="toolbar">
+            <span class="iconfont icon-download" id="download" title="Download"></span>
+            <span class="iconfont icon-reset" id="reset" title="Reset"></span>
+        </div>
+        <script src="lib/controlKit.js"></script>
+        <script src="lib/FileAPI.js"></script>
+        <script src="lib/FileSaver.js"></script>
+        <script src="lib/sweetalert.min.js"></script>
+        <script src="lib/jszip.min.js"></script>
+        <!-- <script src="lib/idb.filesystem.js"></script> -->
+        <script>
+            window.$ = window.jQuery = require('./lib/jquery.min');
+        </script>
+        <script src="lib/ion.rangeSlider.js"></script>
+        <script>
+            require('./electron/bundle.js');
+        </script>
+    </body>
+</html>
