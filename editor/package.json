@@ -1,13 +1,23 @@
 {
-  "name": "qtek-model-editor",
-  "version": "1.0.0",
+  "name": "qtek-model-viewer",
+  "version": "0.1.0",
   "description": "",
   "main": "electron.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "Yi Shen",
-  "license": "ISC",
+  "license": "BSD-3-Clause",
+  "build": {
+    "appId": "ECOMFE.QTEKModelViewer",
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": "zip"
+    }
+  },
+  "scripts": {
+    "build": "webpack -p",
+    "build:electron": "TARGET=electron webpack",
+    "build:fbx2gltf": "pyinstaller electron/convert/fbx2gltf.py && rm -rf electron/convert/build",
+    "dist:electron": "npm run build:electron && build"
+  },
   "devDependencies": {
     "electron": "^1.7.9"
   }

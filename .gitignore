@@ -6,7 +6,13 @@ node_modules
 .vscode/
 npm-debug.log
 .jshintrc
+editor/electron
+editor/dist
+
+
 examples/baidu_asset
 examples/baidu_asset2
 examples/baidu_asset3
+examples/baidu_asset4
 examples/sample_asset
+examples/other

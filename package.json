@@ -18,14 +18,14 @@
     "shelljs": "^0.7.8"
   },
   "scripts": {
-    "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/QMV.js > dist/QMV.min.js",
-    "build:browser": "webpack -p --config editor/webpack.config.js",
-    "build:electron": "TARGET=electron webpack --config editor/webpack.config.js",
-    "build:fbx2gltf": "pyinstaller editor/electron/convert/fbx2gltf.py && rm -rf editor/electron/convert/build",
-    "dist:electron": "npm run build:electron && build",
-    "cdist:electron": "export ELECTRON_MIRROR=https://npm.taobao.org/mirrors/electron/ && dist:electron",
     "dev": "rollup -c -w",
-    "glsl2js": "node build/glsl2js.js"
+    "glsl2js": "node build/glsl2js.js",
+    "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/QMV.js > dist/QMV.min.js",
+    "build:editor": "cd ./editor && npm run build",
+    "build:electron": "cd ./editor && npm run build:electron",
+    "build:fbx2gltf": "cd ./editor && npm run build:fbx2gltf",
+    "dist:electron": "cd ./editor && npm run dist:electron",
+    "cdist:electron": "export ELECTRON_MIRROR=https://npm.taobao.org/mirrors/electron/ && cd ./editor && npm run dist:electron"
   },
   "author": "Yi Shen"
 }
