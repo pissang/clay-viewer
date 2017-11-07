@@ -26,11 +26,14 @@ module.exports = function (files) {
             });
         });
     })).then(function (nameList) {
+        var firstModelFileName = nameList.find(function (name) {
+            return path.extname(name) !== '.mtl';
+        });
         return new Promise(function (resolve, reject) {
-            let glTFFileName = path.basename(nameList[0], path.extname(nameList[0]));
+            let glTFFileName = path.basename(firstModelFileName, path.extname(firstModelFileName));
             let glTFPath = `${modelTmpPath}/${glTFFileName}.gltf`;
             let glTFBinPath = `${modelTmpPath}/${glTFFileName}.bin`;
-            let fullPath = `${modelTmpPath}${nameList[0]}`;
+            let fullPath = `${modelTmpPath}${firstModelFileName}`;
 
             child_process.execFile(
                 path.join(electron.remote.app.getAppPath(), 'electron/convert/dist/fbx2gltf/fbx2gltf'),

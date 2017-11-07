@@ -185,7 +185,7 @@ function init() {
 
     }, function (files) {
 
-        showLoading('Loading models');
+        showLoading('Loading model');
         viewer.removeModel();
         timeline.hideTimeline();
         hideTip();

@@ -188,20 +188,22 @@ function createModelFilesURL(files) {
             }
     
             if (glTFText) {
-                files.push(new File(
-                    [glTFText],
-                    glTFName + '.gltf',
-                    { type: 'application/json' }
-                ), new File(
-                    [glTFBuffer],
-                    glTFName + '.bin',
-                    { type: 'application/octet-stream' }
-                ));
-                resolve({
-                    glTF: JSON.parse(glTFText),
-                    filesMap: filesMap, 
-                    buffers: [glTFBuffer],
-                    allFiles: files
+                readAllFiles(function (filesMap) {
+                    files.push(new File(
+                        [glTFText],
+                        glTFName + '.gltf',
+                        { type: 'application/json' }
+                    ), new File(
+                        [glTFBuffer],
+                        glTFName + '.bin',
+                        { type: 'application/octet-stream' }
+                    ));
+                    resolve({
+                        glTF: JSON.parse(glTFText),
+                        filesMap: filesMap, 
+                        buffers: [glTFBuffer],
+                        allFiles: files
+                    });
                 });
             }
             else {
