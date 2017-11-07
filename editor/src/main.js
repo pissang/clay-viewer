@@ -235,6 +235,10 @@ function init() {
 
             env.AUTO_SAVE && project.saveModelFiles(files);
         }).catch(function (err) {
+
+            hideLoading();
+            showTip();
+
             console.log(err);
             swal(err.toString());
         });

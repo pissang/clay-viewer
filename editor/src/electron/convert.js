@@ -1,14 +1,14 @@
 const fs = require('fs');
-const shell = require('shelljs');
+// const shell = require('shelljs');
 const path = require('path');
 const electron = require('electron');
+const child_process = require('child_process');
 
 // Modules for model converting
 module.exports = function (files) {
     let appDataPath = electron.remote.app.getPath('documents');
     let QMVPath = `${appDataPath}/QTEK Model Viewer`;
     let modelTmpPath = `${QMVPath}/tmp/`;
-    console.log(appDataPath);
     if (!fs.existsSync(QMVPath)) {
         fs.mkdirSync(QMVPath);
     }
@@ -30,10 +30,12 @@ module.exports = function (files) {
             let glTFFileName = path.basename(nameList[0], path.extname(nameList[0]));
             let glTFPath = `${modelTmpPath}/${glTFFileName}.gltf`;
             let glTFBinPath = `${modelTmpPath}/${glTFFileName}.bin`;
-            let fullPath = `${modelTmpPath}${nameList[0]}`.replace(/ /g, '\\ ');
-            shell.exec(`./electron/convert/dist/fbx2gltf/fbx2gltf ${fullPath}`, {
-                async: true
-            }, function (code, stdout, stderr) {
+            let fullPath = `${modelTmpPath}${nameList[0]}`;
+
+            child_process.execFile(
+                path.join(electron.remote.app.getAppPath(), 'electron/convert/dist/fbx2gltf/fbx2gltf'),
+                [fullPath], function (error, stdout, stderr
+            ) {
                 if (fs.existsSync(glTFPath)) {
                     resolve({
                         name: glTFFileName,
@@ -42,7 +44,7 @@ module.exports = function (files) {
                     });
                 }
                 else {
-                    reject(stdout);
+                    reject(error || stderr || stdout);
                 }
             });
         });

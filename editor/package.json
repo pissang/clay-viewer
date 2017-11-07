@@ -10,13 +10,15 @@
     "mac": {
       "category": "public.app-category.graphics-design",
       "target": "zip"
-    }
+    },
+    "asarUnpack": "electron/convert/**/*"
   },
   "scripts": {
     "build": "webpack -p",
     "build:electron": "TARGET=electron webpack",
-    "build:fbx2gltf": "pyinstaller electron/convert/fbx2gltf.py && rm -rf electron/convert/build",
-    "dist:electron": "npm run build:electron && build"
+    "build:fbx2gltf": "cd electron/convert && pyinstaller fbx2gltf.py && rm -rf build && cp lib/fbxsip.so dist/fbx2gltf",
+    "dist:electron": "npm run build:electron && build",
+    "pack:electron": "npm run build:electron && build --dir"
   },
   "devDependencies": {
     "electron": "^1.7.9"

@@ -148,7 +148,7 @@ function createModelFilesURL(files) {
                         var glTFBuffer = _buffer.buffer.slice(_buffer.byteOffset, _buffer.byteOffset + _buffer.byteLength);
                         afterFileConvert(result.name, result.json, glTFBuffer);
                     }, function (err) {
-                        reject('Failed to convert file:' + err.toString());
+                        reject('Failed to convert model:' + err.toString());
                     });
                 }
                 else {
