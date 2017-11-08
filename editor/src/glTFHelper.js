@@ -180,6 +180,12 @@ function getSpecularGlossiness(matConfig, textureIndices) {
         glossinessFactor: matConfig.glossiness
     };
     specularGlossiness.diffuseFactor[3] = matConfig.alpha;
+    if (matConfig.diffuseMap) {
+        specularGlossiness.diffuseTexture = {
+            index: textureIndices[matConfig.diffuseMap],
+            texCoord: 0
+        };
+    }
     if (matConfig.specularMap) {
         // specularMap is already merged with glossinessMap
         specularGlossiness.specularGlossinessTexture = {
