@@ -6,6 +6,7 @@
   "dependencies": {},
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
+    "cross-env": "^5.1.1",
     "filer.js": "^0.4.5",
     "glob": "^7.1.2",
     "qtek": "^0.5.0",
@@ -13,9 +14,9 @@
     "rollup-plugin-node-resolve": "^3.0.0",
     "rollup-watch": "^4.3.1",
     "san": "^3.2.9",
+    "shelljs": "^0.7.8",
     "webpack": "^3.6.0",
-    "zrender": "^3.5.2",
-    "shelljs": "^0.7.8"
+    "zrender": "^3.5.2"
   },
   "scripts": {
     "dev": "rollup -c -w",
@@ -25,7 +26,7 @@
     "build:electron": "cd ./editor && npm run build:electron",
     "build:fbx2gltf": "cd ./editor && npm run build:fbx2gltf",
     "dist:electron": "cd ./editor && npm run dist:electron",
-    "cdist:electron": "export ELECTRON_MIRROR=https://npm.taobao.org/mirrors/electron/ && cd ./editor && npm run dist:electron"
+    "cdist:electron": "cd ./editor && npm run cdist:electron"
   },
   "author": "Yi Shen"
 }

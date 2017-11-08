@@ -17,10 +17,12 @@
     "build": "webpack -p",
     "build:electron": "TARGET=electron webpack",
     "build:fbx2gltf": "cd electron/convert && pyinstaller fbx2gltf.py && rm -rf build && cp lib/fbxsip.so dist/fbx2gltf",
+    "cdist:electron": "npm run build:electron && cross-env ELECTRON_MIRROR=https://npm.taobao.org/mirrors/electron/ build",
     "dist:electron": "npm run build:electron && build",
     "pack:electron": "npm run build:electron && build --dir"
   },
   "devDependencies": {
+    "cross-env": "^5.1.1",
     "electron": "^1.7.9"
   }
 }
