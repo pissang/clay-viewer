@@ -331,6 +331,11 @@ function downloadProject(format) {
                     if (newGLTF.extensionsUsed.indexOf('KHR_materials_pbrSpecularGlossiness') < 0) {
                         newGLTF.extensionsUsed.push('KHR_materials_pbrSpecularGlossiness');
                     }
+                    ['images', 'textures', 'samplers', 'animations'].forEach(function (key) {
+                        if (newGLTF[key] && !newGLTF[key].length) {
+                            delete newGLTF[key];
+                        }
+                    });
                     // Remove unused images
                     files = files.filter(function (file) {
                         if (file.type.match(/image/)) {
