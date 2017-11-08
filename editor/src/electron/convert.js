@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const electron = require('electron');
 const child_process = require('child_process');
+const os = require('os');
 
 // Modules for model converting
 module.exports = function (files) {
@@ -35,10 +36,11 @@ module.exports = function (files) {
             let glTFBinPath = `${modelTmpPath}/${glTFFileName}.bin`;
             let fullPath = `${modelTmpPath}${firstModelFileName}`;
 
-            child_process.execFile(
-                path.join(electron.remote.app.getAppPath(), 'electron/convert/dist/fbx2gltf/fbx2gltf'),
-                [fullPath], function (error, stdout, stderr
-            ) {
+            let exePath = path.join(electron.remote.app.getAppPath(), 'electron/convert/dist/fbx2gltf/fbx2gltf');
+            if (os.platform() === 'win32') {
+                exePath += '.exe';
+            }
+            child_process.execFile(exePath, [fullPath], function (error, stdout, stderr) {
                 if (fs.existsSync(glTFPath)) {
                     resolve({
                         name: glTFFileName,
