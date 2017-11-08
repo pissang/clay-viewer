@@ -484,6 +484,9 @@ setInterval(function () {
 
 window.addEventListener('resize', function () { viewer.resize(); });
 
-document.body.addEventListener('drop', function (e) {
+window.addEventListener('dragover', function (e) {
+    e.preventDefault();
+});
+window.addEventListener('drop', function (e) {
     e.preventDefault();
 });
