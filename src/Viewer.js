@@ -536,7 +536,12 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         }
     });
     meshNeedsSplit.forEach(function (mesh) {
-        meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+        var newNode = meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+        if (newNode !== mesh) {
+            newNode.eachChild(function (mesh) {
+                mesh.originalMeshName = newNode.name;
+            });
+        }
     }, this);
     rootNode.traverse(function (mesh) {
         if (mesh.geometry) {

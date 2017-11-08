@@ -472,7 +472,7 @@ setInterval(function () {
         if (viewer.getModelRoot()) {
             viewer.getModelRoot().traverse(function (mesh) {
                 if (mesh.material && materialsMap[mesh.material.name]) {
-                    materialsMap[mesh.material.name].targetMeshes.push(mesh.name);
+                    materialsMap[mesh.material.name].targetMeshes.push(mesh.originalMeshName || mesh.name);
                 }
             });
         }

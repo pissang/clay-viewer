@@ -282,7 +282,6 @@ function downloadProject(format) {
             swal('No glTF file in project!');
         }
 
-
         Promise.all(loadedSceneCfg.materials.map(function (matConfig, idx) {
             // TODO Different material use same metalnessMap and roughnessMap.
             if (matConfig.metalnessMap || matConfig.roughnessMap) {
@@ -328,6 +327,10 @@ function downloadProject(format) {
             FileAPI.readAsText(glTFFile, 'utf-8', function (e) {
                 if (e.type == 'load') {
                     var newGLTF = updateGLTFMaterials(JSON.parse(e.result), loadedSceneCfg);
+                    newGLTF.extensionsUsed = newGLTF.extensionsUsed || [];
+                    if (newGLTF.extensionsUsed.indexOf('KHR_materials_pbrSpecularGlossiness') < 0) {
+                        newGLTF.extensionsUsed.push('KHR_materials_pbrSpecularGlossiness');
+                    }
                     // Remove unused images
                     files = files.filter(function (file) {
                         if (file.type.match(/image/)) {
