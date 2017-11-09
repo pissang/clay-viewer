@@ -383,7 +383,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
-        var scale = fitSize / Math.max(size.x, size.y, size.z);
+        // scale may be NaN if mesh is a plane.
+        var scale = fitSize / Math.max(size.x, size.y, size.z) || 1;
 
         this._modelNode.scale.set(scale, scale, scale);
         this._modelNode.position.copy(center).scale(-scale);
