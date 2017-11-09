@@ -70,6 +70,7 @@ function convertTextureToPowerOfTwo(texture) {
             ctx.drawImage(texture.image, 0, 0, width, height);
             canvas.srcImage = texture.image;
             texture.image = canvas;
+            texture.dirty();
         }
     }
 }
@@ -318,5 +319,7 @@ helper.directionFromAlphaBeta = function (alpha, beta) {
 
     return dir;
 };
+
+helper.convertTextureToPowerOfTwo = convertTextureToPowerOfTwo;
 
 export default helper;

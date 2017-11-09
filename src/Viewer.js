@@ -29,6 +29,8 @@ import HotspotManager from './HotspotManager';
 import groundGLSLCode from './graphic/ground.glsl.js';
 Shader.import(groundGLSLCode);
 
+var TEXTURES = ['diffuseMap', 'normalMap', 'emissiveMap', 'metalnessMap', 'roughnessMap', 'specularMap', 'glossinessMap'];
+
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
@@ -336,8 +338,23 @@ Viewer.prototype.setModelUpAxis = function (upAxis) {
 
     this.autoFitModel();
 };
-Viewer.prototype.setTextureFlipY = function () {
-
+Viewer.prototype.setTextureFlipY = function (flipY) {
+    if (!this._modelNode) {
+        return;
+    }
+    for (var key in this._materialsMap) {
+        for (var i = 0; i < this._materialsMap[key].length; i++) {
+            var mat = this._materialsMap[key][i];
+            for (var k = 0; k < TEXTURES.length; k++) {
+                var tex = mat.get(TEXTURES[k]);
+                if (tex) {
+                    tex.flipY = flipY;
+                    tex.dirty();
+                }
+            }
+        }
+    }
+    this.refresh();
 };
  /**
  * Resize the viewport
@@ -383,6 +400,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         // Fit the ground
         this._groundMesh.position.y = -size.y * scale / 2;
+
+        this.refresh();
     }
 };
 
@@ -485,6 +504,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         });
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
+            this._convertToPOT();
             this._convertBumpToNormal();
             task.trigger('ready');
             this.refresh();
@@ -514,6 +534,40 @@ Viewer.prototype._convertBumpToNormal = function () {
             }
         }
     } 
+};
+
+Viewer.prototype._convertToPOT = function () {
+    this._modelNode.traverse(function (mesh) {
+        if (mesh.material) {
+            var hasNPOT = false;
+            var needsConvert = false;
+            for (var i = 0; i < TEXTURES.length; i++) {
+                var tex = mesh.material.get(TEXTURES[i]);
+                if (tex && !tex.isPowerOfTwo()) {
+                    hasNPOT = true;
+                    break;
+                }
+            }
+            if (hasNPOT) {
+                var texcoordVal = mesh.geometry.attributes.texcoord0.value || [];
+                for (var i = 0; i < texcoordVal.length; i++) {
+                    var st = texcoordVal[i];
+                    if (st > 1 || st < 0) {
+                        needsConvert = true;
+                        break;
+                    }
+                }
+            }
+            if (needsConvert) {
+                for (var i = 0; i < TEXTURES.length; i++) {
+                    var tex = mesh.material.get(TEXTURES[i]);
+                    if (tex) {
+                        graphicHelper.convertTextureToPowerOfTwo(tex);
+                    }
+                }
+            }
+        }
+    });
 };
 
 /**
