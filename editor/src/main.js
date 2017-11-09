@@ -258,7 +258,9 @@ function initUI() {
 
     scenePanel.addGroup({ label: 'Global' })
         .addSubGroup( { label: 'Load Option'})
-            .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
+            .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture', onChange: function () {
+                viewer.setTextureFlipY(config.textureFlipY);
+            } })
             .addCheckbox(config, 'zUpToYUp', { label: 'Z Up', onChange: function () {
                 viewer.setModelUpAxis(config.zUpToYUp ? 'Z' : 'Y');
             } })
