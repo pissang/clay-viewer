@@ -16,7 +16,7 @@
     "san": "^3.2.9",
     "shelljs": "^0.7.8",
     "webpack": "^3.6.0",
-    "zrender": "^3.5.2"
+    "zrender": "^3.7.0"
   },
   "scripts": {
     "dev": "rollup -c -w",

@@ -605,7 +605,8 @@ Viewer.prototype.getModelRoot = function () {
 
 Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
-    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
+    var alphaCutoff = opts.alphaCutoff;
+    var doubleSided = opts.doubleSided;
     var shaderName = opts.shader || 'standard';
     var shaderLibrary = this.shaderLibrary;
 
@@ -626,14 +627,21 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
     rootNode.traverse(function (mesh) {
         if (mesh.geometry) {
             mesh.geometry.updateBoundingBox();
-            mesh.culling = false;
+            if (doubleSided != null) {
+                mesh.culling = !doubleSided;
+            }
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
             mesh.material.shader.define('fragment', 'ALPHA_TEST');
-            mesh.material.shader.define('fragment', 'DOUBLE_SIDED');
+            if (doubleSided != null) {
+                mesh.material.shader[doubleSided ? 'define' : 'undefine']('fragment', 'DOUBLE_SIDED');
+            }
             mesh.material.shader.precision = 'mediump';
-            mesh.material.set('alphaCutoff', alphaCutoff);
+
+            if (alphaCutoff != null) {
+                mesh.material.set('alphaCutoff', alphaCutoff);
+            }
 
             // Transparent mesh not cast shadow
             if (mesh.material.transparent) {
