@@ -208,10 +208,11 @@ function createModelFilesURL(files) {
             }
             else {
                 FileAPI.readAsText(glTFFile, 'utf-8', function (evt) {
-                    if (evt.type == 'load') {
+                    if (evt.type === 'load') {
                         // Success
-                         var json = JSON.parse(evt.result);
-                         readAllFiles(function (filesMap) {
+                        // TODO json parse maybe failed
+                        var json = JSON.parse(evt.result);
+                        readAllFiles(function (filesMap) {
                             resolve({
                                 glTF: json,
                                 filesMap: filesMap,

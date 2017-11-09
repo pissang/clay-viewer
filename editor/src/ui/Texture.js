@@ -37,9 +37,9 @@ function TextureUI(parent, object, key, params) {
         if (imgFile) {
             object[key] = URL.createObjectURL(imgFile);
 
-            self.update();
-
             self._onChange(imgFile, object[key]);
+
+            self.update();
         }
     }
     FileAPI.event.dnd(liEl, function (over) {

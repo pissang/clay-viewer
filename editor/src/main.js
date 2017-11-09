@@ -89,7 +89,7 @@ function changeTexture(type, file, val) {
             ['emissiveMap', 'emission', '#fff']
         ].forEach(function (item) {
             if (type === item[0]) {
-                console.warn('Force %s to be %f after set %s', item[1], item[2], item[0]);
+                console.warn('Force %s to be %s after set %s', item[1], item[2], item[0]);
                 materialConfig[item[1]] = item[2];
     
                 uiNeedUpdate = true;
@@ -97,7 +97,7 @@ function changeTexture(type, file, val) {
         }, this);
 
         // TODO Remove old textures.
-        project.writeTextureImage(file);
+        env.AUTO_SAVE && project.writeTextureImage(file);
         filesMapInverse[val] = file.name;
 
         uiNeedUpdate && controlKit.update();
@@ -472,7 +472,7 @@ setTimeout(function () {
 }, 5000);
 
 setInterval(function () {
-    if (viewer) {
+    if (viewer && !document.hidden) {
         var materialsMap = {};
         config.materials = viewer.getMaterialsNames().map(function (matName) {
             var matConfig = viewer.getMaterial(matName);
