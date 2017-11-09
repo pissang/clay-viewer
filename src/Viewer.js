@@ -531,6 +531,7 @@ Viewer.prototype._convertBumpToNormal = function () {
                 var normalImage = textureUtil.heightToNormal(normalTexture.image);
                 normalImage.srcImage = normalTexture.image;
                 normalTexture.image = normalImage;
+                normalTexture.dirty();
             }
         }
     } 

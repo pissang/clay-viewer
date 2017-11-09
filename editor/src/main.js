@@ -342,7 +342,7 @@ function initUI() {
             .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
     }
 
-    pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 240, fixed: false, align: 'left' });
+    pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 240, fixed: false, align: 'left', position: [10, 10] });
     addCommmonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
@@ -352,7 +352,7 @@ function initUI() {
     addUncommonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel.disable();
 
-    pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 240, fixed: false, align: 'left' });
+    pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 240, fixed: false, align: 'left', position: [10, 10] });
     addCommmonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })

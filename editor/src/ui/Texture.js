@@ -14,21 +14,21 @@ function TextureUI(parent, object, key, params) {
     var img = document.createElement('img');
     var deleteEl = document.createElement('div');
     deleteEl.className = 'texture-delete button';
+    var uploadEl = document.createElement('div');
+    uploadEl.className = 'texture-upload button';
 
     this._img = img;
+    this._uploadEl = uploadEl;
 
     wrap.getElement().appendChild(img);
+    wrap.getElement().appendChild(uploadEl);
     wrap.getElement().appendChild(deleteEl);
 
     this.update();
 
-    this._wrapNode.getParent().setHeight(85);
-
     var liEl = this._wrapNode.getParent().getElement();
-    FileAPI.event.dnd(liEl, function (over) {
-        over ? liEl.classList.add('drag-hover')
-            : liEl.classList.remove('drag-hover');
-    }, function (files) {
+
+    function uploadFiles(files) {
         var imgFile = files.filter(function (file) {
             return file.type.match(/image/);
         })[0];
@@ -40,6 +40,12 @@ function TextureUI(parent, object, key, params) {
 
             self._onChange(imgFile, object[key]);
         }
+    }
+    FileAPI.event.dnd(liEl, function (over) {
+        over ? liEl.classList.add('drag-hover')
+            : liEl.classList.remove('drag-hover');
+    }, function (files) {
+        uploadFiles(files);
     });
 
     // Clear
@@ -47,6 +53,14 @@ function TextureUI(parent, object, key, params) {
         object[key] = 'none';
         self.update();
         self._onChange(null, 'none');
+    });
+    uploadEl.addEventListener('click', function () {
+        var el = document.createElement('input');
+        el.type = 'file';
+        el.onchange = function (e) {
+            uploadFiles(Array.prototype.slice.call(el.files));
+        };
+        el.click();
     });
 }
 
@@ -56,7 +70,9 @@ TextureUI.prototype.constructor = TextureUI;
 TextureUI.prototype.update = function () {
     var value = this._object[this._key];
     this._img.src = value && value.toLowerCase() !== 'none' ? value : './img/chessboard.jpg';
-    this._img.style.opacity = this._object[this._key] ? 1 : 0.5;
+    this._img.style.opacity = (value && value != 'none') ? 1 : 0.5;
+
+    this._uploadEl.innerHTML = value || 'none';
 };
 
 

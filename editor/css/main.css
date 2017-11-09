@@ -182,8 +182,7 @@ body {
 
 
 #controlKit .panel .group-list .group .sub-group-list .sub-group ul li.drag-hover {
-    border: 2px solid #66f;
-    box-sizing: border-box;
+    background: #585656;
 }
 #controlKit .panel .group-list .group .sub-group-list .sub-group ul li:after {
     display: block;
@@ -209,21 +208,32 @@ body {
     float: right;
     /* cursor: pointer; */
     overflow-x: hidden;
-    padding-bottom: 5px;
+    padding-top: 3px;
 }
 .texture-wrap img {
-    height: 80px;
-    max-width: 80px;
+    height: 25px;
+    max-width: 25px;
     display: inline-block;
     vertical-align: top;
+}
+.texture-wrap .texture-upload {
+    display: inline-block;
+    width: 75px!important;
+    line-height: 25px;
+    text-align: left;
+    text-transform: none!important;
+    font-weight: normal!important;
+    padding-left: 4px!important;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 .texture-wrap .texture-delete {
     display: inline-block;
-    width: 20px!important;
-    height: 80px!important;
+    width: 15px!important;
     vertical-align: top;
     text-align: center;
-    line-height: 80px;
+    line-height: 25px;
     text-transform: none!important;
 }
 .texture-wrap .texture-delete::after {
