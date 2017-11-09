@@ -38,27 +38,23 @@
     <script type="text/javascript">
         var viewer = new QMV.Viewer(document.getElementById('main'), {
             shadow: false,
+            postEffect: {
+                enable: true
+            }
             // renderDebugSkeleton: true
         });
 
         var modelUrl = location.search.slice(1);
 
         viewer.loadModel((modelUrl || 'baidu_asset/dragon/dragon') + '.gltf', {
-            shader: 'basic'
+            textureFlipY: true
+            // shader: 'basic'
         })
             .on('loadmodel', function (modelStat) {
                 viewer.setCameraControl({
                     alpha: 20,
                     beta: 30
                 });
-                viewer.setMaterial('lambert3', {
-                    transparent: true,
-                    alphaCutoff: 0.
-                });
-                viewer.setMaterial('BDTWXK_yinhe_b_shader', {
-                    transparent: true,
-                    alphaCutoff: 0.
-                })
                 viewer.start();
 
                 var dom = viewer.addHotspot([5, 2, 0], `
@@ -88,7 +84,7 @@
             lightColor: '#fff',
             lightAlpha: 45,
             lightBeta: 45,
-            ambientIntensity: 0.8
+            ambientIntensity: 0.3
         }
         var gui = new dat.GUI();
 
@@ -107,7 +103,9 @@
         gui.addColor(config, 'lightColor').onChange(updateLight);
         gui.add(config, 'lightAlpha', 0, 180).onChange(updateLight);
         gui.add(config, 'lightBeta', -180, 180).onChange(updateLight);
-        gui.add(config, 'ambientIntensity', 0, 4).onChange(updateLight);
+        gui.add(config, 'ambientIntensity', 0, 1).onChange(updateLight);
+
+        updateLight();
     </script>
 </body>
 </html>

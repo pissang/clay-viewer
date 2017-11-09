@@ -5,6 +5,7 @@ function TextureUI(parent, object, key, params) {
     this._key = key;
 
     this._onChange = params.onChange || function () {};
+    this._getFileNameByURL = params.getFileName || function (url) { return url; };
 
     var self = this;
 
@@ -72,7 +73,7 @@ TextureUI.prototype.update = function () {
     this._img.src = value && value.toLowerCase() !== 'none' ? value : './img/chessboard.jpg';
     this._img.style.opacity = (value && value != 'none') ? 1 : 0.5;
 
-    this._uploadEl.innerHTML = value || 'none';
+    this._uploadEl.innerHTML = this._getFileNameByURL(value) || value || 'none';
 };
 
 

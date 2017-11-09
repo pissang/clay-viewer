@@ -60,15 +60,39 @@
     <script type="text/javascript">
         var $status = document.getElementById('status');
         var viewer = new QMV.Viewer(document.getElementById('main'), {
-            shadow: true,
-            renderDebugSkeleton: true
+            shadow: false,
+            // devicePixelRatio: 1,
+            postEffect: {
+                enable: false,
+                bloom: {
+                    enable: true
+                },
+                screenSpaceAmbientOcclusion: {
+                    enable: true,
+                    radius: 0.5,
+                    quality: 'high'
+                },
+                FXAA: {
+                    enable: true
+                }
+            },
+            mainLight: {
+                intensity: 1.0
+            },
+            ambientLight: {
+                intensity: 0.3
+            }
         });
 
         var modelUrl = location.search.slice(1);
         var baseUrl = (modelUrl || 'baidu_asset/dragon/dragon');
 
         $status.innerHTML = '加载模型中....';
-        viewer.loadModel(baseUrl + '.gltf')
+        viewer.loadModel(baseUrl + '.gltf', {
+                // shader: 'basic',
+                // includeTexture: false,
+                textureFlipY: true,
+            })
             .on('loadmodel', function (modelStat) {
                 viewer.setCameraControl({
                     alpha: 20,
@@ -79,7 +103,6 @@
                     // minDistance: 1
                     // center: [0, 0, 0]
                 });
-                viewer.start();
 
                 $status.innerHTML = '加载动画中....';
                 setTimeout(function () {
@@ -98,6 +121,7 @@
                 console.log('纹理：', modelStat.textureCount);
             })
             .on('ready', function () {
+                viewer.start();
                 console.log('all loaded');
             })
             .on('error', function () {
@@ -105,6 +129,7 @@
             });
 
         document.getElementById('pause').onclick = function () {
+            viewer.dispose();
             viewer.pauseAnimation();
         }
         document.getElementById('resume').onclick = function () {

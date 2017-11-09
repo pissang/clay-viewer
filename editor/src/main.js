@@ -4,7 +4,7 @@ import getDefaultMaterialConfig from './getDefaultMaterialConfig';
 import * as project from './project';
 import env from './env';
 import util from 'qtek/src/core/util';
-import zrUtil from 'zrender/lib/core/util';
+import * as zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
@@ -323,6 +323,10 @@ function initUI() {
             .addNumberInput(config.postEffect.colorCorrection, 'contrast', { label: 'Contrast', step: 0.1, onChange: updatePostEffect })
             .addNumberInput(config.postEffect.colorCorrection, 'saturation', { label: 'Saturation', step: 0.1, onChange: updatePostEffect });
 
+    function getTextureFileName(url) {
+        return filesMapInverse && filesMapInverse[url];
+    }
+
     function addCommmonProperties(panel) {
         panel
             .addStringOutput(materialConfig, 'name', { label: 'Name' })
@@ -330,25 +334,25 @@ function initUI() {
             .addSlider(materialConfig, 'alpha', '$alphaRange', { label: 'Alpha', onChange: updateMaterial })
             .addSlider(materialConfig, 'alphaCutoff', '$alphaCutoffRange', { label: 'Alpha Cutoff', onChange: updateMaterial })
             .addNumberInput(materialConfig, '$textureTiling', { label: 'Tiling', onChange: updateMaterial, step: 0.5 })
-            .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap') })
-            .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap') })
+            .addCustomComponent(TextureUI, materialConfig, 'diffuseMap', { label: 'Base Map', onChange: changeTexture.bind(null, 'diffuseMap'), getFileName: getTextureFileName })
+            .addCustomComponent(TextureUI, materialConfig, 'normalMap', { label: 'Normal/Bump Map', onChange: changeTexture.bind(null, 'normalMap'), getFileName: getTextureFileName })
     }
     function addUncommonProperties(panel) {
         panel
-            .addCustomComponent(TextureUI, materialConfig, 'parallaxOcclusionMap', { label: 'Parallax Occlusion Map', onChange: changeTexture.bind(null, 'parallaxOcclusionMap') })
+            .addCustomComponent(TextureUI, materialConfig, 'parallaxOcclusionMap', { label: 'Parallax Occlusion Map', onChange: changeTexture.bind(null, 'parallaxOcclusionMap'), getFileName: getTextureFileName })
             .addSlider(materialConfig, 'parallaxOcclusionScale', '$parallaxOcclusionScaleRange', { label: 'Scale', onChange: updateMaterial })
             .addColor(materialConfig, 'emission', { label: 'Emission', onChange: updateMaterial })
             .addNumberInput(materialConfig, 'emissionIntensity', { label: 'Emission Intensity', onChange: updateMaterial })
-            .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap') });
+            .addCustomComponent(TextureUI, materialConfig, 'emissiveMap', { label: 'Emissive Map', onChange: changeTexture.bind(null, 'emissiveMap'), getFileName: getTextureFileName });
     }
 
     pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 240, fixed: false, align: 'left', position: [10, 10] });
     addCommmonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel
         .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap'), getFileName: getTextureFileName })
         .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap') });
+        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap'), getFileName: getTextureFileName });
     addUncommonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel.disable();
 
@@ -357,8 +361,8 @@ function initUI() {
     pbrSpecularGlossinessPanel
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap') })
-        .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap') })
+        .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap'), getFileName: getTextureFileName })
+        .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap'), getFileName: getTextureFileName })
     addUncommonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel.disable();
 }
