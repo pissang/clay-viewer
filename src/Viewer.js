@@ -307,14 +307,39 @@ Viewer.prototype._clickHandler = function (e) {
     }
 };
 
-
+/**
+ * Enable picking
+ */
 Viewer.prototype.enablePicking = function () {
     this._enablePicking = true;
 };
+/**
+ * Disable picking
+ */
 Viewer.prototype.disablePicking = function () {
     this._enablePicking = false;
 };
 /**
+ * Model coordinate system is y up.
+ */
+Viewer.prototype.setModelUpAxis = function (upAxis) {
+    var modelNode = this._modelNode;
+    if (!modelNode) {
+        return;
+    }
+    modelNode.position.set(0, 0, 0);
+    modelNode.scale.set(1, 1, 1);
+    modelNode.rotation.identity();
+    if (upAxis.toLowerCase() === 'z') {
+        modelNode.rotation.identity().rotateX(-Math.PI / 2);
+    }
+
+    this.autoFitModel();
+};
+Viewer.prototype.setTextureFlipY = function () {
+
+};
+ /**
  * Resize the viewport
  */
 Viewer.prototype.resize = function () {
@@ -352,7 +377,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         // FIXME, Do it in the renderer?
         this._modelNode.traverse(function (mesh) {
             if (mesh.isSkinnedMesh()) {
-                mesh.geometry.boundingBox.applyTransform(this._modelNode.worldTransform)
+                mesh.geometry.boundingBox.applyTransform(this._modelNode.worldTransform);
             }
         }, this);
 
@@ -369,7 +394,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {boolean} [opts.includeTexture=true]
  * @param {Object} [opts.files] Pre-read files map
  * @param {Array.<ArrayBuffer>} [opts.buffers]
- * @param {boolean} [opts.zUpToYUp=false] Change model to y up
+ * @param {boolean} [opts.upAxis='y'] Change model to y up if upAxis is 'z'
  * @param {boolean} [opts.textureFlipY=false]
  */
 Viewer.prototype.loadModel = function (gltfFile, opts) {
@@ -417,7 +442,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         loader.parse(gltfFile, opts.buffers);
     }
 
-    if (opts.zUpToYUp) {
+    if (opts.upAxis && opts.upAxis.toLowerCase() === 'z') {
         loader.rootNode.rotation.rotateX(-Math.PI / 2);
     }
 

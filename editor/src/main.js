@@ -187,7 +187,6 @@ function init() {
 
         showLoading('Loading model');
         timeline.hideTimeline();
-        hideTip();
 
         project.createModelFilesURL(files).then(function (res) {
             var glTF = res.glTF;
@@ -210,10 +209,11 @@ function init() {
                 files: filesMap,
                 buffers: buffers,
                 textureFlipY: config.textureFlipY,
-                zUpToYUp: config.zUpToYUp,
+                upAxis: config.zUpToYUp ? 'z' : 'y',
                 includeTexture: !haveQMVConfig
             }).on('ready', function () {
 
+                hideTip();
                 hideLoading();
 
                 if (haveQMVConfig) {
@@ -226,7 +226,12 @@ function init() {
                         viewer.setMaterial(matConfig.name, matConfig);
                     });
                 }
-            }).on('loadmodel', afterLoadModel);
+            })
+            .on('loadmodel', afterLoadModel)
+            .on('error', function () {
+                hideLoading();
+                swal('Model load error');
+            });
 
             pbrRoughnessMetallicPanel.disable();
             pbrSpecularGlossinessPanel.disable();
@@ -254,7 +259,9 @@ function initUI() {
     scenePanel.addGroup({ label: 'Global' })
         .addSubGroup( { label: 'Load Option'})
             .addCheckbox(config, 'textureFlipY', { label: 'Flip Texture' })
-            .addCheckbox(config, 'zUpToYUp', { label: 'Z Up' })
+            .addCheckbox(config, 'zUpToYUp', { label: 'Z Up', onChange: function () {
+                viewer.setModelUpAxis(config.zUpToYUp ? 'Z' : 'Y');
+            } })
         .addSubGroup( { label: 'Ground' })
             .addCheckbox(config.ground, 'show', { label: 'Show', onChange: updateGround });
 
@@ -423,7 +430,7 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
         viewer.loadModel(glTF, {
             files: filesMap,
             textureFlipY: config.textureFlipY,
-            zUpToYUp: config.zUpToYUp,
+            upAxis: config.zUpToYUp ? 'z' : 'y',
             // Not load texture, setMaterial will do it.
             includeTexture: false
         }).on('ready', function () {
@@ -438,7 +445,12 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
                     viewer.setMaterial(matConfig.name, matConfig);
                 });
             }
-        }).on('loadmodel', afterLoadModel);
+        })
+        .on('loadmodel', afterLoadModel)
+        .on('error', function () {
+            showTip();
+            swal('Model load error');
+        });
     }
     else {
         showTip();
