@@ -1,11 +1,11 @@
 import Texture from 'qtek/src/Texture';
 import Material from 'qtek/src/Material';
-import LRUCache from 'zrender/lib/core/LRU';
+import LRUCache from 'zrender/src/core/LRU';
 import textureUtil from 'qtek/src/util/texture';
 import AmbientCubemapLight from 'qtek/src/light/AmbientCubemap';
 import AmbientSHLight from 'qtek/src/light/AmbientSH';
 import shUtil from 'qtek/src/util/sh';
-import colorUtil from 'zrender/lib/tool/color';
+import * as colorUtil from 'zrender/src/tool/color';
 import Texture2D from 'qtek/src/Texture2D';
 
 function isValueNone(value) {

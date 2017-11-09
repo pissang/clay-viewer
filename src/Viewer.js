@@ -20,7 +20,7 @@ import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
 import SceneHelper from './graphic/SceneHelper';
 import defaultSceneConfig from './defaultSceneConfig';
-import zrUtil from 'zrender/lib/core/util';
+import * as zrUtil from 'zrender/src/core/util';
 
 import getBoundingBoxWithSkinning from './util/getBoundingBoxWithSkinning';
 import OrbitControl from 'qtek/src/plugin/OrbitControl';
