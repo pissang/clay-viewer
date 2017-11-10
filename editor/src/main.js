@@ -460,6 +460,7 @@ project.init(function (glTF, filesMap, loadedSceneCfg) {
             files: filesMap,
             textureFlipY: config.textureFlipY,
             upAxis: config.zUpToYUp ? 'z' : 'y',
+            doubleSided: true,
             // Not load texture, setMaterial will do it.
             includeTexture: false
         }).on('ready', function () {
