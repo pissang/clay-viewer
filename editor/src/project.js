@@ -359,7 +359,7 @@ function createModelFilesURL(files) {
     });
 }
 
-function downloadProject(format) {
+function downloadProject(format, onsuccess, onerror) {
     Promise.all([
         readModelFilesFromFS(),
         loadSceneFromFS()
@@ -480,6 +480,7 @@ function downloadProject(format) {
                         zip.generateAsync({ type: 'blob' })
                         .then(function (blob) {
                             saveAs(blob, 'model.zip');
+                            onsuccess && onsuccess();
                         });
                     }
                 }
@@ -487,6 +488,7 @@ function downloadProject(format) {
         });
     }).catch(function (err) {
         swal(err.toString());
+        onerror && onerror();
     })
 }
 

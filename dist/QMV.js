@@ -9037,15 +9037,8 @@ var Texture = Base.extend(
         _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, this.premultiplyAlpha);
         _gl.pixelStorei(_gl.UNPACK_ALIGNMENT, this.unpackAlignment);
 
-        this._fallBack(renderer);
-    },
-
-    _fallBack: function (renderer) {
         // Use of none-power of two texture
         // http://www.khronos.org/webgl/wiki/WebGL_and_OpenGL_Differences
-
-        var isPowerOfTwo = this.isPowerOfTwo();
-
         if (this.format === glenum.DEPTH_COMPONENT) {
             this.useMipmap = false;
         }
@@ -9059,44 +9052,44 @@ var Texture = Base.extend(
             this.format = Texture.RGBA;
         }
 
-        if (!isPowerOfTwo || !this.useMipmap) {
-            // none-power of two flag
-            this.NPOT = true;
-            // Save the original value for restore
-            this._minFilterOriginal = this.minFilter;
-            this._magFilterOriginal = this.magFilter;
-            this._wrapSOriginal = this.wrapS;
-            this._wrapTOriginal = this.wrapT;
+        this.NPOT = !this.isPowerOfTwo();
+    },
 
-            if (this.minFilter == glenum.NEAREST_MIPMAP_NEAREST ||
-                this.minFilter == glenum.NEAREST_MIPMAP_LINEAR) {
-                this.minFilter = glenum.NEAREST;
-            } else if (
-                this.minFilter == glenum.LINEAR_MIPMAP_LINEAR ||
-                this.minFilter == glenum.LINEAR_MIPMAP_NEAREST
+    getAvailableWrapS: function () {
+        if (this.NPOT) {
+            return glenum.CLAMP_TO_EDGE;
+        }
+        return this.wrapS;
+    },
+    getAvailableWrapT: function () {
+        if (this.NPOT) {
+            return glenum.CLAMP_TO_EDGE;
+        }
+        return this.wrapT;
+    },
+    getAvailableMinFilter: function () {
+        var minFilter = this.minFilter;
+        if (this.NPOT || !this.useMipmap) {
+            if (minFilter == glenum.NEAREST_MIPMAP_NEAREST ||
+                minFilter == glenum.NEAREST_MIPMAP_LINEAR
             ) {
-                this.minFilter = glenum.LINEAR;
+                return glenum.NEAREST;
             }
-
-            this.wrapS = glenum.CLAMP_TO_EDGE;
-            this.wrapT = glenum.CLAMP_TO_EDGE;
+            else if (minFilter == glenum.LINEAR_MIPMAP_LINEAR ||
+                minFilter == glenum.LINEAR_MIPMAP_NEAREST
+            ) {
+                return glenum.LINEAR;
+            }
+            else {
+                return minFilter;
+            }
         }
         else {
-            this.NPOT = false;
-            if (this._minFilterOriginal) {
-                this.minFilter = this._minFilterOriginal;
-            }
-            if (this._magFilterOriginal) {
-                this.magFilter = this._magFilterOriginal;
-            }
-            if (this._wrapSOriginal) {
-                this.wrapS = this._wrapSOriginal;
-            }
-            if (this._wrapTOriginal) {
-                this.wrapT = this._wrapTOriginal;
-            }
+            return minFilter;
         }
-
+    },
+    getAvailableMagFilter: function () {
+        return this.magFilter;
     },
 
     nextHighestPowerOfTwo: function (x) {
@@ -11369,13 +11362,19 @@ function get(options) {
             if (e.lengthComputable) {
                 var percent = e.loaded / e.total;
                 options.onprogress(percent, e.loaded, e.total);
-            } else {
+            }
+            else {
                 options.onprogress(null);
             }
         };
     }
     xhr.onload = function(e) {
-        options.onload && options.onload(xhr.response);
+        if (xhr.status >= 400) {
+            options.onerror && options.onerror();
+        }
+        else {
+            options.onload && options.onload(xhr.response);
+        }
     };
     if (options.onerror) {
         xhr.onerror = options.onerror;
@@ -12517,18 +12516,18 @@ var Node = Base.extend(
      * Depth first traverse all its descendant scene nodes and
      * @param {Function} callback
      * @param {Node} [context]
-     * @param {Function} [ctor]
+     * @param {Function} [filter]
      */
-    traverse: function (callback, context, ctor) {
+    traverse: function (callback, context, filter) {
 
         this._inIterating = true;
 
-        if (ctor == null || this.constructor === ctor) {
+        if (!filter || filter.call(context, this)) {
             callback.call(context, this);
         }
         var _children = this._children;
         for(var i = 0, len = _children.length; i < len; i++) {
-            _children[i].traverse(callback, context, ctor);
+            _children[i].traverse(callback, context, filter);
         }
 
         this._inIterating = false;
@@ -12690,40 +12689,24 @@ var Node = Base.extend(
      * @param  {qtek.math.BoundingBox} [out]
      * @return {qtek.math.BoundingBox}
      */
+    // TODO Skinning
     getBoundingBox: (function () {
-
         function defaultFilter (el) {
-            return !el.invisible;
+            return !el.invisible && el.geometry;
         }
+        var tmpBBox = new BoundingBox();
         return function (filter, out) {
             out = out || new BoundingBox();
             filter = filter || defaultFilter;
-
-            var children = this._children;
-            if (children.length === 0) {
-                out.max.set(-Infinity, -Infinity, -Infinity);
-                out.min.set(Infinity, Infinity, Infinity);
-            }
-
-            var tmpBBox = new BoundingBox();
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (!filter(child)) {
-                    continue;
-                }
-                child.getBoundingBox(filter, tmpBBox);
-                child.updateLocalTransform();
-                if (tmpBBox.isFinite()) {
-                    tmpBBox.applyTransform(child.localTransform);
-                }
-                if (i === 0) {
-                    out.copy(tmpBBox);
-                }
-                else {
+            
+            this.traverse(function (mesh) {
+                if (mesh.geometry && mesh.geometry.boundingBox) {
+                    tmpBBox.copy(mesh.geometry.boundingBox);
+                    tmpBBox.applyTransform(mesh.worldTransform);
                     out.union(tmpBBox);
                 }
-            }
-
+            }, this, defaultFilter);
+            
             return out;
         };
     })(),
@@ -14173,11 +14156,11 @@ var Texture2D = Texture.extend(function () {
         var glFormat = this.format;
         var glType = this.type;
 
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, this.wrapS);
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, this.wrapT);
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, this.getAvailableWrapS());
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, this.getAvailableWrapT());
 
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, this.magFilter);
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, this.minFilter);
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, this.getAvailableMagFilter());
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, this.getAvailableMinFilter());
 
         var anisotropicExt = renderer.getGLExtension('EXT_texture_filter_anisotropic');
         if (anisotropicExt && this.anisotropic > 1) {
@@ -14779,7 +14762,7 @@ var Skeleton = Base.extend(function () {
 
 var vec3$7 = glmatrix.vec3;
 var mat4$5 = glmatrix.mat4;
-var vec4$1 = glmatrix.vec4;
+var vec4$2 = glmatrix.vec4;
 
 /**
  * @constructor
@@ -14902,21 +14885,21 @@ Plane.prototype = {
      */
     applyTransform: (function() {
         var inverseTranspose = mat4$5.create();
-        var normalv4 = vec4$1.create();
-        var pointv4 = vec4$1.create();
+        var normalv4 = vec4$2.create();
+        var pointv4 = vec4$2.create();
         pointv4[3] = 1;
         return function(m4) {
             m4 = m4._array;
             // Transform point on plane
             vec3$7.scale(pointv4, this.normal._array, this.distance);
-            vec4$1.transformMat4(pointv4, pointv4, m4);
+            vec4$2.transformMat4(pointv4, pointv4, m4);
             this.distance = vec3$7.dot(pointv4, this.normal._array);
             // Transform plane normal
             mat4$5.invert(inverseTranspose, m4);
             mat4$5.transpose(inverseTranspose, inverseTranspose);
             normalv4[3] = 0;
             vec3$7.copy(normalv4, this.normal._array);
-            vec4$1.transformMat4(normalv4, normalv4, inverseTranspose);
+            vec4$2.transformMat4(normalv4, normalv4, inverseTranspose);
             vec3$7.copy(this.normal._array, normalv4);
         };
     })(),
@@ -15441,7 +15424,7 @@ Ray.prototype = {
 };
 
 var vec3$5 = glmatrix.vec3;
-var vec4 = glmatrix.vec4;
+var vec4$1 = glmatrix.vec4;
 
 /**
  * @constructor qtek.Camera
@@ -15524,19 +15507,19 @@ var Camera = Node.extend(function () {
      * @return {qtek.math.Ray}
      */
     castRay: (function () {
-        var v4 = vec4.create();
+        var v4 = vec4$1.create();
         return function (ndc, out) {
             var ray = out !== undefined ? out : new Ray();
             var x = ndc._array[0];
             var y = ndc._array[1];
-            vec4.set(v4, x, y, -1, 1);
-            vec4.transformMat4(v4, v4, this.invProjectionMatrix._array);
-            vec4.transformMat4(v4, v4, this.worldTransform._array);
+            vec4$1.set(v4, x, y, -1, 1);
+            vec4$1.transformMat4(v4, v4, this.invProjectionMatrix._array);
+            vec4$1.transformMat4(v4, v4, this.worldTransform._array);
             vec3$5.scale(ray.origin._array, v4, 1 / v4[3]);
 
-            vec4.set(v4, x, y, 1, 1);
-            vec4.transformMat4(v4, v4, this.invProjectionMatrix._array);
-            vec4.transformMat4(v4, v4, this.worldTransform._array);
+            vec4$1.set(v4, x, y, 1, 1);
+            vec4$1.transformMat4(v4, v4, this.invProjectionMatrix._array);
+            vec4$1.transformMat4(v4, v4, this.worldTransform._array);
             vec3$5.scale(v4, v4, 1 / v4[3]);
             vec3$5.sub(ray.direction._array, v4, ray.origin._array);
 
@@ -18315,9 +18298,10 @@ function () {
 
     /**
      * @param {Object} json
+     * @param {Array.<ArrayBuffer>} [buffer]
      * @return {qtek.loader.GLTF.IResult}
      */
-    parse: function (json) {
+    parse: function (json, buffers) {
         var self = this;
 
         var lib = {
@@ -18342,16 +18326,23 @@ function () {
                 afterLoadBuffer();
             }
         }
-        // Load buffers
-        util.each(json.buffers, function (bufferInfo, idx) {
-            loading++;
-            var path = bufferInfo.uri;
-
-            self._loadBuffer(path, function (buffer) {
-                lib.buffers[idx] = buffer;
-                checkLoad();
-            }, checkLoad);
-        });
+        // If already load buffers
+        if (buffers) {
+            lib.buffers = buffers.slice();
+            afterLoadBuffer(true);
+        }
+        else {
+            // Load buffers
+            util.each(json.buffers, function (bufferInfo, idx) {
+                loading++;
+                var path = bufferInfo.uri;
+    
+                self._loadBuffer(path, function (buffer) {
+                    lib.buffers[idx] = buffer;
+                    checkLoad();
+                }, checkLoad);
+            });
+        }
 
         function getResult() {
             return {
@@ -18367,7 +18358,15 @@ function () {
             };
         }
 
-        function afterLoadBuffer() {
+        function afterLoadBuffer(immediately) {
+            // Buffer not load complete.
+            if (lib.buffers.length !== json.buffers.length) {
+                setTimeout(function () {
+                    self.trigger('error', 'Buffer not load complete.');
+                });
+                return;
+            }
+
             json.bufferViews.forEach(function (bufferViewInfo, idx) {
                 // PENDING Performance
                 lib.bufferViews[idx] = lib.buffers[bufferViewInfo.buffer]
@@ -18385,7 +18384,7 @@ function () {
 
             // Only support one scene.
             if (json.scenes) {
-                var sceneInfo = json.scenes[json.scene];
+                var sceneInfo = json.scenes[json.scene || 0]; // Default use the first scene.
                 if (sceneInfo) {
                     for (var i = 0; i < sceneInfo.nodes.length; i++) {
                         var node = lib.nodes[sceneInfo.nodes[i]];
@@ -18402,7 +18401,14 @@ function () {
             if (self.includeAnimation) {
                 self._parseAnimations(json, lib);
             }
-            self.trigger('success', getResult());
+            if (immediately) {
+                setTimeout(function () {
+                    self.trigger('success', getResult());
+                });
+            }
+            else {
+                self.trigger('success', getResult());
+            }
         }
 
         return getResult();
@@ -18683,19 +18689,19 @@ function () {
             // TODO texCoord
         if (metallicRoughnessMatInfo.baseColorTexture) {
             diffuseMap = lib.textures[metallicRoughnessMatInfo.baseColorTexture.index] || null;
-            enabledTextures.push('diffuseMap');
+            diffuseMap && enabledTextures.push('diffuseMap');
         }
         if (metallicRoughnessMatInfo.metallicRoughnessTexture) {
             roughnessMap = metalnessMap = lib.textures[metallicRoughnessMatInfo.metallicRoughnessTexture.index] || null;
-            enabledTextures.push('metalnessMap', 'roughnessMap');
+            roughnessMap && enabledTextures.push('metalnessMap', 'roughnessMap');
         }
         if (materialInfo.normalTexture) {
             normalMap = lib.textures[materialInfo.normalTexture.index] || null;
-            enabledTextures.push('normalMap');
+            normalMap && enabledTextures.push('normalMap');
         }
         if (materialInfo.emissiveTexture) {
             emissiveMap = lib.textures[materialInfo.emissiveTexture.index] || null;
-            enabledTextures.push('emissiveMap');
+            emissiveMap && enabledTextures.push('emissiveMap');
         }
         var baseColor = metallicRoughnessMatInfo.baseColorFactor || [1, 1, 1, 1];
 
@@ -18710,7 +18716,7 @@ function () {
             metalness: metallicRoughnessMatInfo.metallicFactor || 0,
             roughness: metallicRoughnessMatInfo.roughnessFactor || 0,
             emission: materialInfo.emissiveFactor || [0, 0, 0],
-            alphaCutoff: materialInfo.alphaCutoff == null ? 0.9 : materialInfo.alphaCutoff
+            alphaCutoff: materialInfo.alphaCutoff || 0
         };
         if (commonProperties.roughnessMap) {
             // In glTF metallicFactor will do multiply, which is different from StandardMaterial.
@@ -18774,19 +18780,19 @@ function () {
             // TODO texCoord
         if (specularGlossinessMatInfo.diffuseTexture) {
             diffuseMap = lib.textures[specularGlossinessMatInfo.diffuseTexture.index] || null;
-            enabledTextures.push('diffuseMap');
+            diffuseMap && enabledTextures.push('diffuseMap');
         }
         if (specularGlossinessMatInfo.specularGlossinessTexture) {
             glossinessMap = specularMap = lib.textures[specularGlossinessMatInfo.specularGlossinessTexture.index] || null;
-            enabledTextures.push('specularMap', 'glossinessMap');
+            glossinessMap && enabledTextures.push('specularMap', 'glossinessMap');
         }
         if (materialInfo.normalTexture) {
             normalMap = lib.textures[materialInfo.normalTexture.index] || null;
-            enabledTextures.push('normalMap');
+            normalMap && enabledTextures.push('normalMap');
         }
         if (materialInfo.emissiveTexture) {
             emissiveMap = lib.textures[materialInfo.emissiveTexture.index] || null;
-            enabledTextures.push('emissiveMap');
+            emissiveMap && enabledTextures.push('emissiveMap');
         }
         var diffuseColor = specularGlossinessMatInfo.diffuseFactor || [1, 1, 1, 1];
 
@@ -18844,11 +18850,11 @@ function () {
             if (materialInfo.extensions && materialInfo.extensions['KHR_materials_common']) {
                 lib.materials[idx] = this._KHRCommonMaterialToStandard(materialInfo, lib);
             }
-            else if (materialInfo.pbrMetallicRoughness) {
-                lib.materials[idx] = this._pbrMetallicRoughnessToStandard(materialInfo, materialInfo.pbrMetallicRoughness, lib);
-            }
             else if (materialInfo.extensions && materialInfo.extensions['KHR_materials_pbrSpecularGlossiness']) {
                 lib.materials[idx] = this._pbrSpecularGlossinessToStandard(materialInfo, materialInfo.extensions['KHR_materials_pbrSpecularGlossiness'], lib);
+            }
+            else {
+                lib.materials[idx] = this._pbrMetallicRoughnessToStandard(materialInfo, materialInfo.pbrMetallicRoughness || {}, lib);
             }
         }, this);
     },
@@ -18887,9 +18893,12 @@ function () {
                         // Weight data in QTEK has only 3 component, the last component can be evaluated since it is normalized
                         var weightArray = new attributeArray.constructor(attributeInfo.count * 3);
                         for (var i = 0; i < attributeInfo.count; i++) {
-                            weightArray[i * 3] = attributeArray[i * 4];
-                            weightArray[i * 3 + 1] = attributeArray[i * 4 + 1];
-                            weightArray[i * 3 + 2] = attributeArray[i * 4 + 2];
+                            var i4 = i * 4, i3 = i * 3;
+                            var w1 = attributeArray[i4], w2 = attributeArray[i4 + 1], w3 = attributeArray[i4 + 2], w4 = attributeArray[i4 + 3];
+                            var wSum = w1 + w2 + w3 + w4;
+                            weightArray[i3] = w1 / wSum;
+                            weightArray[i3 + 1] = w2 / wSum;
+                            weightArray[i3 + 2] = w3 / wSum;
                         }
                         geometry.attributes[attributeName].value = weightArray;
                     }
@@ -18925,12 +18934,15 @@ function () {
                 }
 
                 // Parse indices
-                geometry.indices = getAccessorData(json, lib, primitiveInfo.indices, true);
-                if (geometry.vertexCount <= 0xffff && geometry.indices instanceof vendor.Uint32Array) {
-                    geometry.indices = new vendor.Uint16Array(geometry.indices);
+                if (primitiveInfo.indices != null) {
+                    geometry.indices = getAccessorData(json, lib, primitiveInfo.indices, true);
+                    if (geometry.vertexCount <= 0xffff && geometry.indices instanceof vendor.Uint32Array) {
+                        geometry.indices = new vendor.Uint16Array(geometry.indices);
+                    }   
                 }
 
                 var material = lib.materials[primitiveInfo.material];
+                var materialInfo = (json.materials || [])[primitiveInfo.material];
                 // Use default material
                 if (!material) {
                     material = new Material({
@@ -18943,6 +18955,9 @@ function () {
                     mode: [Mesh.POINTS, Mesh.LINES, Mesh.LINE_LOOP, Mesh.LINE_STRIP, Mesh.TRIANGLES, Mesh.TRIANGLE_STRIP, Mesh.TRIANGLE_FAN][primitiveInfo.mode] || Mesh.TRIANGLES,
                     ignoreGBuffer: material.transparent
                 });
+                if (materialInfo != null) {
+                    mesh.culling = !materialInfo.doubleSided;
+                }
                 if (((material instanceof StandardMaterial) && material.normalMap)
                     || (material.shader && material.shader.isTextureEnabled('normalMap'))
                 ) {
@@ -18992,6 +19007,7 @@ function () {
                 name: mesh.name,
                 geometry: mesh.geometry,
                 material: mesh.material,
+                culling: mesh.culling,
                 mode: mesh.mode
             });
         }
@@ -21003,11 +21019,11 @@ var TextureCube = Texture.extend(function () {
         var glFormat = this.format;
         var glType = this.type;
 
-        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_S, this.wrapS);
-        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_T, this.wrapT);
+        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_S, this.getAvailableWrapS());
+        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_WRAP_T, this.getAvailableWrapT());
 
-        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MAG_FILTER, this.magFilter);
-        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MIN_FILTER, this.minFilter);
+        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MAG_FILTER, this.getAvailableMagFilter());
+        _gl.texParameteri(_gl.TEXTURE_CUBE_MAP, _gl.TEXTURE_MIN_FILTER, this.getAvailableMinFilter());
 
         var anisotropicExt = renderer.getGLExtension('EXT_texture_filter_anisotropic');
         if (anisotropicExt && this.anisotropic > 1) {
@@ -21676,9 +21692,7 @@ var EnvironmentMapPass = Base.extend(function() {
                 camera.update();
 
                 // update boundingBoxLastFrame
-                var bbox = scene.getBoundingBox(function (el) {
-                    return !el.invisible;
-                });
+                var bbox = scene.getBoundingBox();
                 bbox.applyTransform(camera.viewMatrix);
                 scene.viewBoundingBoxLastFrame.copy(bbox);
 
@@ -23046,7 +23060,8 @@ function fallBack(target) {
         ) {
             target.minFilter = glenum.LINEAR;
         }
-
+    }
+    if (!IPOT) {
         target.wrapS = glenum.CLAMP_TO_EDGE;
         target.wrapT = glenum.CLAMP_TO_EDGE;
     }
@@ -23108,6 +23123,8 @@ var ShadowMapPass = Base.extend(function () {
         ]),
 
         precision: 'mediump',
+
+        _lastRenderNotCastShadow: false,
 
         _frameBuffer: new FrameBuffer(),
 
@@ -23380,12 +23397,16 @@ var ShadowMapPass = Base.extend(function () {
         if (!notUpdateScene) {
             scene.update();
         }
+        sceneCamera.update();
 
         this._update(renderer, scene);
 
-        if (!this._lightsCastShadow.length) {
+        // Needs to update the receivers again if shadows come from 1 to 0.
+        if (!this._lightsCastShadow.length && this._lastRenderNotCastShadow) {
             return;
         }
+
+        this._lastRenderNotCastShadow = this._lightsCastShadow === 0;
 
         _gl.enable(_gl.DEPTH_TEST);
         _gl.depthMask(true);
@@ -23489,9 +23510,15 @@ var ShadowMapPass = Base.extend(function () {
                     var number = this._shadowMapNumber[lightType];
                     var key = lightType + '_SHADOWMAP_COUNT';
 
-                    if (shader.fragmentDefines[key] !== number && number > 0) {
-                        shader.fragmentDefines[key] = number;
-                        shaderNeedsUpdate = true;
+                    if (shader.fragmentDefines[key] !== number) {
+                        if (number > 0) {
+                            shader.fragmentDefines[key] = number;
+                            shaderNeedsUpdate = true;
+                        }
+                        else if (shader.isDefined('fragment', key)) {
+                            shader.undefine('fragment', key);
+                            shaderNeedsUpdate = true;
+                        }
                     }
                 }
                 if (shaderNeedsUpdate) {
@@ -23543,6 +23570,12 @@ var ShadowMapPass = Base.extend(function () {
 
             casters.sort(Renderer.opaqueSortFunc);
 
+            // First frame
+            if (!scene.viewBoundingBoxLastFrame.isFinite()) {
+                var boundingBox = scene.getBoundingBox();
+                scene.viewBoundingBoxLastFrame
+                    .copy(boundingBox).applyTransform(sceneCamera.viewMatrix);
+            }
             // Considering moving speed since the bounding box is from last frame
             // TODO: add a bias
             var clippedFar = Math.min(-scene.viewBoundingBoxLastFrame.min.z, sceneCamera.far);
@@ -25254,7 +25287,7 @@ function halton(index, base) {
     return result;
 }
 
-var SSAOGLSLCode = "@export ecgl.ssao.estimate\n\nuniform sampler2D depthTex;\n\nuniform sampler2D normalTex;\n\nuniform sampler2D noiseTex;\n\nuniform vec2 depthTexSize;\n\nuniform vec2 noiseTexSize;\n\nuniform mat4 projection;\n\nuniform mat4 projectionInv;\n\nuniform mat4 viewInverseTranspose;\n\nuniform vec3 kernel[KERNEL_SIZE];\n\nuniform float radius : 1;\n\nuniform float power : 1;\n\nuniform float bias: 0.01;\n\nuniform float intensity: 1.0;\n\nvarying vec2 v_Texcoord;\n\nfloat ssaoEstimator(in vec3 originPos, in vec3 N, in mat3 kernelBasis) {\n float occlusion = 0.0;\n\n for (int i = 0; i < KERNEL_SIZE; i++) {\n vec3 samplePos = kernel[i];\n#ifdef NORMALTEX_ENABLED\n samplePos = kernelBasis * samplePos;\n#endif\n samplePos = samplePos * radius + originPos;\n\n vec4 texCoord = projection * vec4(samplePos, 1.0);\n texCoord.xy /= texCoord.w;\n texCoord.xy = texCoord.xy * 0.5 + 0.5;\n\n vec4 depthTexel = texture2D(depthTex, texCoord.xy);\n\n float sampleDepth = depthTexel.r * 2.0 - 1.0;\n if (projection[3][3] == 0.0) {\n sampleDepth = projection[3][2] / (sampleDepth * projection[2][3] - projection[2][2]);\n }\n else {\n sampleDepth = (sampleDepth - projection[3][2]) / projection[2][2];\n }\n float factor = step(samplePos.z, sampleDepth - bias);\n#ifdef NORMALTEX_ENABLED\n #endif\n\n float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - sampleDepth));\n occlusion += rangeCheck * factor;\n }\n#ifdef NORMALTEX_ENABLED\n occlusion = 1.0 - occlusion / float(KERNEL_SIZE);\n#else\n occlusion = 1.0 - clamp((occlusion / float(KERNEL_SIZE) - 0.6) * 2.5, 0.0, 1.0);\n#endif\n return pow(occlusion, power);\n}\n\nvoid main()\n{\n\n vec4 depthTexel = texture2D(depthTex, v_Texcoord);\n\n#ifdef NORMALTEX_ENABLED\n vec4 tex = texture2D(normalTex, v_Texcoord);\n if (dot(tex.rgb, tex.rgb) == 0.0) {\n gl_FragColor = vec4(1.0);\n return;\n }\n vec3 N = tex.rgb * 2.0 - 1.0;\n N = (viewInverseTranspose * vec4(N, 0.0)).xyz;\n\n vec2 noiseTexCoord = depthTexSize / vec2(noiseTexSize) * v_Texcoord;\n vec3 rvec = texture2D(noiseTex, noiseTexCoord).rgb * 2.0 - 1.0;\n vec3 T = normalize(rvec - N * dot(rvec, N));\n vec3 BT = normalize(cross(N, T));\n mat3 kernelBasis = mat3(T, BT, N);\n#else\n if (depthTexel.r > 0.99999) {\n gl_FragColor = vec4(1.0);\n return;\n }\n mat3 kernelBasis;\n#endif\n\n float z = depthTexel.r * 2.0 - 1.0;\n\n vec4 projectedPos = vec4(v_Texcoord * 2.0 - 1.0, z, 1.0);\n vec4 p4 = projectionInv * projectedPos;\n\n vec3 position = p4.xyz / p4.w;\n\n float ao = ssaoEstimator(position, N, kernelBasis);\n ao = clamp(1.0 - (1.0 - ao) * intensity, 0.0, 1.0);\n gl_FragColor = vec4(vec3(ao), 1.0);\n}\n\n@end\n\n\n@export ecgl.ssao.blur\n#define SHADER_NAME SSAO_BLUR\n\nuniform sampler2D ssaoTexture;\n\n#ifdef NORMALTEX_ENABLED\nuniform sampler2D normalTex;\n#endif\n\n#ifdef DEPTHTEX_ENABLED\nuniform sampler2D depthTex;\nuniform mat4 projection;\nuniform float depthRange : 0.05;\n#endif\n\nvarying vec2 v_Texcoord;\n\nuniform vec2 textureSize;\nuniform float blurSize : 1.0;\n\nuniform int direction: 0.0;\n\n#ifdef DEPTHTEX_ENABLED\nfloat getLinearDepth(vec2 coord)\n{\n float depth = texture2D(depthTex, v_Texcoord).r * 2.0 - 1.0;\n return projection[3][2] / (depth * projection[2][3] - projection[2][2]);\n}\n#endif\n\nvoid main()\n{\n @import qtek.compositor.kernel.gaussian_9\n\n vec2 off = vec2(0.0);\n if (direction == 0) {\n off[0] = blurSize / textureSize.x;\n }\n else {\n off[1] = blurSize / textureSize.y;\n }\n\n vec2 coord = v_Texcoord;\n\n vec4 sum = vec4(0.0);\n float weightAll = 0.0;\n\n#ifdef NORMALTEX_ENABLED\n vec3 centerNormal = texture2D(normalTex, v_Texcoord).rgb * 2.0 - 1.0;\n#elif defined(DEPTHTEX_ENABLED)\n float centerDepth = getLinearDepth(v_Texcoord);\n#endif\n\n for (int i = 0; i < 9; i++) {\n vec2 coord = clamp(v_Texcoord + vec2(float(i) - 4.0) * off, vec2(0.0), vec2(1.0));\n\n#ifdef NORMALTEX_ENABLED\n vec3 normal = texture2D(normalTex, coord).rgb * 2.0 - 1.0;\n float w = gaussianKernel[i] * clamp(dot(normal, centerNormal), 0.0, 1.0);\n#elif defined(DEPTHTEX_ENABLED)\n float d = getLinearDepth(coord);\n float w = gaussianKernel[i] * (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));\n#else\n float w = gaussianKernel[i];\n#endif\n\n weightAll += w;\n sum += texture2D(ssaoTexture, coord) * w;\n }\n\n gl_FragColor = vec4(vec3(sum / weightAll), 1.0);\n}\n\n@end\n";
+var SSAOGLSLCode = "@export ecgl.ssao.estimate\n\n#define SHADER_NAME SSAO\n\nuniform sampler2D depthTex;\n\nuniform sampler2D normalTex;\n\nuniform sampler2D noiseTex;\n\nuniform vec2 depthTexSize;\n\nuniform vec2 noiseTexSize;\n\nuniform mat4 projection;\n\nuniform mat4 projectionInv;\n\nuniform mat4 viewInverseTranspose;\n\nuniform vec3 kernel[KERNEL_SIZE];\n\nuniform float radius : 1;\n\nuniform float power : 1;\n\nuniform float bias: 0.01;\n\nuniform float intensity: 1.0;\n\nvarying vec2 v_Texcoord;\n\nfloat ssaoEstimator(in vec3 originPos, in vec3 N, in mat3 kernelBasis) {\n float occlusion = 0.0;\n\n for (int i = 0; i < KERNEL_SIZE; i++) {\n vec3 samplePos = kernel[i];\n#ifdef NORMALTEX_ENABLED\n samplePos = kernelBasis * samplePos;\n#endif\n samplePos = samplePos * radius + originPos;\n\n vec4 texCoord = projection * vec4(samplePos, 1.0);\n texCoord.xy /= texCoord.w;\n texCoord.xy = texCoord.xy * 0.5 + 0.5;\n\n vec4 depthTexel = texture2D(depthTex, texCoord.xy);\n float z = depthTexel.r * 2.0 - 1.0;\n#ifdef ALCHEMY\n vec4 projectedPos = vec4(texCoord.xy * 2.0 - 1.0, z, 1.0);\n vec4 p4 = projectionInv * projectedPos;\n p4.xyz /= p4.w;\n vec3 cDir = p4.xyz - originPos;\n\n float vv = dot(cDir, cDir);\n float vn = dot(cDir, N);\n\n float radius2 = radius * radius;\n\n vn = max(vn + p4.z * bias, 0.0);\n float f = max(radius2 - vv, 0.0) / radius2;\n occlusion += f * f * f * max(vn / (0.01 + vv), 0.0);\n#else\n if (projection[3][3] == 0.0) {\n z = projection[3][2] / (z * projection[2][3] - projection[2][2]);\n }\n else {\n z = (z - projection[3][2]) / projection[2][2];\n }\n float factor = step(samplePos.z, z - bias);\n float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originPos.z - z));\n occlusion += rangeCheck * factor;\n#endif\n }\n#ifdef NORMALTEX_ENABLED\n occlusion = 1.0 - occlusion / float(KERNEL_SIZE);\n#else\n occlusion = 1.0 - clamp((occlusion / float(KERNEL_SIZE) - 0.6) * 2.5, 0.0, 1.0);\n#endif\n return pow(occlusion, power);\n}\n\nvoid main()\n{\n\n vec4 depthTexel = texture2D(depthTex, v_Texcoord);\n\n#ifdef NORMALTEX_ENABLED\n vec4 tex = texture2D(normalTex, v_Texcoord);\n if (dot(tex.rgb, tex.rgb) == 0.0) {\n gl_FragColor = vec4(1.0);\n return;\n }\n vec3 N = tex.rgb * 2.0 - 1.0;\n N = (viewInverseTranspose * vec4(N, 0.0)).xyz;\n\n vec2 noiseTexCoord = depthTexSize / vec2(noiseTexSize) * v_Texcoord;\n vec3 rvec = texture2D(noiseTex, noiseTexCoord).rgb * 2.0 - 1.0;\n vec3 T = normalize(rvec - N * dot(rvec, N));\n vec3 BT = normalize(cross(N, T));\n mat3 kernelBasis = mat3(T, BT, N);\n#else\n if (depthTexel.r > 0.99999) {\n gl_FragColor = vec4(1.0);\n return;\n }\n mat3 kernelBasis;\n#endif\n\n float z = depthTexel.r * 2.0 - 1.0;\n\n vec4 projectedPos = vec4(v_Texcoord * 2.0 - 1.0, z, 1.0);\n vec4 p4 = projectionInv * projectedPos;\n\n vec3 position = p4.xyz / p4.w;\n\n float ao = ssaoEstimator(position, N, kernelBasis);\n ao = clamp(1.0 - (1.0 - ao) * intensity, 0.0, 1.0);\n gl_FragColor = vec4(vec3(ao), 1.0);\n}\n\n@end\n\n\n@export ecgl.ssao.blur\n#define SHADER_NAME SSAO_BLUR\n\nuniform sampler2D ssaoTexture;\n\n#ifdef NORMALTEX_ENABLED\nuniform sampler2D normalTex;\n#endif\n\n#ifdef DEPTHTEX_ENABLED\nuniform sampler2D depthTex;\nuniform mat4 projection;\nuniform float depthRange : 0.05;\n#endif\n\nvarying vec2 v_Texcoord;\n\nuniform vec2 textureSize;\nuniform float blurSize : 1.0;\n\nuniform int direction: 0.0;\n\n#ifdef DEPTHTEX_ENABLED\nfloat getLinearDepth(vec2 coord)\n{\n float depth = texture2D(depthTex, v_Texcoord).r * 2.0 - 1.0;\n return projection[3][2] / (depth * projection[2][3] - projection[2][2]);\n}\n#endif\n\nvoid main()\n{\n @import qtek.compositor.kernel.gaussian_9\n\n vec2 off = vec2(0.0);\n if (direction == 0) {\n off[0] = blurSize / textureSize.x;\n }\n else {\n off[1] = blurSize / textureSize.y;\n }\n\n vec2 coord = v_Texcoord;\n\n vec4 sum = vec4(0.0);\n float weightAll = 0.0;\n\n#ifdef NORMALTEX_ENABLED\n vec3 centerNormal = texture2D(normalTex, v_Texcoord).rgb * 2.0 - 1.0;\n#elif defined(DEPTHTEX_ENABLED)\n float centerDepth = getLinearDepth(v_Texcoord);\n#endif\n\n for (int i = 0; i < 9; i++) {\n vec2 coord = clamp(v_Texcoord + vec2(float(i) - 4.0) * off, vec2(0.0), vec2(1.0));\n\n#ifdef NORMALTEX_ENABLED\n vec3 normal = texture2D(normalTex, coord).rgb * 2.0 - 1.0;\n float w = gaussianKernel[i] * clamp(dot(normal, centerNormal), 0.0, 1.0);\n#elif defined(DEPTHTEX_ENABLED)\n float d = getLinearDepth(coord);\n float w = gaussianKernel[i] * (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));\n#else\n float w = gaussianKernel[i];\n#endif\n\n weightAll += w;\n sum += texture2D(ssaoTexture, coord) * w;\n }\n\n gl_FragColor = vec4(vec3(sum / weightAll), 1.0);\n}\n\n@end\n";
 
 Shader.import(SSAOGLSLCode);
 
@@ -25920,7 +25953,7 @@ var GBuffer = Base.extend(function () {
         var enableTargetTexture2 = this.enableTargetTexture2;
         var enableTargetTexture3 = this.enableTargetTexture3;
         if (!enableTargetTexture1 && !enableTargetTexture3) {
-            console.warn('Can\'t disable targetTexture1 targetTexture2 both');
+            console.warn('Can\'t disable targetTexture1 targetTexture3 both');
             enableTargetTexture1 = true;
         }
 
@@ -26137,199 +26170,196 @@ var GBuffer = Base.extend(function () {
 // Simple LRU cache use doubly linked list
 // @module zrender/core/LRU
 
+/**
+ * Simple double linked list. Compared with array, it has O(1) remove operation.
+ * @constructor
+ */
+var LinkedList = function () {
 
     /**
-     * Simple double linked list. Compared with array, it has O(1) remove operation.
-     * @constructor
+     * @type {module:zrender/core/LRU~Entry}
      */
-    var LinkedList = function () {
-
-        /**
-         * @type {module:zrender/core/LRU~Entry}
-         */
-        this.head = null;
-
-        /**
-         * @type {module:zrender/core/LRU~Entry}
-         */
-        this.tail = null;
-
-        this._len = 0;
-    };
-
-    var linkedListProto = LinkedList.prototype;
-    /**
-     * Insert a new value at the tail
-     * @param  {} val
-     * @return {module:zrender/core/LRU~Entry}
-     */
-    linkedListProto.insert = function (val) {
-        var entry = new Entry(val);
-        this.insertEntry(entry);
-        return entry;
-    };
+    this.head = null;
 
     /**
-     * Insert an entry at the tail
-     * @param  {module:zrender/core/LRU~Entry} entry
+     * @type {module:zrender/core/LRU~Entry}
      */
-    linkedListProto.insertEntry = function (entry) {
-        if (!this.head) {
-            this.head = this.tail = entry;
+    this.tail = null;
+
+    this._len = 0;
+};
+
+var linkedListProto = LinkedList.prototype;
+/**
+ * Insert a new value at the tail
+ * @param  {} val
+ * @return {module:zrender/core/LRU~Entry}
+ */
+linkedListProto.insert = function (val) {
+    var entry = new Entry(val);
+    this.insertEntry(entry);
+    return entry;
+};
+
+/**
+ * Insert an entry at the tail
+ * @param  {module:zrender/core/LRU~Entry} entry
+ */
+linkedListProto.insertEntry = function (entry) {
+    if (!this.head) {
+        this.head = this.tail = entry;
+    }
+    else {
+        this.tail.next = entry;
+        entry.prev = this.tail;
+        entry.next = null;
+        this.tail = entry;
+    }
+    this._len++;
+};
+
+/**
+ * Remove entry.
+ * @param  {module:zrender/core/LRU~Entry} entry
+ */
+linkedListProto.remove = function (entry) {
+    var prev = entry.prev;
+    var next = entry.next;
+    if (prev) {
+        prev.next = next;
+    }
+    else {
+        // Is head
+        this.head = next;
+    }
+    if (next) {
+        next.prev = prev;
+    }
+    else {
+        // Is tail
+        this.tail = prev;
+    }
+    entry.next = entry.prev = null;
+    this._len--;
+};
+
+/**
+ * @return {number}
+ */
+linkedListProto.len = function () {
+    return this._len;
+};
+
+/**
+ * Clear list
+ */
+linkedListProto.clear = function () {
+    this.head = this.tail = null;
+    this._len = 0;
+};
+
+/**
+ * @constructor
+ * @param {} val
+ */
+var Entry = function (val) {
+    /**
+     * @type {}
+     */
+    this.value = val;
+
+    /**
+     * @type {module:zrender/core/LRU~Entry}
+     */
+    this.next;
+
+    /**
+     * @type {module:zrender/core/LRU~Entry}
+     */
+    this.prev;
+};
+
+/**
+ * LRU Cache
+ * @constructor
+ * @alias module:zrender/core/LRU
+ */
+var LRU = function (maxSize) {
+
+    this._list = new LinkedList();
+
+    this._map = {};
+
+    this._maxSize = maxSize || 10;
+
+    this._lastRemovedEntry = null;
+};
+
+var LRUProto = LRU.prototype;
+
+/**
+ * @param  {string} key
+ * @param  {} value
+ * @return {} Removed value
+ */
+LRUProto.put = function (key, value) {
+    var list = this._list;
+    var map = this._map;
+    var removed = null;
+    if (map[key] == null) {
+        var len = list.len();
+        // Reuse last removed entry
+        var entry = this._lastRemovedEntry;
+
+        if (len >= this._maxSize && len > 0) {
+            // Remove the least recently used
+            var leastUsedEntry = list.head;
+            list.remove(leastUsedEntry);
+            delete map[leastUsedEntry.key];
+
+            removed = leastUsedEntry.value;
+            this._lastRemovedEntry = leastUsedEntry;
+        }
+
+        if (entry) {
+            entry.value = value;
         }
         else {
-            this.tail.next = entry;
-            entry.prev = this.tail;
-            entry.next = null;
-            this.tail = entry;
+            entry = new Entry(value);
         }
-        this._len++;
-    };
+        entry.key = key;
+        list.insertEntry(entry);
+        map[key] = entry;
+    }
 
-    /**
-     * Remove entry.
-     * @param  {module:zrender/core/LRU~Entry} entry
-     */
-    linkedListProto.remove = function (entry) {
-        var prev = entry.prev;
-        var next = entry.next;
-        if (prev) {
-            prev.next = next;
-        }
-        else {
-            // Is head
-            this.head = next;
-        }
-        if (next) {
-            next.prev = prev;
-        }
-        else {
-            // Is tail
-            this.tail = prev;
-        }
-        entry.next = entry.prev = null;
-        this._len--;
-    };
+    return removed;
+};
 
-    /**
-     * @return {number}
-     */
-    linkedListProto.len = function () {
-        return this._len;
-    };
-
-    /**
-     * Clear list
-     */
-    linkedListProto.clear = function () {
-        this.head = this.tail = null;
-        this._len = 0;
-    };
-
-    /**
-     * @constructor
-     * @param {} val
-     */
-    var Entry = function (val) {
-        /**
-         * @type {}
-         */
-        this.value = val;
-
-        /**
-         * @type {module:zrender/core/LRU~Entry}
-         */
-        this.next;
-
-        /**
-         * @type {module:zrender/core/LRU~Entry}
-         */
-        this.prev;
-    };
-
-    /**
-     * LRU Cache
-     * @constructor
-     * @alias module:zrender/core/LRU
-     */
-    var LRU = function (maxSize) {
-
-        this._list = new LinkedList();
-
-        this._map = {};
-
-        this._maxSize = maxSize || 10;
-
-        this._lastRemovedEntry = null;
-    };
-
-    var LRUProto = LRU.prototype;
-
-    /**
-     * @param  {string} key
-     * @param  {} value
-     * @return {} Removed value
-     */
-    LRUProto.put = function (key, value) {
-        var list = this._list;
-        var map = this._map;
-        var removed = null;
-        if (map[key] == null) {
-            var len = list.len();
-            // Reuse last removed entry
-            var entry = this._lastRemovedEntry;
-
-            if (len >= this._maxSize && len > 0) {
-                // Remove the least recently used
-                var leastUsedEntry = list.head;
-                list.remove(leastUsedEntry);
-                delete map[leastUsedEntry.key];
-
-                removed = leastUsedEntry.value;
-                this._lastRemovedEntry = leastUsedEntry;
-            }
-
-            if (entry) {
-                entry.value = value;
-            }
-            else {
-                entry = new Entry(value);
-            }
-            entry.key = key;
+/**
+ * @param  {string} key
+ * @return {}
+ */
+LRUProto.get = function (key) {
+    var entry = this._map[key];
+    var list = this._list;
+    if (entry != null) {
+        // Put the latest used entry in the tail
+        if (entry !== list.tail) {
+            list.remove(entry);
             list.insertEntry(entry);
-            map[key] = entry;
         }
 
-        return removed;
-    };
+        return entry.value;
+    }
+};
 
-    /**
-     * @param  {string} key
-     * @return {}
-     */
-    LRUProto.get = function (key) {
-        var entry = this._map[key];
-        var list = this._list;
-        if (entry != null) {
-            // Put the latest used entry in the tail
-            if (entry !== list.tail) {
-                list.remove(entry);
-                list.insertEntry(entry);
-            }
-
-            return entry.value;
-        }
-    };
-
-    /**
-     * Clear the cache
-     */
-    LRUProto.clear = function () {
-        this._list.clear();
-        this._map = {};
-    };
-
-    var LRU_1 = LRU;
+/**
+ * Clear the cache
+ */
+LRUProto.clear = function () {
+    this._list.clear();
+    this._map = {};
+};
 
 var planeMatrix = new Matrix4();
 
@@ -27122,536 +27152,368 @@ sh.projectEnvironmentMap = function (renderer, envMap, opts) {
     return projectEnvironmentMapCPU(renderer, cubePixels, width, height);
 };
 
+var kCSSColorTable = {
+    'transparent': [0,0,0,0], 'aliceblue': [240,248,255,1],
+    'antiquewhite': [250,235,215,1], 'aqua': [0,255,255,1],
+    'aquamarine': [127,255,212,1], 'azure': [240,255,255,1],
+    'beige': [245,245,220,1], 'bisque': [255,228,196,1],
+    'black': [0,0,0,1], 'blanchedalmond': [255,235,205,1],
+    'blue': [0,0,255,1], 'blueviolet': [138,43,226,1],
+    'brown': [165,42,42,1], 'burlywood': [222,184,135,1],
+    'cadetblue': [95,158,160,1], 'chartreuse': [127,255,0,1],
+    'chocolate': [210,105,30,1], 'coral': [255,127,80,1],
+    'cornflowerblue': [100,149,237,1], 'cornsilk': [255,248,220,1],
+    'crimson': [220,20,60,1], 'cyan': [0,255,255,1],
+    'darkblue': [0,0,139,1], 'darkcyan': [0,139,139,1],
+    'darkgoldenrod': [184,134,11,1], 'darkgray': [169,169,169,1],
+    'darkgreen': [0,100,0,1], 'darkgrey': [169,169,169,1],
+    'darkkhaki': [189,183,107,1], 'darkmagenta': [139,0,139,1],
+    'darkolivegreen': [85,107,47,1], 'darkorange': [255,140,0,1],
+    'darkorchid': [153,50,204,1], 'darkred': [139,0,0,1],
+    'darksalmon': [233,150,122,1], 'darkseagreen': [143,188,143,1],
+    'darkslateblue': [72,61,139,1], 'darkslategray': [47,79,79,1],
+    'darkslategrey': [47,79,79,1], 'darkturquoise': [0,206,209,1],
+    'darkviolet': [148,0,211,1], 'deeppink': [255,20,147,1],
+    'deepskyblue': [0,191,255,1], 'dimgray': [105,105,105,1],
+    'dimgrey': [105,105,105,1], 'dodgerblue': [30,144,255,1],
+    'firebrick': [178,34,34,1], 'floralwhite': [255,250,240,1],
+    'forestgreen': [34,139,34,1], 'fuchsia': [255,0,255,1],
+    'gainsboro': [220,220,220,1], 'ghostwhite': [248,248,255,1],
+    'gold': [255,215,0,1], 'goldenrod': [218,165,32,1],
+    'gray': [128,128,128,1], 'green': [0,128,0,1],
+    'greenyellow': [173,255,47,1], 'grey': [128,128,128,1],
+    'honeydew': [240,255,240,1], 'hotpink': [255,105,180,1],
+    'indianred': [205,92,92,1], 'indigo': [75,0,130,1],
+    'ivory': [255,255,240,1], 'khaki': [240,230,140,1],
+    'lavender': [230,230,250,1], 'lavenderblush': [255,240,245,1],
+    'lawngreen': [124,252,0,1], 'lemonchiffon': [255,250,205,1],
+    'lightblue': [173,216,230,1], 'lightcoral': [240,128,128,1],
+    'lightcyan': [224,255,255,1], 'lightgoldenrodyellow': [250,250,210,1],
+    'lightgray': [211,211,211,1], 'lightgreen': [144,238,144,1],
+    'lightgrey': [211,211,211,1], 'lightpink': [255,182,193,1],
+    'lightsalmon': [255,160,122,1], 'lightseagreen': [32,178,170,1],
+    'lightskyblue': [135,206,250,1], 'lightslategray': [119,136,153,1],
+    'lightslategrey': [119,136,153,1], 'lightsteelblue': [176,196,222,1],
+    'lightyellow': [255,255,224,1], 'lime': [0,255,0,1],
+    'limegreen': [50,205,50,1], 'linen': [250,240,230,1],
+    'magenta': [255,0,255,1], 'maroon': [128,0,0,1],
+    'mediumaquamarine': [102,205,170,1], 'mediumblue': [0,0,205,1],
+    'mediumorchid': [186,85,211,1], 'mediumpurple': [147,112,219,1],
+    'mediumseagreen': [60,179,113,1], 'mediumslateblue': [123,104,238,1],
+    'mediumspringgreen': [0,250,154,1], 'mediumturquoise': [72,209,204,1],
+    'mediumvioletred': [199,21,133,1], 'midnightblue': [25,25,112,1],
+    'mintcream': [245,255,250,1], 'mistyrose': [255,228,225,1],
+    'moccasin': [255,228,181,1], 'navajowhite': [255,222,173,1],
+    'navy': [0,0,128,1], 'oldlace': [253,245,230,1],
+    'olive': [128,128,0,1], 'olivedrab': [107,142,35,1],
+    'orange': [255,165,0,1], 'orangered': [255,69,0,1],
+    'orchid': [218,112,214,1], 'palegoldenrod': [238,232,170,1],
+    'palegreen': [152,251,152,1], 'paleturquoise': [175,238,238,1],
+    'palevioletred': [219,112,147,1], 'papayawhip': [255,239,213,1],
+    'peachpuff': [255,218,185,1], 'peru': [205,133,63,1],
+    'pink': [255,192,203,1], 'plum': [221,160,221,1],
+    'powderblue': [176,224,230,1], 'purple': [128,0,128,1],
+    'red': [255,0,0,1], 'rosybrown': [188,143,143,1],
+    'royalblue': [65,105,225,1], 'saddlebrown': [139,69,19,1],
+    'salmon': [250,128,114,1], 'sandybrown': [244,164,96,1],
+    'seagreen': [46,139,87,1], 'seashell': [255,245,238,1],
+    'sienna': [160,82,45,1], 'silver': [192,192,192,1],
+    'skyblue': [135,206,235,1], 'slateblue': [106,90,205,1],
+    'slategray': [112,128,144,1], 'slategrey': [112,128,144,1],
+    'snow': [255,250,250,1], 'springgreen': [0,255,127,1],
+    'steelblue': [70,130,180,1], 'tan': [210,180,140,1],
+    'teal': [0,128,128,1], 'thistle': [216,191,216,1],
+    'tomato': [255,99,71,1], 'turquoise': [64,224,208,1],
+    'violet': [238,130,238,1], 'wheat': [245,222,179,1],
+    'white': [255,255,255,1], 'whitesmoke': [245,245,245,1],
+    'yellow': [255,255,0,1], 'yellowgreen': [154,205,50,1]
+};
+
+function clampCssByte(i) {  // Clamp to integer 0 .. 255.
+    i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
+    return i < 0 ? 0 : i > 255 ? 255 : i;
+}
+
+function clampCssFloat(f) {  // Clamp to float 0.0 .. 1.0.
+    return f < 0 ? 0 : f > 1 ? 1 : f;
+}
+
+function parseCssInt(str) {  // int or percentage.
+    if (str.length && str.charAt(str.length - 1) === '%') {
+        return clampCssByte(parseFloat(str) / 100 * 255);
+    }
+    return clampCssByte(parseInt(str, 10));
+}
+
+function parseCssFloat(str) {  // float or percentage.
+    if (str.length && str.charAt(str.length - 1) === '%') {
+        return clampCssFloat(parseFloat(str) / 100);
+    }
+    return clampCssFloat(parseFloat(str));
+}
+
+function cssHueToRgb(m1, m2, h) {
+    if (h < 0) {
+        h += 1;
+    }
+    else if (h > 1) {
+        h -= 1;
+    }
+
+    if (h * 6 < 1) {
+        return m1 + (m2 - m1) * h * 6;
+    }
+    if (h * 2 < 1) {
+        return m2;
+    }
+    if (h * 3 < 2) {
+        return m1 + (m2 - m1) * (2/3 - h) * 6;
+    }
+    return m1;
+}
+
+function setRgba(out, r, g, b, a) {
+    out[0] = r; out[1] = g; out[2] = b; out[3] = a;
+    return out;
+}
+function copyRgba(out, a) {
+    out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
+    return out;
+}
+
+var colorCache = new LRU(20);
+var lastRemovedArr = null;
+
+function putToCache(colorStr, rgbaArr) {
+    // Reuse removed array
+    if (lastRemovedArr) {
+        copyRgba(lastRemovedArr, rgbaArr);
+    }
+    lastRemovedArr = colorCache.put(colorStr, lastRemovedArr || (rgbaArr.slice()));
+}
+
 /**
- * @module zrender/tool/color
+ * @param {string} colorStr
+ * @param {Array.<number>} out
+ * @return {Array.<number>}
+ * @memberOf module:zrender/util/color
  */
+function parse(colorStr, rgbaArr) {
+    if (!colorStr) {
+        return;
+    }
+    rgbaArr = rgbaArr || [];
 
-
-    
-
-    var kCSSColorTable = {
-        'transparent': [0,0,0,0], 'aliceblue': [240,248,255,1],
-        'antiquewhite': [250,235,215,1], 'aqua': [0,255,255,1],
-        'aquamarine': [127,255,212,1], 'azure': [240,255,255,1],
-        'beige': [245,245,220,1], 'bisque': [255,228,196,1],
-        'black': [0,0,0,1], 'blanchedalmond': [255,235,205,1],
-        'blue': [0,0,255,1], 'blueviolet': [138,43,226,1],
-        'brown': [165,42,42,1], 'burlywood': [222,184,135,1],
-        'cadetblue': [95,158,160,1], 'chartreuse': [127,255,0,1],
-        'chocolate': [210,105,30,1], 'coral': [255,127,80,1],
-        'cornflowerblue': [100,149,237,1], 'cornsilk': [255,248,220,1],
-        'crimson': [220,20,60,1], 'cyan': [0,255,255,1],
-        'darkblue': [0,0,139,1], 'darkcyan': [0,139,139,1],
-        'darkgoldenrod': [184,134,11,1], 'darkgray': [169,169,169,1],
-        'darkgreen': [0,100,0,1], 'darkgrey': [169,169,169,1],
-        'darkkhaki': [189,183,107,1], 'darkmagenta': [139,0,139,1],
-        'darkolivegreen': [85,107,47,1], 'darkorange': [255,140,0,1],
-        'darkorchid': [153,50,204,1], 'darkred': [139,0,0,1],
-        'darksalmon': [233,150,122,1], 'darkseagreen': [143,188,143,1],
-        'darkslateblue': [72,61,139,1], 'darkslategray': [47,79,79,1],
-        'darkslategrey': [47,79,79,1], 'darkturquoise': [0,206,209,1],
-        'darkviolet': [148,0,211,1], 'deeppink': [255,20,147,1],
-        'deepskyblue': [0,191,255,1], 'dimgray': [105,105,105,1],
-        'dimgrey': [105,105,105,1], 'dodgerblue': [30,144,255,1],
-        'firebrick': [178,34,34,1], 'floralwhite': [255,250,240,1],
-        'forestgreen': [34,139,34,1], 'fuchsia': [255,0,255,1],
-        'gainsboro': [220,220,220,1], 'ghostwhite': [248,248,255,1],
-        'gold': [255,215,0,1], 'goldenrod': [218,165,32,1],
-        'gray': [128,128,128,1], 'green': [0,128,0,1],
-        'greenyellow': [173,255,47,1], 'grey': [128,128,128,1],
-        'honeydew': [240,255,240,1], 'hotpink': [255,105,180,1],
-        'indianred': [205,92,92,1], 'indigo': [75,0,130,1],
-        'ivory': [255,255,240,1], 'khaki': [240,230,140,1],
-        'lavender': [230,230,250,1], 'lavenderblush': [255,240,245,1],
-        'lawngreen': [124,252,0,1], 'lemonchiffon': [255,250,205,1],
-        'lightblue': [173,216,230,1], 'lightcoral': [240,128,128,1],
-        'lightcyan': [224,255,255,1], 'lightgoldenrodyellow': [250,250,210,1],
-        'lightgray': [211,211,211,1], 'lightgreen': [144,238,144,1],
-        'lightgrey': [211,211,211,1], 'lightpink': [255,182,193,1],
-        'lightsalmon': [255,160,122,1], 'lightseagreen': [32,178,170,1],
-        'lightskyblue': [135,206,250,1], 'lightslategray': [119,136,153,1],
-        'lightslategrey': [119,136,153,1], 'lightsteelblue': [176,196,222,1],
-        'lightyellow': [255,255,224,1], 'lime': [0,255,0,1],
-        'limegreen': [50,205,50,1], 'linen': [250,240,230,1],
-        'magenta': [255,0,255,1], 'maroon': [128,0,0,1],
-        'mediumaquamarine': [102,205,170,1], 'mediumblue': [0,0,205,1],
-        'mediumorchid': [186,85,211,1], 'mediumpurple': [147,112,219,1],
-        'mediumseagreen': [60,179,113,1], 'mediumslateblue': [123,104,238,1],
-        'mediumspringgreen': [0,250,154,1], 'mediumturquoise': [72,209,204,1],
-        'mediumvioletred': [199,21,133,1], 'midnightblue': [25,25,112,1],
-        'mintcream': [245,255,250,1], 'mistyrose': [255,228,225,1],
-        'moccasin': [255,228,181,1], 'navajowhite': [255,222,173,1],
-        'navy': [0,0,128,1], 'oldlace': [253,245,230,1],
-        'olive': [128,128,0,1], 'olivedrab': [107,142,35,1],
-        'orange': [255,165,0,1], 'orangered': [255,69,0,1],
-        'orchid': [218,112,214,1], 'palegoldenrod': [238,232,170,1],
-        'palegreen': [152,251,152,1], 'paleturquoise': [175,238,238,1],
-        'palevioletred': [219,112,147,1], 'papayawhip': [255,239,213,1],
-        'peachpuff': [255,218,185,1], 'peru': [205,133,63,1],
-        'pink': [255,192,203,1], 'plum': [221,160,221,1],
-        'powderblue': [176,224,230,1], 'purple': [128,0,128,1],
-        'red': [255,0,0,1], 'rosybrown': [188,143,143,1],
-        'royalblue': [65,105,225,1], 'saddlebrown': [139,69,19,1],
-        'salmon': [250,128,114,1], 'sandybrown': [244,164,96,1],
-        'seagreen': [46,139,87,1], 'seashell': [255,245,238,1],
-        'sienna': [160,82,45,1], 'silver': [192,192,192,1],
-        'skyblue': [135,206,235,1], 'slateblue': [106,90,205,1],
-        'slategray': [112,128,144,1], 'slategrey': [112,128,144,1],
-        'snow': [255,250,250,1], 'springgreen': [0,255,127,1],
-        'steelblue': [70,130,180,1], 'tan': [210,180,140,1],
-        'teal': [0,128,128,1], 'thistle': [216,191,216,1],
-        'tomato': [255,99,71,1], 'turquoise': [64,224,208,1],
-        'violet': [238,130,238,1], 'wheat': [245,222,179,1],
-        'white': [255,255,255,1], 'whitesmoke': [245,245,245,1],
-        'yellow': [255,255,0,1], 'yellowgreen': [154,205,50,1]
-    };
-
-    function clampCssByte(i) {  // Clamp to integer 0 .. 255.
-        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
-        return i < 0 ? 0 : i > 255 ? 255 : i;
+    var cached = colorCache.get(colorStr);
+    if (cached) {
+        return copyRgba(rgbaArr, cached);
     }
 
-    function clampCssAngle(i) {  // Clamp to integer 0 .. 360.
-        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
-        return i < 0 ? 0 : i > 360 ? 360 : i;
+    // colorStr may be not string
+    colorStr = colorStr + '';
+    // Remove all whitespace, not compliant, but should just be more accepting.
+    var str = colorStr.replace(/ /g, '').toLowerCase();
+
+    // Color keywords (and transparent) lookup.
+    if (str in kCSSColorTable) {
+        copyRgba(rgbaArr, kCSSColorTable[str]);
+        putToCache(colorStr, rgbaArr);
+        return rgbaArr;
     }
 
-    function clampCssFloat(f) {  // Clamp to float 0.0 .. 1.0.
-        return f < 0 ? 0 : f > 1 ? 1 : f;
-    }
-
-    function parseCssInt(str) {  // int or percentage.
-        if (str.length && str.charAt(str.length - 1) === '%') {
-            return clampCssByte(parseFloat(str) / 100 * 255);
+    // #abc and #abc123 syntax.
+    if (str.charAt(0) === '#') {
+        if (str.length === 4) {
+            var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
+            if (!(iv >= 0 && iv <= 0xfff)) {
+                setRgba(rgbaArr, 0, 0, 0, 1);
+                return;  // Covers NaN.
+            }
+            setRgba(rgbaArr,
+                ((iv & 0xf00) >> 4) | ((iv & 0xf00) >> 8),
+                (iv & 0xf0) | ((iv & 0xf0) >> 4),
+                (iv & 0xf) | ((iv & 0xf) << 4),
+                1
+            );
+            putToCache(colorStr, rgbaArr);
+            return rgbaArr;
         }
-        return clampCssByte(parseInt(str, 10));
-    }
-
-    function parseCssFloat(str) {  // float or percentage.
-        if (str.length && str.charAt(str.length - 1) === '%') {
-            return clampCssFloat(parseFloat(str) / 100);
-        }
-        return clampCssFloat(parseFloat(str));
-    }
-
-    function cssHueToRgb(m1, m2, h) {
-        if (h < 0) {
-            h += 1;
-        }
-        else if (h > 1) {
-            h -= 1;
-        }
-
-        if (h * 6 < 1) {
-            return m1 + (m2 - m1) * h * 6;
-        }
-        if (h * 2 < 1) {
-            return m2;
-        }
-        if (h * 3 < 2) {
-            return m1 + (m2 - m1) * (2/3 - h) * 6;
-        }
-        return m1;
-    }
-
-    function lerp(a, b, p) {
-        return a + (b - a) * p;
-    }
-
-    function setRgba(out, r, g, b, a) {
-        out[0] = r; out[1] = g; out[2] = b; out[3] = a;
-        return out;
-    }
-    function copyRgba(out, a) {
-        out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
-        return out;
-    }
-    var colorCache = new LRU_1(20);
-    var lastRemovedArr = null;
-    function putToCache(colorStr, rgbaArr) {
-        // Reuse removed array
-        if (lastRemovedArr) {
-            copyRgba(lastRemovedArr, rgbaArr);
-        }
-        lastRemovedArr = colorCache.put(colorStr, lastRemovedArr || (rgbaArr.slice()));
-    }
-    /**
-     * @param {string} colorStr
-     * @param {Array.<number>} out
-     * @return {Array.<number>}
-     * @memberOf module:zrender/util/color
-     */
-    function parse(colorStr, rgbaArr) {
-        if (!colorStr) {
-            return;
-        }
-        rgbaArr = rgbaArr || [];
-
-        var cached = colorCache.get(colorStr);
-        if (cached) {
-            return copyRgba(rgbaArr, cached);
-        }
-
-        // colorStr may be not string
-        colorStr = colorStr + '';
-        // Remove all whitespace, not compliant, but should just be more accepting.
-        var str = colorStr.replace(/ /g, '').toLowerCase();
-
-        // Color keywords (and transparent) lookup.
-        if (str in kCSSColorTable) {
-            copyRgba(rgbaArr, kCSSColorTable[str]);
+        else if (str.length === 7) {
+            var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
+            if (!(iv >= 0 && iv <= 0xffffff)) {
+                setRgba(rgbaArr, 0, 0, 0, 1);
+                return;  // Covers NaN.
+            }
+            setRgba(rgbaArr,
+                (iv & 0xff0000) >> 16,
+                (iv & 0xff00) >> 8,
+                iv & 0xff,
+                1
+            );
             putToCache(colorStr, rgbaArr);
             return rgbaArr;
         }
 
-        // #abc and #abc123 syntax.
-        if (str.charAt(0) === '#') {
-            if (str.length === 4) {
-                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
-                if (!(iv >= 0 && iv <= 0xfff)) {
-                    setRgba(rgbaArr, 0, 0, 0, 1);
-                    return;  // Covers NaN.
-                }
-                setRgba(rgbaArr,
-                    ((iv & 0xf00) >> 4) | ((iv & 0xf00) >> 8),
-                    (iv & 0xf0) | ((iv & 0xf0) >> 4),
-                    (iv & 0xf) | ((iv & 0xf) << 4),
-                    1
-                );
-                putToCache(colorStr, rgbaArr);
-                return rgbaArr;
-            }
-            else if (str.length === 7) {
-                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
-                if (!(iv >= 0 && iv <= 0xffffff)) {
-                    setRgba(rgbaArr, 0, 0, 0, 1);
-                    return;  // Covers NaN.
-                }
-                setRgba(rgbaArr,
-                    (iv & 0xff0000) >> 16,
-                    (iv & 0xff00) >> 8,
-                    iv & 0xff,
-                    1
-                );
-                putToCache(colorStr, rgbaArr);
-                return rgbaArr;
-            }
-
-            return;
-        }
-        var op = str.indexOf('('), ep = str.indexOf(')');
-        if (op !== -1 && ep + 1 === str.length) {
-            var fname = str.substr(0, op);
-            var params = str.substr(op + 1, ep - (op + 1)).split(',');
-            var alpha = 1;  // To allow case fallthrough.
-            switch (fname) {
-                case 'rgba':
-                    if (params.length !== 4) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    alpha = parseCssFloat(params.pop()); // jshint ignore:line
-                // Fall through.
-                case 'rgb':
-                    if (params.length !== 3) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    setRgba(rgbaArr,
-                        parseCssInt(params[0]),
-                        parseCssInt(params[1]),
-                        parseCssInt(params[2]),
-                        alpha
-                    );
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                case 'hsla':
-                    if (params.length !== 4) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    params[3] = parseCssFloat(params[3]);
-                    hsla2rgba(params, rgbaArr);
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                case 'hsl':
-                    if (params.length !== 3) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    hsla2rgba(params, rgbaArr);
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                default:
-                    return;
-            }
-        }
-
-        setRgba(rgbaArr, 0, 0, 0, 1);
         return;
     }
-
-    /**
-     * @param {Array.<number>} hsla
-     * @param {Array.<number>} rgba
-     * @return {Array.<number>} rgba
-     */
-    function hsla2rgba(hsla, rgba) {
-        var h = (((parseFloat(hsla[0]) % 360) + 360) % 360) / 360;  // 0 .. 1
-        // NOTE(deanm): According to the CSS spec s/l should only be
-        // percentages, but we don't bother and let float or percentage.
-        var s = parseCssFloat(hsla[1]);
-        var l = parseCssFloat(hsla[2]);
-        var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
-        var m1 = l * 2 - m2;
-
-        rgba = rgba || [];
-        setRgba(rgba,
-            clampCssByte(cssHueToRgb(m1, m2, h + 1 / 3) * 255),
-            clampCssByte(cssHueToRgb(m1, m2, h) * 255),
-            clampCssByte(cssHueToRgb(m1, m2, h - 1 / 3) * 255),
-            1
-        );
-
-        if (hsla.length === 4) {
-            rgba[3] = hsla[3];
-        }
-
-        return rgba;
-    }
-
-    /**
-     * @param {Array.<number>} rgba
-     * @return {Array.<number>} hsla
-     */
-    function rgba2hsla(rgba) {
-        if (!rgba) {
-            return;
-        }
-
-        // RGB from 0 to 255
-        var R = rgba[0] / 255;
-        var G = rgba[1] / 255;
-        var B = rgba[2] / 255;
-
-        var vMin = Math.min(R, G, B); // Min. value of RGB
-        var vMax = Math.max(R, G, B); // Max. value of RGB
-        var delta = vMax - vMin; // Delta RGB value
-
-        var L = (vMax + vMin) / 2;
-        var H;
-        var S;
-        // HSL results from 0 to 1
-        if (delta === 0) {
-            H = 0;
-            S = 0;
-        }
-        else {
-            if (L < 0.5) {
-                S = delta / (vMax + vMin);
-            }
-            else {
-                S = delta / (2 - vMax - vMin);
-            }
-
-            var deltaR = (((vMax - R) / 6) + (delta / 2)) / delta;
-            var deltaG = (((vMax - G) / 6) + (delta / 2)) / delta;
-            var deltaB = (((vMax - B) / 6) + (delta / 2)) / delta;
-
-            if (R === vMax) {
-                H = deltaB - deltaG;
-            }
-            else if (G === vMax) {
-                H = (1 / 3) + deltaR - deltaB;
-            }
-            else if (B === vMax) {
-                H = (2 / 3) + deltaG - deltaR;
-            }
-
-            if (H < 0) {
-                H += 1;
-            }
-
-            if (H > 1) {
-                H -= 1;
-            }
-        }
-
-        var hsla = [H * 360, S, L];
-
-        if (rgba[3] != null) {
-            hsla.push(rgba[3]);
-        }
-
-        return hsla;
-    }
-
-    /**
-     * @param {string} color
-     * @param {number} level
-     * @return {string}
-     * @memberOf module:zrender/util/color
-     */
-    function lift(color, level) {
-        var colorArr = parse(color);
-        if (colorArr) {
-            for (var i = 0; i < 3; i++) {
-                if (level < 0) {
-                    colorArr[i] = colorArr[i] * (1 - level) | 0;
+    var op = str.indexOf('('), ep = str.indexOf(')');
+    if (op !== -1 && ep + 1 === str.length) {
+        var fname = str.substr(0, op);
+        var params = str.substr(op + 1, ep - (op + 1)).split(',');
+        var alpha = 1;  // To allow case fallthrough.
+        switch (fname) {
+            case 'rgba':
+                if (params.length !== 4) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;
                 }
-                else {
-                    colorArr[i] = ((255 - colorArr[i]) * level + colorArr[i]) | 0;
+                alpha = parseCssFloat(params.pop()); // jshint ignore:line
+            // Fall through.
+            case 'rgb':
+                if (params.length !== 3) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;
                 }
-            }
-            return stringify(colorArr, colorArr.length === 4 ? 'rgba' : 'rgb');
+                setRgba(rgbaArr,
+                    parseCssInt(params[0]),
+                    parseCssInt(params[1]),
+                    parseCssInt(params[2]),
+                    alpha
+                );
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            case 'hsla':
+                if (params.length !== 4) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;
+                }
+                params[3] = parseCssFloat(params[3]);
+                hsla2rgba(params, rgbaArr);
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            case 'hsl':
+                if (params.length !== 3) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;
+                }
+                hsla2rgba(params, rgbaArr);
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            default:
+                return;
         }
     }
 
-    /**
-     * @param {string} color
-     * @return {string}
-     * @memberOf module:zrender/util/color
-     */
-    function toHex(color, level) {
-        var colorArr = parse(color);
-        if (colorArr) {
-            return ((1 << 24) + (colorArr[0] << 16) + (colorArr[1] << 8) + (+colorArr[2])).toString(16).slice(1);
-        }
+    setRgba(rgbaArr, 0, 0, 0, 1);
+    return;
+}
+
+/**
+ * @param {Array.<number>} hsla
+ * @param {Array.<number>} rgba
+ * @return {Array.<number>} rgba
+ */
+function hsla2rgba(hsla, rgba) {
+    var h = (((parseFloat(hsla[0]) % 360) + 360) % 360) / 360;  // 0 .. 1
+    // NOTE(deanm): According to the CSS spec s/l should only be
+    // percentages, but we don't bother and let float or percentage.
+    var s = parseCssFloat(hsla[1]);
+    var l = parseCssFloat(hsla[2]);
+    var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
+    var m1 = l * 2 - m2;
+
+    rgba = rgba || [];
+    setRgba(rgba,
+        clampCssByte(cssHueToRgb(m1, m2, h + 1 / 3) * 255),
+        clampCssByte(cssHueToRgb(m1, m2, h) * 255),
+        clampCssByte(cssHueToRgb(m1, m2, h - 1 / 3) * 255),
+        1
+    );
+
+    if (hsla.length === 4) {
+        rgba[3] = hsla[3];
     }
 
-    /**
-     * Map value to color. Faster than mapToColor methods because color is represented by rgba array.
-     * @param {number} normalizedValue A float between 0 and 1.
-     * @param {Array.<Array.<number>>} colors List of rgba color array
-     * @param {Array.<number>} [out] Mapped gba color array
-     * @return {Array.<number>} will be null/undefined if input illegal.
-     */
-    function fastMapToColor(normalizedValue, colors, out) {
-        if (!(colors && colors.length)
-            || !(normalizedValue >= 0 && normalizedValue <= 1)
-        ) {
-            return;
-        }
+    return rgba;
+}
 
-        out = out || [];
+/**
+ * @param {string} color
+ * @param {number} level
+ * @return {string}
+ * @memberOf module:zrender/util/color
+ */
 
-        var value = normalizedValue * (colors.length - 1);
-        var leftIndex = Math.floor(value);
-        var rightIndex = Math.ceil(value);
-        var leftColor = colors[leftIndex];
-        var rightColor = colors[rightIndex];
-        var dv = value - leftIndex;
-        out[0] = clampCssByte(lerp(leftColor[0], rightColor[0], dv));
-        out[1] = clampCssByte(lerp(leftColor[1], rightColor[1], dv));
-        out[2] = clampCssByte(lerp(leftColor[2], rightColor[2], dv));
-        out[3] = clampCssFloat(lerp(leftColor[3], rightColor[3], dv));
 
-        return out;
+/**
+ * @param {string} color
+ * @return {string}
+ * @memberOf module:zrender/util/color
+ */
+
+
+/**
+ * Map value to color. Faster than lerp methods because color is represented by rgba array.
+ * @param {number} normalizedValue A float between 0 and 1.
+ * @param {Array.<Array.<number>>} colors List of rgba color array
+ * @param {Array.<number>} [out] Mapped gba color array
+ * @return {Array.<number>} will be null/undefined if input illegal.
+ */
+
+
+/**
+ * @deprecated
+ */
+
+
+/**
+ * @param {number} normalizedValue A float between 0 and 1.
+ * @param {Array.<string>} colors Color list.
+ * @param {boolean=} fullOutput Default false.
+ * @return {(string|Object)} Result color. If fullOutput,
+ *                           return {color: ..., leftIndex: ..., rightIndex: ..., value: ...},
+ * @memberOf module:zrender/util/color
+ */
+
+
+/**
+ * @deprecated
+ */
+
+
+/**
+ * @param {string} color
+ * @param {number=} h 0 ~ 360, ignore when null.
+ * @param {number=} s 0 ~ 1, ignore when null.
+ * @param {number=} l 0 ~ 1, ignore when null.
+ * @return {string} Color string in rgba format.
+ * @memberOf module:zrender/util/color
+ */
+
+
+/**
+ * @param {string} color
+ * @param {number=} alpha 0 ~ 1
+ * @return {string} Color string in rgba format.
+ * @memberOf module:zrender/util/color
+ */
+
+
+/**
+ * @param {Array.<number>} arrColor like [12,33,44,0.4]
+ * @param {string} type 'rgba', 'hsva', ...
+ * @return {string} Result color. (If input illegal, return undefined).
+ */
+function stringify(arrColor, type) {
+    if (!arrColor || !arrColor.length) {
+        return;
     }
-    /**
-     * @param {number} normalizedValue A float between 0 and 1.
-     * @param {Array.<string>} colors Color list.
-     * @param {boolean=} fullOutput Default false.
-     * @return {(string|Object)} Result color. If fullOutput,
-     *                           return {color: ..., leftIndex: ..., rightIndex: ..., value: ...},
-     * @memberOf module:zrender/util/color
-     */
-    function mapToColor(normalizedValue, colors, fullOutput) {
-        if (!(colors && colors.length)
-            || !(normalizedValue >= 0 && normalizedValue <= 1)
-        ) {
-            return;
-        }
-
-        var value = normalizedValue * (colors.length - 1);
-        var leftIndex = Math.floor(value);
-        var rightIndex = Math.ceil(value);
-        var leftColor = parse(colors[leftIndex]);
-        var rightColor = parse(colors[rightIndex]);
-        var dv = value - leftIndex;
-
-        var color = stringify(
-            [
-                clampCssByte(lerp(leftColor[0], rightColor[0], dv)),
-                clampCssByte(lerp(leftColor[1], rightColor[1], dv)),
-                clampCssByte(lerp(leftColor[2], rightColor[2], dv)),
-                clampCssFloat(lerp(leftColor[3], rightColor[3], dv))
-            ],
-            'rgba'
-        );
-
-        return fullOutput
-            ? {
-                color: color,
-                leftIndex: leftIndex,
-                rightIndex: rightIndex,
-                value: value
-            }
-            : color;
+    var colorStr = arrColor[0] + ',' + arrColor[1] + ',' + arrColor[2];
+    if (type === 'rgba' || type === 'hsva' || type === 'hsla') {
+        colorStr += ',' + arrColor[3];
     }
-
-    /**
-     * @param {string} color
-     * @param {number=} h 0 ~ 360, ignore when null.
-     * @param {number=} s 0 ~ 1, ignore when null.
-     * @param {number=} l 0 ~ 1, ignore when null.
-     * @return {string} Color string in rgba format.
-     * @memberOf module:zrender/util/color
-     */
-    function modifyHSL(color, h, s, l) {
-        color = parse(color);
-
-        if (color) {
-            color = rgba2hsla(color);
-            h != null && (color[0] = clampCssAngle(h));
-            s != null && (color[1] = parseCssFloat(s));
-            l != null && (color[2] = parseCssFloat(l));
-
-            return stringify(hsla2rgba(color), 'rgba');
-        }
-    }
-
-    /**
-     * @param {string} color
-     * @param {number=} alpha 0 ~ 1
-     * @return {string} Color string in rgba format.
-     * @memberOf module:zrender/util/color
-     */
-    function modifyAlpha(color, alpha) {
-        color = parse(color);
-
-        if (color && alpha != null) {
-            color[3] = clampCssFloat(alpha);
-            return stringify(color, 'rgba');
-        }
-    }
-
-    /**
-     * @param {Array.<number>} arrColor like [12,33,44,0.4]
-     * @param {string} type 'rgba', 'hsva', ...
-     * @return {string} Result color. (If input illegal, return undefined).
-     */
-    function stringify(arrColor, type) {
-        if (!arrColor || !arrColor.length) {
-            return;
-        }
-        var colorStr = arrColor[0] + ',' + arrColor[1] + ',' + arrColor[2];
-        if (type === 'rgba' || type === 'hsva' || type === 'hsla') {
-            colorStr += ',' + arrColor[3];
-        }
-        return type + '(' + colorStr + ')';
-    }
-
-    var color = {
-        parse: parse,
-        lift: lift,
-        toHex: toHex,
-        fastMapToColor: fastMapToColor,
-        mapToColor: mapToColor,
-        modifyHSL: modifyHSL,
-        modifyAlpha: modifyAlpha,
-        stringify: stringify
-    };
+    return type + '(' + colorStr + ')';
+}
 
 function isValueNone(value) {
     return !value || value === 'none';
@@ -27715,6 +27577,7 @@ function convertTextureToPowerOfTwo(texture) {
             ctx.drawImage(texture.image, 0, 0, width, height);
             canvas.srcImage = texture.image;
             texture.image = canvas;
+            texture.dirty();
         }
     }
 }
@@ -27746,7 +27609,7 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
         prefix += keys[i] + '_' + textureOpts[keys[i]] + '_';
     }
 
-    var textureCache = app.__textureCache = app.__textureCache || new LRU_1(20);
+    var textureCache = app.__textureCache = app.__textureCache || new LRU(20);
 
     if (isValueImage(imgValue)) {
         var id = imgValue.__textureid__;
@@ -27923,7 +27786,7 @@ helper.parseColor = function (colorStr, rgba) {
         return rgba;
     }
 
-    rgba = color.parse(colorStr || '#000', rgba) || [0, 0, 0, 0];
+    rgba = parse(colorStr || '#000', rgba) || [0, 0, 0, 0];
     rgba[0] /= 255;
     rgba[1] /= 255;
     rgba[2] /= 255;
@@ -27942,7 +27805,7 @@ helper.stringifyColor = function (colorArr, type) {
     if (type === 'hex') {
         return '#' + ((1 << 24) + (colorArr[0] << 16) + (colorArr[1] << 8) + colorArr[2]).toString(16).slice(1);
     }
-    return color.stringify(colorArr, type);
+    return stringify(colorArr, type);
 };
 
 /**
@@ -27963,6 +27826,8 @@ helper.directionFromAlphaBeta = function (alpha, beta) {
 
     return dir;
 };
+
+helper.convertTextureToPowerOfTwo = convertTextureToPowerOfTwo;
 
 var effectJson = {
     'type' : 'compositor',
@@ -29408,6 +29273,8 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     }
 
     this.afterRenderAll(renderer, scene, camera);
+
+    // this._compositor._gBufferPass.renderDebug(renderer, camera, 'normal');
     // this._shadowMapPass.renderDebug(renderer);
 };
 
@@ -29957,593 +29824,359 @@ var defaultSceneConfig = {
  * @module zrender/core/util
  */
 
+// 用于处理merge时无法遍历Date等对象的问题
+var BUILTIN_OBJECT = {
+    '[object Function]': 1,
+    '[object RegExp]': 1,
+    '[object Date]': 1,
+    '[object Error]': 1,
+    '[object CanvasGradient]': 1,
+    '[object CanvasPattern]': 1,
+    // For node-canvas
+    '[object Image]': 1,
+    '[object Canvas]': 1
+};
 
-    // 用于处理merge时无法遍历Date等对象的问题
-    var BUILTIN_OBJECT = {
-        '[object Function]': 1,
-        '[object RegExp]': 1,
-        '[object Date]': 1,
-        '[object Error]': 1,
-        '[object CanvasGradient]': 1,
-        '[object CanvasPattern]': 1,
-        // For node-canvas
-        '[object Image]': 1,
-        '[object Canvas]': 1
-    };
+var TYPED_ARRAY = {
+    '[object Int8Array]': 1,
+    '[object Uint8Array]': 1,
+    '[object Uint8ClampedArray]': 1,
+    '[object Int16Array]': 1,
+    '[object Uint16Array]': 1,
+    '[object Int32Array]': 1,
+    '[object Uint32Array]': 1,
+    '[object Float32Array]': 1,
+    '[object Float64Array]': 1
+};
 
-    var TYPED_ARRAY = {
-        '[object Int8Array]': 1,
-        '[object Uint8Array]': 1,
-        '[object Uint8ClampedArray]': 1,
-        '[object Int16Array]': 1,
-        '[object Uint16Array]': 1,
-        '[object Int32Array]': 1,
-        '[object Uint32Array]': 1,
-        '[object Float32Array]': 1,
-        '[object Float64Array]': 1
-    };
+var objToString = Object.prototype.toString;
 
-    var objToString = Object.prototype.toString;
+/**
+ * Those data types can be cloned:
+ *     Plain object, Array, TypedArray, number, string, null, undefined.
+ * Those data types will be assgined using the orginal data:
+ *     BUILTIN_OBJECT
+ * Instance of user defined class will be cloned to a plain object, without
+ * properties in prototype.
+ * Other data types is not supported (not sure what will happen).
+ *
+ * Caution: do not support clone Date, for performance consideration.
+ * (There might be a large number of date in `series.data`).
+ * So date should not be modified in and out of echarts.
+ *
+ * @param {*} source
+ * @return {*} new
+ */
+function clone(source) {
+    if (source == null || typeof source != 'object') {
+        return source;
+    }
 
-    var arrayProto = Array.prototype;
-    var nativeForEach$1 = arrayProto.forEach;
-    var nativeFilter = arrayProto.filter;
-    var nativeSlice = arrayProto.slice;
-    var nativeMap = arrayProto.map;
-    var nativeReduce = arrayProto.reduce;
+    var result = source;
+    var typeStr = objToString.call(source);
 
-    /**
-     * Those data types can be cloned:
-     *     Plain object, Array, TypedArray, number, string, null, undefined.
-     * Those data types will be assgined using the orginal data:
-     *     BUILTIN_OBJECT
-     * Instance of user defined class will be cloned to a plain object, without
-     * properties in prototype.
-     * Other data types is not supported (not sure what will happen).
-     *
-     * Caution: do not support clone Date, for performance consideration.
-     * (There might be a large number of date in `series.data`).
-     * So date should not be modified in and out of echarts.
-     *
-     * @param {*} source
-     * @return {*} new
-     */
-    function clone(source) {
-        if (source == null || typeof source != 'object') {
-            return source;
+    if (typeStr === '[object Array]') {
+        result = [];
+        for (var i = 0, len = source.length; i < len; i++) {
+            result[i] = clone(source[i]);
         }
-
-        var result = source;
-        var typeStr = objToString.call(source);
-
-        if (typeStr === '[object Array]') {
-            result = [];
+    }
+    else if (TYPED_ARRAY[typeStr]) {
+        var Ctor = source.constructor;
+        if (source.constructor.from) {
+            result = Ctor.from(source);
+        }
+        else {
+            result = new Ctor(source.length);
             for (var i = 0, len = source.length; i < len; i++) {
                 result[i] = clone(source[i]);
             }
         }
-        else if (TYPED_ARRAY[typeStr]) {
-            result = source.constructor.from(source);
-        }
-        else if (!BUILTIN_OBJECT[typeStr] && !isPrimitive(source) && !isDom(source)) {
-            result = {};
-            for (var key in source) {
-                if (source.hasOwnProperty(key)) {
-                    result[key] = clone(source[key]);
-                }
-            }
-        }
-
-        return result;
     }
-
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} target
-     * @param {*} source
-     * @param {boolean} [overwrite=false]
-     */
-    function merge(target, source, overwrite) {
-        // We should escapse that source is string
-        // and enter for ... in ...
-        if (!isObject(source) || !isObject(target)) {
-            return overwrite ? clone(source) : target;
-        }
-
+    else if (!BUILTIN_OBJECT[typeStr] && !isPrimitive(source) && !isDom(source)) {
+        result = {};
         for (var key in source) {
             if (source.hasOwnProperty(key)) {
-                var targetProp = target[key];
-                var sourceProp = source[key];
-
-                if (isObject(sourceProp)
-                    && isObject(targetProp)
-                    && !isArray(sourceProp)
-                    && !isArray(targetProp)
-                    && !isDom(sourceProp)
-                    && !isDom(targetProp)
-                    && !isBuiltInObject(sourceProp)
-                    && !isBuiltInObject(targetProp)
-                    && !isPrimitive(sourceProp)
-                    && !isPrimitive(targetProp)
-                ) {
-                    // 如果需要递归覆盖，就递归调用merge
-                    merge(targetProp, sourceProp, overwrite);
-                }
-                else if (overwrite || !(key in target)) {
-                    // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
-                    // NOTE，在 target[key] 不存在的时候也是直接覆盖
-                    target[key] = clone(source[key], true);
-                }
+                result[key] = clone(source[key]);
             }
         }
-
-        return target;
     }
 
-    /**
-     * @param {Array} targetAndSources The first item is target, and the rests are source.
-     * @param {boolean} [overwrite=false]
-     * @return {*} target
-     */
-    function mergeAll(targetAndSources, overwrite) {
-        var result = targetAndSources[0];
-        for (var i = 1, len = targetAndSources.length; i < len; i++) {
-            result = merge(result, targetAndSources[i], overwrite);
-        }
-        return result;
+    return result;
+}
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} target
+ * @param {*} source
+ * @param {boolean} [overwrite=false]
+ */
+function merge(target, source, overwrite) {
+    // We should escapse that source is string
+    // and enter for ... in ...
+    if (!isObject(source) || !isObject(target)) {
+        return overwrite ? clone(source) : target;
     }
 
-    /**
-     * @param {*} target
-     * @param {*} source
-     * @memberOf module:zrender/core/util
-     */
-    function extend$1(target, source) {
-        for (var key in source) {
-            if (source.hasOwnProperty(key)) {
-                target[key] = source[key];
-            }
-        }
-        return target;
-    }
+    for (var key in source) {
+        if (source.hasOwnProperty(key)) {
+            var targetProp = target[key];
+            var sourceProp = source[key];
 
-    /**
-     * @param {*} target
-     * @param {*} source
-     * @param {boolen} [overlay=false]
-     * @memberOf module:zrender/core/util
-     */
-    function defaults(target, source, overlay) {
-        for (var key in source) {
-            if (source.hasOwnProperty(key)
-                && (overlay ? source[key] != null : target[key] == null)
+            if (isObject(sourceProp)
+                && isObject(targetProp)
+                && !isArray(sourceProp)
+                && !isArray(targetProp)
+                && !isDom(sourceProp)
+                && !isDom(targetProp)
+                && !isBuiltInObject(sourceProp)
+                && !isBuiltInObject(targetProp)
+                && !isPrimitive(sourceProp)
+                && !isPrimitive(targetProp)
             ) {
-                target[key] = source[key];
+                // 如果需要递归覆盖，就递归调用merge
+                merge(targetProp, sourceProp, overwrite);
             }
-        }
-        return target;
-    }
-
-    function createCanvas() {
-        return document.createElement('canvas');
-    }
-    // FIXME
-    var _ctx;
-    function getContext() {
-        if (!_ctx) {
-            // Use util.createCanvas instead of createCanvas
-            // because createCanvas may be overwritten in different environment
-            _ctx = util$2.createCanvas().getContext('2d');
-        }
-        return _ctx;
-    }
-
-    /**
-     * 查询数组中元素的index
-     * @memberOf module:zrender/core/util
-     */
-    function indexOf(array, value) {
-        if (array) {
-            if (array.indexOf) {
-                return array.indexOf(value);
-            }
-            for (var i = 0, len = array.length; i < len; i++) {
-                if (array[i] === value) {
-                    return i;
-                }
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * 构造类继承关系
-     *
-     * @memberOf module:zrender/core/util
-     * @param {Function} clazz 源类
-     * @param {Function} baseClazz 基类
-     */
-    function inherits(clazz, baseClazz) {
-        var clazzPrototype = clazz.prototype;
-        function F() {}
-        F.prototype = baseClazz.prototype;
-        clazz.prototype = new F();
-
-        for (var prop in clazzPrototype) {
-            clazz.prototype[prop] = clazzPrototype[prop];
-        }
-        clazz.prototype.constructor = clazz;
-        clazz.superClass = baseClazz;
-    }
-
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {Object|Function} target
-     * @param {Object|Function} sorce
-     * @param {boolean} overlay
-     */
-    function mixin(target, source, overlay) {
-        target = 'prototype' in target ? target.prototype : target;
-        source = 'prototype' in source ? source.prototype : source;
-
-        defaults(target, source, overlay);
-    }
-
-    /**
-     * Consider typed array.
-     * @param {Array|TypedArray} data
-     */
-    function isArrayLike$1(data) {
-        if (! data) {
-            return;
-        }
-        if (typeof data == 'string') {
-            return false;
-        }
-        return typeof data.length == 'number';
-    }
-
-    /**
-     * 数组或对象遍历
-     * @memberOf module:zrender/core/util
-     * @param {Object|Array} obj
-     * @param {Function} cb
-     * @param {*} [context]
-     */
-    function each(obj, cb, context) {
-        if (!(obj && cb)) {
-            return;
-        }
-        if (obj.forEach && obj.forEach === nativeForEach$1) {
-            obj.forEach(cb, context);
-        }
-        else if (obj.length === +obj.length) {
-            for (var i = 0, len = obj.length; i < len; i++) {
-                cb.call(context, obj[i], i, obj);
-            }
-        }
-        else {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    cb.call(context, obj[key], key, obj);
-                }
+            else if (overwrite || !(key in target)) {
+                // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
+                // NOTE，在 target[key] 不存在的时候也是直接覆盖
+                target[key] = clone(source[key], true);
             }
         }
     }
 
-    /**
-     * 数组映射
-     * @memberOf module:zrender/core/util
-     * @param {Array} obj
-     * @param {Function} cb
-     * @param {*} [context]
-     * @return {Array}
-     */
-    function map(obj, cb, context) {
-        if (!(obj && cb)) {
-            return;
-        }
-        if (obj.map && obj.map === nativeMap) {
-            return obj.map(cb, context);
-        }
-        else {
-            var result = [];
-            for (var i = 0, len = obj.length; i < len; i++) {
-                result.push(cb.call(context, obj[i], i, obj));
-            }
-            return result;
-        }
-    }
+    return target;
+}
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {Array} obj
-     * @param {Function} cb
-     * @param {Object} [memo]
-     * @param {*} [context]
-     * @return {Array}
-     */
-    function reduce(obj, cb, memo, context) {
-        if (!(obj && cb)) {
-            return;
-        }
-        if (obj.reduce && obj.reduce === nativeReduce) {
-            return obj.reduce(cb, memo, context);
-        }
-        else {
-            for (var i = 0, len = obj.length; i < len; i++) {
-                memo = cb.call(context, memo, obj[i], i, obj);
-            }
-            return memo;
-        }
-    }
+/**
+ * @param {Array} targetAndSources The first item is target, and the rests are source.
+ * @param {boolean} [overwrite=false]
+ * @return {*} target
+ */
 
-    /**
-     * 数组过滤
-     * @memberOf module:zrender/core/util
-     * @param {Array} obj
-     * @param {Function} cb
-     * @param {*} [context]
-     * @return {Array}
-     */
-    function filter(obj, cb, context) {
-        if (!(obj && cb)) {
-            return;
-        }
-        if (obj.filter && obj.filter === nativeFilter) {
-            return obj.filter(cb, context);
-        }
-        else {
-            var result = [];
-            for (var i = 0, len = obj.length; i < len; i++) {
-                if (cb.call(context, obj[i], i, obj)) {
-                    result.push(obj[i]);
-                }
-            }
-            return result;
-        }
-    }
 
-    /**
-     * 数组项查找
-     * @memberOf module:zrender/core/util
-     * @param {Array} obj
-     * @param {Function} cb
-     * @param {*} [context]
-     * @return {Array}
-     */
-    function find(obj, cb, context) {
-        if (!(obj && cb)) {
-            return;
-        }
-        for (var i = 0, len = obj.length; i < len; i++) {
-            if (cb.call(context, obj[i], i, obj)) {
-                return obj[i];
-            }
-        }
-    }
+/**
+ * @param {*} target
+ * @param {*} source
+ * @memberOf module:zrender/core/util
+ */
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {Function} func
-     * @param {*} context
-     * @return {Function}
-     */
-    function bind(func, context) {
-        var args = nativeSlice.call(arguments, 2);
-        return function () {
-            return func.apply(context, args.concat(nativeSlice.call(arguments)));
-        };
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {Function} func
-     * @return {Function}
-     */
-    function curry(func) {
-        var args = nativeSlice.call(arguments, 1);
-        return function () {
-            return func.apply(this, args.concat(nativeSlice.call(arguments)));
-        };
-    }
+/**
+ * @param {*} target
+ * @param {*} source
+ * @param {boolean} [overlay=false]
+ * @memberOf module:zrender/core/util
+ */
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isArray(value) {
-        return objToString.call(value) === '[object Array]';
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isString(value) {
-        return objToString.call(value) === '[object String]';
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isObject(value) {
-        // Avoid a V8 JIT bug in Chrome 19-20.
-        // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-        var type = typeof value;
-        return type === 'function' || (!!value && type == 'object');
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isBuiltInObject(value) {
-        return !!BUILTIN_OBJECT[objToString.call(value)];
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {*} value
-     * @return {boolean}
-     */
-    function isDom(value) {
-        return typeof value === 'object'
-            && typeof value.nodeType === 'number'
-            && typeof value.ownerDocument === 'object';
-    }
+/**
+ * 查询数组中元素的index
+ * @memberOf module:zrender/core/util
+ */
 
-    /**
-     * Whether is exactly NaN. Notice isNaN('a') returns true.
-     * @param {*} value
-     * @return {boolean}
-     */
-    function eqNaN(value) {
-        return value !== value;
-    }
 
-    /**
-     * If value1 is not null, then return value1, otherwise judget rest of values.
-     * @memberOf module:zrender/core/util
-     * @return {*} Final value
-     */
-    function retrieve(values) {
-        for (var i = 0, len = arguments.length; i < len; i++) {
-            if (arguments[i] != null) {
-                return arguments[i];
-            }
-        }
-    }
+/**
+ * 构造类继承关系
+ *
+ * @memberOf module:zrender/core/util
+ * @param {Function} clazz 源类
+ * @param {Function} baseClazz 基类
+ */
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {Array} arr
-     * @param {number} startIndex
-     * @param {number} endIndex
-     * @return {Array}
-     */
-    function slice() {
-        return Function.call.apply(nativeSlice, arguments);
-    }
 
-    /**
-     * @memberOf module:zrender/core/util
-     * @param {boolean} condition
-     * @param {string} message
-     */
-    function assert(condition, message) {
-        if (!condition) {
-            throw new Error(message);
-        }
-    }
+/**
+ * @memberOf module:zrender/core/util
+ * @param {Object|Function} target
+ * @param {Object|Function} sorce
+ * @param {boolean} overlay
+ */
 
-    var primitiveKey = '__ec_primitive__';
-    /**
-     * Set an object as primitive to be ignored traversing children in clone or merge
-     */
-    function setAsPrimitive(obj) {
-        obj[primitiveKey] = true;
-    }
 
-    function isPrimitive(obj) {
-        return obj[primitiveKey];
-    }
+/**
+ * Consider typed array.
+ * @param {Array|TypedArray} data
+ */
 
-    /**
-     * @constructor
-     * @param {Object} obj Only apply `ownProperty`.
-     */
-    function HashMap(obj) {
-        obj && each(obj, function (value, key) {
-            this.set(key, value);
-        }, this);
-    }
 
-    // Add prefix to avoid conflict with Object.prototype.
-    var HASH_MAP_PREFIX = '_ec_';
-    var HASH_MAP_PREFIX_LENGTH = 4;
+/**
+ * 数组或对象遍历
+ * @memberOf module:zrender/core/util
+ * @param {Object|Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ */
 
-    HashMap.prototype = {
-        constructor: HashMap,
-        // Do not provide `has` method to avoid defining what is `has`.
-        // (We usually treat `null` and `undefined` as the same, different
-        // from ES6 Map).
-        get: function (key) {
-            return this[HASH_MAP_PREFIX + key];
-        },
-        set: function (key, value) {
-            this[HASH_MAP_PREFIX + key] = value;
-            // Comparing with invocation chaining, `return value` is more commonly
-            // used in this case: `var someVal = map.set('a', genVal());`
-            return value;
-        },
-        // Although util.each can be performed on this hashMap directly, user
-        // should not use the exposed keys, who are prefixed.
-        each: function (cb, context) {
-            context !== void 0 && (cb = bind(cb, context));
-            for (var prefixedKey in this) {
-                this.hasOwnProperty(prefixedKey)
-                    && cb(this[prefixedKey], prefixedKey.slice(HASH_MAP_PREFIX_LENGTH));
-            }
-        },
-        // Do not use this method if performance sensitive.
-        removeKey: function (key) {
-            delete this[key];
-        }
-    };
 
-    function createHashMap(obj) {
-        return new HashMap(obj);
-    }
+/**
+ * 数组映射
+ * @memberOf module:zrender/core/util
+ * @param {Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ * @return {Array}
+ */
 
-    var util$2 = {
-        inherits: inherits,
-        mixin: mixin,
-        clone: clone,
-        merge: merge,
-        mergeAll: mergeAll,
-        extend: extend$1,
-        defaults: defaults,
-        getContext: getContext,
-        createCanvas: createCanvas,
-        indexOf: indexOf,
-        slice: slice,
-        find: find,
-        isArrayLike: isArrayLike$1,
-        each: each,
-        map: map,
-        reduce: reduce,
-        filter: filter,
-        bind: bind,
-        curry: curry,
-        isArray: isArray,
-        isString: isString,
-        isObject: isObject,
-        isFunction: isFunction,
-        isBuiltInObject: isBuiltInObject,
-        isDom: isDom,
-        eqNaN: eqNaN,
-        retrieve: retrieve,
-        assert: assert,
-        setAsPrimitive: setAsPrimitive,
-        createHashMap: createHashMap,
-        noop: function () {}
-    };
-    var util_1 = util$2;
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {Array} obj
+ * @param {Function} cb
+ * @param {Object} [memo]
+ * @param {*} [context]
+ * @return {Array}
+ */
+
+
+/**
+ * 数组过滤
+ * @memberOf module:zrender/core/util
+ * @param {Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ * @return {Array}
+ */
+
+
+/**
+ * 数组项查找
+ * @memberOf module:zrender/core/util
+ * @param {Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ * @return {*}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {Function} func
+ * @param {*} context
+ * @return {Function}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {Function} func
+ * @return {Function}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+function isArray(value) {
+    return objToString.call(value) === '[object Array]';
+}
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+function isObject(value) {
+    // Avoid a V8 JIT bug in Chrome 19-20.
+    // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+    var type = typeof value;
+    return type === 'function' || (!!value && type == 'object');
+}
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+function isBuiltInObject(value) {
+    return !!BUILTIN_OBJECT[objToString.call(value)];
+}
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {*} value
+ * @return {boolean}
+ */
+function isDom(value) {
+    return typeof value === 'object'
+        && typeof value.nodeType === 'number'
+        && typeof value.ownerDocument === 'object';
+}
+
+/**
+ * Whether is exactly NaN. Notice isNaN('a') returns true.
+ * @param {*} value
+ * @return {boolean}
+ */
+
+
+/**
+ * If value1 is not null, then return value1, otherwise judget rest of values.
+ * Low performance.
+ * @memberOf module:zrender/core/util
+ * @return {*} Final value
+ */
+
+
+
+
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {Array} arr
+ * @param {number} startIndex
+ * @param {number} endIndex
+ * @return {Array}
+ */
+
+
+/**
+ * Normalize css liked array configuration
+ * e.g.
+ *  3 => [3, 3, 3, 3]
+ *  [4, 2] => [4, 2, 4, 2]
+ *  [4, 3, 2] => [4, 3, 2, 3]
+ * @param {number|Array.<number>} val
+ * @return {Array.<number>}
+ */
+
+
+/**
+ * @memberOf module:zrender/core/util
+ * @param {boolean} condition
+ * @param {string} message
+ */
+
+
+var primitiveKey = '__ec_primitive__';
+/**
+ * Set an object as primitive to be ignored traversing children in clone or merge
+ */
+
+
+function isPrimitive(obj) {
+    return obj[primitiveKey];
+}
 
 var vec3$18 = glmatrix.vec3;
 
@@ -31414,7 +31047,7 @@ Object.defineProperty(OrbitControl.prototype, 'target', {
     }
 });
 
-var vec4$2 = glmatrix.vec4;
+var vec4$3 = glmatrix.vec4;
 
 /**
  * @constructor
@@ -31437,7 +31070,7 @@ var Vector4 = function(x, y, z, w) {
      * @name _array
      * @type {Float32Array}
      */
-    this._array = vec4$2.fromValues(x, y, z, w);
+    this._array = vec4$3.fromValues(x, y, z, w);
 
     /**
      * Dirty flag is used by the Node to determine
@@ -31458,7 +31091,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     add: function(b) {
-        vec4$2.add(this._array, this._array, b._array);
+        vec4$3.add(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31509,7 +31142,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     copy: function(b) {
-        vec4$2.copy(this._array, b._array);
+        vec4$3.copy(this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31520,7 +31153,7 @@ Vector4.prototype = {
      * @return {number}
      */
     dist: function(b) {
-        return vec4$2.dist(this._array, b._array);
+        return vec4$3.dist(this._array, b._array);
     },
 
     /**
@@ -31529,7 +31162,7 @@ Vector4.prototype = {
      * @return {number}
      */
     distance: function(b) {
-        return vec4$2.distance(this._array, b._array);
+        return vec4$3.distance(this._array, b._array);
     },
 
     /**
@@ -31538,7 +31171,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     div: function(b) {
-        vec4$2.div(this._array, this._array, b._array);
+        vec4$3.div(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31549,7 +31182,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     divide: function(b) {
-        vec4$2.divide(this._array, this._array, b._array);
+        vec4$3.divide(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31560,7 +31193,7 @@ Vector4.prototype = {
      * @return {number}
      */
     dot: function(b) {
-        return vec4$2.dot(this._array, b._array);
+        return vec4$3.dot(this._array, b._array);
     },
 
     /**
@@ -31568,7 +31201,7 @@ Vector4.prototype = {
      * @return {number}
      */
     len: function() {
-        return vec4$2.len(this._array);
+        return vec4$3.len(this._array);
     },
 
     /**
@@ -31576,7 +31209,7 @@ Vector4.prototype = {
      * @return {number}
      */
     length: function() {
-        return vec4$2.length(this._array);
+        return vec4$3.length(this._array);
     },
     /**
      * Linear interpolation between a and b
@@ -31586,7 +31219,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     lerp: function(a, b, t) {
-        vec4$2.lerp(this._array, a._array, b._array, t);
+        vec4$3.lerp(this._array, a._array, b._array, t);
         this._dirty = true;
         return this;
     },
@@ -31597,7 +31230,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     min: function(b) {
-        vec4$2.min(this._array, this._array, b._array);
+        vec4$3.min(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31608,7 +31241,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     max: function(b) {
-        vec4$2.max(this._array, this._array, b._array);
+        vec4$3.max(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31619,7 +31252,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     mul: function(b) {
-        vec4$2.mul(this._array, this._array, b._array);
+        vec4$3.mul(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31630,7 +31263,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     multiply: function(b) {
-        vec4$2.multiply(this._array, this._array, b._array);
+        vec4$3.multiply(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31640,7 +31273,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     negate: function() {
-        vec4$2.negate(this._array, this._array);
+        vec4$3.negate(this._array, this._array);
         this._dirty = true;
         return this;
     },
@@ -31650,7 +31283,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     normalize: function() {
-        vec4$2.normalize(this._array, this._array);
+        vec4$3.normalize(this._array, this._array);
         this._dirty = true;
         return this;
     },
@@ -31661,7 +31294,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     random: function(scale) {
-        vec4$2.random(this._array, scale);
+        vec4$3.random(this._array, scale);
         this._dirty = true;
         return this;
     },
@@ -31672,7 +31305,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     scale: function(s) {
-        vec4$2.scale(this._array, this._array, s);
+        vec4$3.scale(this._array, this._array, s);
         this._dirty = true;
         return this;
     },
@@ -31683,7 +31316,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     scaleAndAdd: function(b, s) {
-        vec4$2.scaleAndAdd(this._array, this._array, b._array, s);
+        vec4$3.scaleAndAdd(this._array, this._array, b._array, s);
         this._dirty = true;
         return this;
     },
@@ -31694,7 +31327,7 @@ Vector4.prototype = {
      * @return {number}
      */
     sqrDist: function(b) {
-        return vec4$2.sqrDist(this._array, b._array);
+        return vec4$3.sqrDist(this._array, b._array);
     },
 
     /**
@@ -31703,7 +31336,7 @@ Vector4.prototype = {
      * @return {number}
      */
     squaredDistance: function(b) {
-        return vec4$2.squaredDistance(this._array, b._array);
+        return vec4$3.squaredDistance(this._array, b._array);
     },
 
     /**
@@ -31711,7 +31344,7 @@ Vector4.prototype = {
      * @return {number}
      */
     sqrLen: function() {
-        return vec4$2.sqrLen(this._array);
+        return vec4$3.sqrLen(this._array);
     },
 
     /**
@@ -31719,7 +31352,7 @@ Vector4.prototype = {
      * @return {number}
      */
     squaredLength: function() {
-        return vec4$2.squaredLength(this._array);
+        return vec4$3.squaredLength(this._array);
     },
 
     /**
@@ -31728,7 +31361,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     sub: function(b) {
-        vec4$2.sub(this._array, this._array, b._array);
+        vec4$3.sub(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31739,7 +31372,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     subtract: function(b) {
-        vec4$2.subtract(this._array, this._array, b._array);
+        vec4$3.subtract(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31750,7 +31383,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     transformMat4: function(m) {
-        vec4$2.transformMat4(this._array, this._array, m._array);
+        vec4$3.transformMat4(this._array, this._array, m._array);
         this._dirty = true;
         return this;
     },
@@ -31761,7 +31394,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     transformQuat: function(q) {
-        vec4$2.transformQuat(this._array, this._array, q._array);
+        vec4$3.transformQuat(this._array, this._array, q._array);
         this._dirty = true;
         return this;
     },
@@ -31854,7 +31487,7 @@ if (defineProperty$3) {
  * @return {qtek.math.Vector4}
  */
 Vector4.add = function(out, a, b) {
-    vec4$2.add(out._array, a._array, b._array);
+    vec4$3.add(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31867,7 +31500,7 @@ Vector4.add = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.set = function(out, x, y, z, w) {
-    vec4$2.set(out._array, x, y, z, w);
+    vec4$3.set(out._array, x, y, z, w);
     out._dirty = true;
 };
 
@@ -31877,7 +31510,7 @@ Vector4.set = function(out, x, y, z, w) {
  * @return {qtek.math.Vector4}
  */
 Vector4.copy = function(out, b) {
-    vec4$2.copy(out._array, b._array);
+    vec4$3.copy(out._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31888,7 +31521,7 @@ Vector4.copy = function(out, b) {
  * @return {number}
  */
 Vector4.dist = function(a, b) {
-    return vec4$2.distance(a._array, b._array);
+    return vec4$3.distance(a._array, b._array);
 };
 
 /**
@@ -31906,7 +31539,7 @@ Vector4.distance = Vector4.dist;
  * @return {qtek.math.Vector4}
  */
 Vector4.div = function(out, a, b) {
-    vec4$2.divide(out._array, a._array, b._array);
+    vec4$3.divide(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31926,7 +31559,7 @@ Vector4.divide = Vector4.div;
  * @return {number}
  */
 Vector4.dot = function(a, b) {
-    return vec4$2.dot(a._array, b._array);
+    return vec4$3.dot(a._array, b._array);
 };
 
 /**
@@ -31934,7 +31567,7 @@ Vector4.dot = function(a, b) {
  * @return {number}
  */
 Vector4.len = function(b) {
-    return vec4$2.length(b._array);
+    return vec4$3.length(b._array);
 };
 
 // Vector4.length = Vector4.len;
@@ -31947,7 +31580,7 @@ Vector4.len = function(b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.lerp = function(out, a, b, t) {
-    vec4$2.lerp(out._array, a._array, b._array, t);
+    vec4$3.lerp(out._array, a._array, b._array, t);
     out._dirty = true;
     return out;
 };
@@ -31959,7 +31592,7 @@ Vector4.lerp = function(out, a, b, t) {
  * @return {qtek.math.Vector4}
  */
 Vector4.min = function(out, a, b) {
-    vec4$2.min(out._array, a._array, b._array);
+    vec4$3.min(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31971,7 +31604,7 @@ Vector4.min = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.max = function(out, a, b) {
-    vec4$2.max(out._array, a._array, b._array);
+    vec4$3.max(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31983,7 +31616,7 @@ Vector4.max = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.mul = function(out, a, b) {
-    vec4$2.multiply(out._array, a._array, b._array);
+    vec4$3.multiply(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -32003,7 +31636,7 @@ Vector4.multiply = Vector4.mul;
  * @return {qtek.math.Vector4}
  */
 Vector4.negate = function(out, a) {
-    vec4$2.negate(out._array, a._array);
+    vec4$3.negate(out._array, a._array);
     out._dirty = true;
     return out;
 };
@@ -32014,7 +31647,7 @@ Vector4.negate = function(out, a) {
  * @return {qtek.math.Vector4}
  */
 Vector4.normalize = function(out, a) {
-    vec4$2.normalize(out._array, a._array);
+    vec4$3.normalize(out._array, a._array);
     out._dirty = true;
     return out;
 };
@@ -32025,7 +31658,7 @@ Vector4.normalize = function(out, a) {
  * @return {qtek.math.Vector4}
  */
 Vector4.random = function(out, scale) {
-    vec4$2.random(out._array, scale);
+    vec4$3.random(out._array, scale);
     out._dirty = true;
     return out;
 };
@@ -32037,7 +31670,7 @@ Vector4.random = function(out, scale) {
  * @return {qtek.math.Vector4}
  */
 Vector4.scale = function(out, a, scale) {
-    vec4$2.scale(out._array, a._array, scale);
+    vec4$3.scale(out._array, a._array, scale);
     out._dirty = true;
     return out;
 };
@@ -32050,7 +31683,7 @@ Vector4.scale = function(out, a, scale) {
  * @return {qtek.math.Vector4}
  */
 Vector4.scaleAndAdd = function(out, a, b, scale) {
-    vec4$2.scaleAndAdd(out._array, a._array, b._array, scale);
+    vec4$3.scaleAndAdd(out._array, a._array, b._array, scale);
     out._dirty = true;
     return out;
 };
@@ -32061,7 +31694,7 @@ Vector4.scaleAndAdd = function(out, a, b, scale) {
  * @return {number}
  */
 Vector4.sqrDist = function(a, b) {
-    return vec4$2.sqrDist(a._array, b._array);
+    return vec4$3.sqrDist(a._array, b._array);
 };
 
 /**
@@ -32077,7 +31710,7 @@ Vector4.squaredDistance = Vector4.sqrDist;
  * @return {number}
  */
 Vector4.sqrLen = function(a) {
-    return vec4$2.sqrLen(a._array);
+    return vec4$3.sqrLen(a._array);
 };
 /**
  * @method
@@ -32093,7 +31726,7 @@ Vector4.squaredLength = Vector4.sqrLen;
  * @return {qtek.math.Vector4}
  */
 Vector4.sub = function(out, a, b) {
-    vec4$2.subtract(out._array, a._array, b._array);
+    vec4$3.subtract(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -32113,7 +31746,7 @@ Vector4.subtract = Vector4.sub;
  * @return {qtek.math.Vector4}
  */
 Vector4.transformMat4 = function(out, a, m) {
-    vec4$2.transformMat4(out._array, a._array, m._array);
+    vec4$3.transformMat4(out._array, a._array, m._array);
     out._dirty = true;
     return out;
 };
@@ -32125,7 +31758,7 @@ Vector4.transformMat4 = function(out, a, m) {
  * @return {qtek.math.Vector4}
  */
 Vector4.transformQuat = function(out, a, q) {
-    vec4$2.transformQuat(out._array, a._array, q._array);
+    vec4$3.transformQuat(out._array, a._array, q._array);
     out._dirty = true;
     return out;
 };
@@ -32241,6 +31874,8 @@ var groundGLSLCode = "@export qmv.ground.vertex\n@import qtek.lambert.vertex\n@e
 
 Shader.import(groundGLSLCode);
 
+var TEXTURES = ['diffuseMap', 'normalMap', 'emissiveMap', 'metalnessMap', 'roughnessMap', 'specularMap', 'glossinessMap'];
+
 /**
  * @constructor
  * @param {HTMLDivElement} dom Root node
@@ -32255,8 +31890,8 @@ Shader.import(groundGLSLCode);
  */
 function Viewer(dom, sceneConfig) {
 
-    sceneConfig = util_1.clone(sceneConfig);
-    util_1.merge(sceneConfig, defaultSceneConfig);
+    sceneConfig = clone(sceneConfig);
+    merge(sceneConfig, defaultSceneConfig);
 
     this.init(dom, sceneConfig);
 }
@@ -32519,14 +32154,54 @@ Viewer.prototype._clickHandler = function (e) {
     }
 };
 
-
+/**
+ * Enable picking
+ */
 Viewer.prototype.enablePicking = function () {
     this._enablePicking = true;
 };
+/**
+ * Disable picking
+ */
 Viewer.prototype.disablePicking = function () {
     this._enablePicking = false;
 };
 /**
+ * Model coordinate system is y up.
+ */
+Viewer.prototype.setModelUpAxis = function (upAxis) {
+    var modelNode = this._modelNode;
+    if (!modelNode) {
+        return;
+    }
+    modelNode.position.set(0, 0, 0);
+    modelNode.scale.set(1, 1, 1);
+    modelNode.rotation.identity();
+    if (upAxis.toLowerCase() === 'z') {
+        modelNode.rotation.identity().rotateX(-Math.PI / 2);
+    }
+
+    this.autoFitModel();
+};
+Viewer.prototype.setTextureFlipY = function (flipY) {
+    if (!this._modelNode) {
+        return;
+    }
+    for (var key in this._materialsMap) {
+        for (var i = 0; i < this._materialsMap[key].length; i++) {
+            var mat = this._materialsMap[key][i];
+            for (var k = 0; k < TEXTURES.length; k++) {
+                var tex = mat.get(TEXTURES[k]);
+                if (tex) {
+                    tex.flipY = flipY;
+                    tex.dirty();
+                }
+            }
+        }
+    }
+    this.refresh();
+};
+ /**
  * Resize the viewport
  */
 Viewer.prototype.resize = function () {
@@ -32553,7 +32228,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         var center = new Vector3();
         center.copy(bbox.max).add(bbox.min).scale(0.5);
 
-        var scale = fitSize / Math.max(size.x, size.y, size.z);
+        // scale may be NaN if mesh is a plane.
+        var scale = fitSize / Math.max(size.x, size.y, size.z) || 1;
 
         this._modelNode.scale.set(scale, scale, scale);
         this._modelNode.position.copy(center).scale(-scale);
@@ -32570,6 +32246,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
 
         // Fit the ground
         this._groundMesh.position.y = -size.y * scale / 2;
+
+        this.refresh();
     }
 };
 
@@ -32580,7 +32258,8 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {Object} [opts.shader='lambert'] 'basic'|'lambert'|'standard'
  * @param {boolean} [opts.includeTexture=true]
  * @param {Object} [opts.files] Pre-read files map
- * @param {boolean} [opts.zUpToYUp=false] Change model to y up
+ * @param {Array.<ArrayBuffer>} [opts.buffers]
+ * @param {boolean} [opts.upAxis='y'] Change model to y up if upAxis is 'z'
  * @param {boolean} [opts.textureFlipY=false]
  */
 Viewer.prototype.loadModel = function (gltfFile, opts) {
@@ -32601,7 +32280,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
                 return opts.files[fileName];
             }
             else {
-                return fileName;
+                return fileName || '';
             }
         };
     }
@@ -32625,10 +32304,10 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         loader.load(gltfFile);
     }
     else {
-        loader.parse(gltfFile);
+        loader.parse(gltfFile, opts.buffers);
     }
 
-    if (opts.zUpToYUp) {
+    if (opts.upAxis && opts.upAxis.toLowerCase() === 'z') {
         loader.rootNode.rotation.rotateX(-Math.PI / 2);
     }
 
@@ -32671,6 +32350,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         });
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
+            this._convertToPOT();
             this._convertBumpToNormal();
             task.trigger('ready');
             this.refresh();
@@ -32697,9 +32377,44 @@ Viewer.prototype._convertBumpToNormal = function () {
                 var normalImage = textureUtil.heightToNormal(normalTexture.image);
                 normalImage.srcImage = normalTexture.image;
                 normalTexture.image = normalImage;
+                normalTexture.dirty();
             }
         }
     } 
+};
+
+Viewer.prototype._convertToPOT = function () {
+    this._modelNode.traverse(function (mesh) {
+        if (mesh.material) {
+            var hasNPOT = false;
+            var needsConvert = false;
+            for (var i = 0; i < TEXTURES.length; i++) {
+                var tex = mesh.material.get(TEXTURES[i]);
+                if (tex && !tex.isPowerOfTwo()) {
+                    hasNPOT = true;
+                    break;
+                }
+            }
+            if (hasNPOT) {
+                var texcoordVal = mesh.geometry.attributes.texcoord0.value || [];
+                for (var i = 0; i < texcoordVal.length; i++) {
+                    var st = texcoordVal[i];
+                    if (st > 1 || st < 0) {
+                        needsConvert = true;
+                        break;
+                    }
+                }
+            }
+            if (needsConvert) {
+                for (var i = 0; i < TEXTURES.length; i++) {
+                    var tex = mesh.material.get(TEXTURES[i]);
+                    if (tex) {
+                        helper.convertTextureToPowerOfTwo(tex);
+                    }
+                }
+            }
+        }
+    });
 };
 
 /**
@@ -32736,7 +32451,8 @@ Viewer.prototype.getModelRoot = function () {
 
 Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
-    var alphaCutoff = opts.alphaCutoff != null ? opts.alphaCutoff : 0.;
+    var alphaCutoff = opts.alphaCutoff;
+    var doubleSided = opts.doubleSided;
     var shaderName = opts.shader || 'standard';
     var shaderLibrary = this.shaderLibrary;
 
@@ -32747,19 +32463,31 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         }
     });
     meshNeedsSplit.forEach(function (mesh) {
-        meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+        var newNode = meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+        if (newNode !== mesh) {
+            newNode.eachChild(function (mesh) {
+                mesh.originalMeshName = newNode.name;
+            });
+        }
     }, this);
     rootNode.traverse(function (mesh) {
         if (mesh.geometry) {
             mesh.geometry.updateBoundingBox();
-            mesh.culling = false;
+            if (doubleSided != null) {
+                mesh.culling = !doubleSided;
+            }
         }
         if (mesh.material) {
             mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
             mesh.material.shader.define('fragment', 'ALPHA_TEST');
-            mesh.material.shader.define('fragment', 'DOUBLE_SIDED');
+            if (doubleSided != null) {
+                mesh.material.shader[doubleSided ? 'define' : 'undefine']('fragment', 'DOUBLE_SIDED');
+            }
             mesh.material.shader.precision = 'mediump';
-            mesh.material.set('alphaCutoff', alphaCutoff);
+
+            if (alphaCutoff != null) {
+                mesh.material.set('alphaCutoff', alphaCutoff);
+            }
 
             // Transparent mesh not cast shadow
             if (mesh.material.transparent) {

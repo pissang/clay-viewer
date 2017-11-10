@@ -177,6 +177,11 @@ function showSaveTip() {
     backgroundProgressEl.querySelector('#background-progress-text').innerHTML = 'Saving...DONT close the page.';
 }
 
+function showPrepareTip() {
+    backgroundProgressEl.style.display = 'block';
+    backgroundProgressEl.querySelector('#background-progress-text').innerHTML = 'Preparing for download...DONT close the page.';
+}
+
 function hideBackgroundProgress () {
     backgroundProgressEl.style.display = 'none';
 }
@@ -419,7 +424,8 @@ function download() {
             'zip': 'ZIP'
         }
     }).then(function (result) {
-        project.downloadProject(result);
+        showPrepareTip();
+        project.downloadProject(result, hideBackgroundProgress, hideBackgroundProgress);
     });
 }
 
