@@ -1,128 +1,245 @@
-import Filer from 'filer.js';
 import env from './env';
 import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, convertToBinary, TEXTURES } from './glTFHelper';
 import convert from 'vendor/convert';
+import mime from 'mime-types';
 
-var filer = new Filer();
-var filerInited = false;
 
-function getExt(fileName) {
+var fs;
+var Buffer = BrowserFS.BFSRequire('buffer').Buffer;
+
+var FS_NOT_PREPARED_ERROR = 'File system not prepared yet.';
+
+function extname(fileName) {
     var idx = fileName.lastIndexOf('.');
     return idx >= 0 ? fileName.substr(idx + 1).toLowerCase() : '';
 }
+// Simple method handling mkdir and dirname.
+function mkdir(path, parentDir) {
+    var pathList = path.split('/');
+    parentDir = parentDir || '';
+    if (path.indexOf('/') === 0) {
+        pathList.shift();
+    }
+    // Handle xxx//xxx
+    pathList = pathList.filter(function (item) {
+        return !!item;
+    });
+    return new Promise(function (resolve, reject) {
+        if (!fs) {
+            reject(FS_NOT_PREPARED_ERROR);
+            return;
+        }
+        var current = pathList.shift();
+        var dirName = parentDir + '/' + current;
+        fs.mkdir(dirName, function (err) {
+            if (!err || err.code === 'EEXIST') {
+                if (pathList.length) {
+                    mkdir(pathList.join('/'), dirName).then(resolve).catch(reject);
+                }
+                else {
+                    resolve();
+                }
+            }
+            else {
+                reject(err.toString());
+            }
+        });
+    });
+}
+
+function rmdir(path) {
+    return new Promise(function (resolve, reject) {
+        if (!fs) {
+            reject(FS_NOT_PREPARED_ERROR);
+            return;
+        }
+
+        ls(path).then(function (files) {
+            return Promise.all(files.map(function (fileName) {
+                return new Promise(function (resolve, reject) {
+                    var filePath = path + '/' + fileName;
+                    fs.lstat(filePath, function (err, stat) {
+                        if (err) {
+                            reject(err.toString());
+                        }
+                        else {
+                            stat.isDirectory() 
+                                ? rmdir(filePath).then(resolve, reject)
+                                : fs.unlink(filePath, function (err) {
+                                    err ? reject(err.toString()) : resolve();
+                                });
+                        }
+                    });  
+                });
+            }));
+        }, reject)
+        .then(function () {
+            fs.rmdir(path, function (err) {
+                err ? reject(err.toString()) : resolve();
+            });
+        }, reject);
+    });
+}
+
+function dirname(path) {
+    var arr = path.split('/');
+    arr.pop();
+    return arr.join('/');
+}
+
+function writeFile(path, file) {
+    return new Promise(function (resolve, reject) {
+        if (!fs) {
+            reject(FS_NOT_PREPARED_ERROR);
+        }
+        FileAPI.readAsArrayBuffer(file, function (evt) {
+            fs.writeFile(path, Buffer.from(evt.result), function (err) {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve();
+                }
+            });
+        });
+    });
+}
+
+function ls(path) {
+    return new Promise(function (resolve, reject) {
+        fs.readdir(path, function (err, files) {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(files);
+            }
+        });
+    });
+}
 
 function init(cb) {
-    filer.init({
-        persistent: true,
-        size: 1024 * 1024 * 200
-    }, function (fs) {
-        filerInited = true;
+    BrowserFS.install(window);
+    // Configures BrowserFS to use the LocalStorage file system.
+    BrowserFS.configure({
+        fs: 'IndexedDB',
+        options: {}
+        // options: {
+        //     size: 1024 * 1024 * 100,
+        //     type: PERSISTENT
+        // }
+    }, function(e) {
+        if (e) {
+            // An error happened!
+            throw e;
+        }
+        fs = BrowserFS.BFSRequire('fs');        
 
-        filer.mkdir('/project', false, function () {
+        mkdir('/project').then(function () {
             Promise.all([
                 loadModelFromFS(),
                 loadSceneFromFS()
             ]).then(function (result) {
-                cb && cb(result[0][0], result[0][1], result[1]);
+                cb && cb(result[0].glTF, result[0].filesMap, result[1]);
+            }).catch(function (err) {
+                cb();
             });
         }, function (err) {
-            swal('Create project error.' + err.toString());
+            cb();
         });
-    }, function (err) {
-        swal('Init error.' + err.toString());
     });
 }
 
 function saveModelFiles(files) {
-    if (!filerInited) {
-        swal('Not inited yet.');
-    }
-    function doSave() {
-        filer.mkdir('/project/model', false, function () {
-            var count = files.length;
-            files.forEach(function (file) {
-                filer.write('/project/model/' + file.name, { data: file, type: file.type }, function () {
-                    count--;
-                    if (count === 0) {
-                    }
-                }, function (err) {
-                    swal(err.toString());
-                });
+    return new Promise(function (resolve, reject) {
+        function doSave() {
+            mkdir('/project/model').then(function () {
+                Promise.all(files.map(function (file) {
+                    return writeFile('/project/model/' + file.name, file);
+                })).then(resolve, reject);
+            }, function (err) {
+                reject(err);
             });
-        }, function (err) {
-            swal(err.toString());
-        });
-    }
-    filer.ls('/project/model', function (entries) {
-        var count = entries.length;
-        if (count === 0) {
-            doSave();
         }
-        entries.forEach(function (entry) {
-            filer.rm(entry, function () {
-                count--;
-                if (count === 0) {
-                    doSave();
-                }
-            });
-        });
-    }, function (err) {
-        doSave();
+         
+        rmdir('/project/model').then(function () {
+            doSave();
+        }, function (err) {
+            doSave();
+        })
     });
 }
 
 function saveSceneConfig(sceneCfg) {
-    filer.mkdir('/project', false, function () {
-        filer.write('/project/scene.json', {
-            data: JSON.stringify(sceneCfg, null, 2),
-            type: 'application/json'
-        }, function () {
-            console.log('Saved scene');
-        }, function (err) {
-            console.error('Failed to save scene,' + err.toString());
-        });
+    return new Promise(function (resolve, reject) {
+        mkdir('/project').then(function () {
+            writeFile('/project/scene.json', new File(
+                [JSON.stringify(sceneCfg)],
+                'scene.json',
+                { type: 'application/json' }
+            )).then(resolve, reject);
+        }, reject);
     });
 }
 
 function loadSceneFromFS() {
     return new Promise(function (resolve, reject) {
-        filer.create('/project/scene.json', true, function () {
-            resolve(null);
-        }, function () {
-            // FIXME it will throw async error if file not exists
-            filer.open('/project/scene.json', function (file) {
-                FileAPI.readAsText(file, 'utf-8', function (evt) {
-                    if (evt.type === 'load') {
-                        resolve(JSON.parse(evt.result || '{}'));
-                    }
-                });
-            }, function (err) {
+        if (!fs) {
+            reject(FS_NOT_PREPARED_ERROR);
+            return;
+        }
+        fs.readFile('/project/scene.json', 'utf-8', function (err, data) {
+            if (err) {
                 resolve(null);
-            });
+            }
+            else {
+                var json = null;
+                try {
+                    json = JSON.parse(data);
+                }
+                catch(e) {
+                    console.error(e);
+                }
+                resolve(json);
+            }
         });
     });
 }
 
 function loadModelFromFS() {
-    return new Promise(function (resolve, reject) {
-        readModelFilesFromFS().then(function (files) {
-            if (!files) {
-                resolve([]);
-            }
-            else {
-                createModelFilesURL(files).then(function (res) {
-                    resolve([res.glTF, res.filesMap]);
-                });
-            }
-        });
+    return readModelFilesFromFS().then(function (files) {
+        return createModelFilesURL(files);
     });
 }
 
 function writeTextureImage(file) {
-    filer.write('/project/model/' + file.name, { data: file, type: file.type }, function () {
-        console.log('Writed file ' + file.name);
-    }, function (err) {
-        swal(err.toString());
+    return mkdir('/project/model').then(function () {
+        return writeFile('/project/model/' + file.name, file);
+    });
+}
+
+function removeProject() {
+    return rmdir('/project');
+}
+
+function readModelFilesFromFS() {
+    return ls('/project/model').then(function (files) {
+        return Promise.all(files.map(function (fileName) {
+            return new Promise(function (resolve, reject) {
+                fs.readFile('/project/model/' + fileName, function (err, data) {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve(new File(
+                            [data],
+                            fileName,
+                            { type: mime.lookup(extname(fileName))}
+                        ));
+                    }
+                });
+            });
+        }));
     });
 }
 
@@ -138,7 +255,7 @@ function createModelFilesURL(files) {
         if (!glTFFile) {
             if (process.env.TARGET === 'electron') {
                 var validModelFiles = files.filter(function (file) {
-                    var ext = getExt(file.name);
+                    var ext = extname(file.name);
                     return env.SUPPORTED_MODEL_FILES.indexOf(ext) >= 0;
                 });
                 if (validModelFiles.length > 0) {
@@ -223,37 +340,6 @@ function createModelFilesURL(files) {
                 });
             }
         }
-    });
-}
-
-function removeProject() {
-    filer.rm('/project', function () {
-        filer.mkdir('/project', false, function () {}, function (err) {
-            console.error(err.toString());
-        });
-    }, function (err) {
-        console.log(err.toString());
-    });
-}
-
-function readModelFilesFromFS() {
-    return new Promise(function (resolve, reject) {
-        filer.ls('/project/model', function (entries) {
-            var files = [];
-            entries = entries.filter(function (entry) {
-                return entry.isFile;
-            });
-            entries.forEach(function (entry) {
-                filer.open(entry, function (file) {
-                    files.push(file);
-                    if (files.length === entries.length) {
-                        resolve(files);
-                    }
-                });
-            });
-        }, function (err) {
-            resolve(null);
-        });
     });
 }
 
@@ -383,7 +469,9 @@ function downloadProject(format) {
                 }
             });
         });
-    });
+    }).catch(function (err) {
+        swal(err.toString());
+    })
 }
 
 

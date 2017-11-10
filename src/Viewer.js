@@ -435,7 +435,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
                 return opts.files[fileName];
             }
             else {
-                return fileName;
+                return fileName || '';
             }
         };
     }
