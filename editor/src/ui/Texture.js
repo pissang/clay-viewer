@@ -73,7 +73,9 @@ TextureUI.prototype.update = function () {
     this._img.src = value && value.toLowerCase() !== 'none' ? value : './img/chessboard.jpg';
     this._img.style.opacity = (value && value != 'none') ? 1 : 0.5;
 
-    this._uploadEl.innerHTML = this._getFileNameByURL(value) || value || 'none';
+    var text = this._getFileNameByURL(value) || value || 'none';;
+    this._uploadEl.innerHTML = text;
+    this._uploadEl.title = text;
 };
 
 

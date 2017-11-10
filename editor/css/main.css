@@ -227,6 +227,7 @@ body {
     font-size: 11px;
     text-overflow: ellipsis;
     overflow: hidden;
+    direction: rtl;
 }
 .texture-wrap .texture-delete {
     display: inline-block;

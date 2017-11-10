@@ -360,8 +360,8 @@ function initUI() {
     addCommmonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel
         .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
-        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap'), getFileName: getTextureFileName })
+        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap'), getFileName: getTextureFileName })
     addUncommonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel.disable();
