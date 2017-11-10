@@ -473,7 +473,8 @@ function downloadProject(format, onsuccess, onerror) {
                                 return obj;
                             }, {}));
                             saveAs(new Blob([ab], {type: 'model/json-binary'}), 'model.glb');
-                        });
+                            onsuccess && onsuccess();
+                        }).catch(onerror);
                     }
                     else {
                         zip.file(glTFFile.name, JSON.stringify(newGLTF, null, 2));
@@ -481,7 +482,7 @@ function downloadProject(format, onsuccess, onerror) {
                         .then(function (blob) {
                             saveAs(blob, 'model.zip');
                             onsuccess && onsuccess();
-                        });
+                        }).catch(onerror);
                     }
                 }
             });
