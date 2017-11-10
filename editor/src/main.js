@@ -516,9 +516,11 @@ setInterval(function () {
             });
         }
 
+        showSaveTip();
         env.AUTO_SAVE && project.saveSceneConfig(config).then(function () {
+            hideBackgroundProgress();
             console.log('Saved');
-        });
+        }).catch(hideBackgroundProgress);
     }
 }, 5000);
 

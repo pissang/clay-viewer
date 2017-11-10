@@ -160,34 +160,28 @@ function init(cb) {
 }
 
 function saveModelFiles(files) {
-    return new Promise(function (resolve, reject) {
-        function doSave() {
-            mkdir('/project/model').then(function () {
-                Promise.all(files.map(function (file) {
-                    return writeFile('/project/model/' + file.name, file);
-                })).then(resolve, reject);
-            }, function (err) {
-                reject(err);
-            });
-        }
-         
-        rmdir('/project/model').then(function () {
-            doSave();
-        }, function (err) {
-            doSave();
-        })
+    function doSave() {
+        return mkdir('/project/model').then(function () {
+            return Promise.all(files.map(function (file) {
+                return writeFile('/project/model/' + file.name, file);
+            }));
+        });
+    }
+        
+    return rmdir('/project/model').then(function () {
+        return doSave();
+    }, function (err) {
+        return doSave();
     });
 }
 
 function saveSceneConfig(sceneCfg) {
-    return new Promise(function (resolve, reject) {
-        mkdir('/project').then(function () {
-            writeFile('/project/scene.json', new File(
-                [JSON.stringify(sceneCfg)],
-                'scene.json',
-                { type: 'application/json' }
-            )).then(resolve, reject);
-        }, reject);
+    return mkdir('/project').then(function () {
+        return writeFile('/project/scene.json', new File(
+            [JSON.stringify(sceneCfg)],
+            'scene.json',
+            { type: 'application/json' }
+        ));
     });
 }
 

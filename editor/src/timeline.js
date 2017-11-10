@@ -1,7 +1,6 @@
 
 function showTimeline() {
     document.getElementById('timeline').style.display = 'block';
-    startAnimation();
 }
 function hideTimeline() {
     document.getElementById('timeline').style.display = 'none';
