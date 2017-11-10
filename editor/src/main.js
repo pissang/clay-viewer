@@ -97,7 +97,8 @@ function changeTexture(type, file, val) {
         }, this);
 
         // TODO Remove old textures.
-        env.AUTO_SAVE && project.writeTextureImage(file);
+        showSaveTip();
+        env.AUTO_SAVE && project.writeTextureImage(file).then(hideBackgroundProgress).catch(hideBackgroundProgress);
         filesMapInverse[val] = file.name;
 
         uiNeedUpdate && controlKit.update();
@@ -161,6 +162,7 @@ function createViewer() {
 
 
 var loadingEl = document.getElementById('loading');
+var backgroundProgressEl = document.getElementById('background-progress');
 function showLoading(text) {
     document.body.appendChild(loadingEl);
     loadingEl.querySelector('#loading-text').innerHTML = text || 'LOADING';
@@ -168,6 +170,15 @@ function showLoading(text) {
 function hideLoading() {
     // Remove loading
     loadingEl.parentNode.removeChild(loadingEl);
+}
+
+function showSaveTip() {
+    backgroundProgressEl.style.display = 'block';
+    backgroundProgressEl.querySelector('#background-progress-text').innerHTML = 'Saving...DONT close the page.';
+}
+
+function hideBackgroundProgress () {
+    backgroundProgressEl.style.display = 'none';
 }
 
 function init() {
@@ -226,6 +237,11 @@ function init() {
                         viewer.setMaterial(matConfig.name, matConfig);
                     });
                 }
+
+                setTimeout(function () {
+                    showSaveTip();
+                    env.AUTO_SAVE && project.saveModelFiles(files).then(hideBackgroundProgress).catch(hideBackgroundProgress);
+                }, 200);
             })
             .on('loadmodel', afterLoadModel)
             .on('error', function () {
@@ -236,7 +252,6 @@ function init() {
             pbrRoughnessMetallicPanel.disable();
             pbrSpecularGlossinessPanel.disable();
 
-            env.AUTO_SAVE && project.saveModelFiles(files);
         }).catch(function (err) {
 
             hideLoading();
@@ -495,7 +510,9 @@ setInterval(function () {
             });
         }
 
-        env.AUTO_SAVE && project.saveSceneConfig(config);
+        env.AUTO_SAVE && project.saveSceneConfig(config).then(function () {
+            console.log('Saved');
+        });
     }
 }, 5000);
 

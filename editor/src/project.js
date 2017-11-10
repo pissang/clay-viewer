@@ -93,14 +93,18 @@ function writeFile(path, file) {
             reject(FS_NOT_PREPARED_ERROR);
         }
         FileAPI.readAsArrayBuffer(file, function (evt) {
-            fs.writeFile(path, Buffer.from(evt.result), function (err) {
-                if (err) {
-                    reject(err);
-                }
-                else {
-                    resolve();
-                }
-            });
+            if (evt.type === 'load') {
+                fs.writeFile(path, Buffer.from(evt.result), function (err) {
+                    // Don't know why there is EEXIST error.
+                    if (err && err.code !== 'EEXIST') {
+                        reject(err);
+                    }
+                    else {
+                        console.log('Writed file ' + file.name + ' ' + evt.result.byteLength);
+                        resolve();
+                    }
+                });
+            }
         });
     });
 }
@@ -140,7 +144,12 @@ function init(cb) {
                 loadModelFromFS(),
                 loadSceneFromFS()
             ]).then(function (result) {
-                cb && cb(result[0].glTF, result[0].filesMap, result[1]);
+                if (!result[0]) {
+                    cb();
+                }
+                else {
+                    cb && cb(result[0].glTF, result[0].filesMap, result[1]);
+                }
             }).catch(function (err) {
                 cb();
             });
@@ -328,7 +337,14 @@ function createModelFilesURL(files) {
                     if (evt.type === 'load') {
                         // Success
                         // TODO json parse maybe failed
-                        var json = JSON.parse(evt.result);
+                        var json;
+                        try {
+                            json = JSON.parse(evt.result);   
+                        }
+                        catch (e) {
+                            resolve(null);
+                            return;
+                        }
                         readAllFiles(function (filesMap) {
                             resolve({
                                 glTF: json,
