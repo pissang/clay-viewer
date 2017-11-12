@@ -458,6 +458,9 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     if (typeof gltfFile === 'string') {
         loader.load(gltfFile);
     }
+    else if (gltfFile instanceof ArrayBuffer) {
+        loader.parseBinary(gltfFile);
+    }
     else {
         loader.parse(gltfFile, opts.buffers);
     }

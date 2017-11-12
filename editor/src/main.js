@@ -8,7 +8,7 @@ import * as zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
-import { showTimeline, updateAnimationUI } from './timeline';
+import { updateAnimationUI } from './timeline';
 
 var config = getDefaultSceneConfig();
 var materialConfig = getDefaultMaterialConfig();
