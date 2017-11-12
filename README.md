@@ -1,6 +1,6 @@
 # qtek-model-viewer
 
-3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer based on [QTEK](https://github.com/pissang/qtek)
+3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer based with high quality rendering on [QTEK](https://github.com/pissang/qtek)
 
 ## Editor
 
