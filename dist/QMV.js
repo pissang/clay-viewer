@@ -13269,6 +13269,10 @@ function makeKey(enabledMaps, jointCount, shaderDefines) {
 
 function allocateShader(renderer, enabledMaps, jointCount, shaderDefines) {
     var key = makeKey(enabledMaps, jointCount, shaderDefines);
+    if (!shaderUsedCount[renderer.__GUID__]) {
+        shaderUsedCount[renderer.__GUID__] = {};
+    }
+
     var shader = shaderLibrary[key];
 
     if (!shader) {
@@ -13308,8 +13312,8 @@ function allocateShader(renderer, enabledMaps, jointCount, shaderDefines) {
         }
 
         shaderLibrary[key] = shader;
-
-        shaderUsedCount[renderer.__GUID__] = shaderUsedCount[renderer.__GUID__] || {};
+    }
+    if (!shaderUsedCount[renderer.__GUID__][key]) {
         shaderUsedCount[renderer.__GUID__][key] = 0;
     }
     shaderUsedCount[renderer.__GUID__][key]++;
@@ -14762,7 +14766,7 @@ var Skeleton = Base.extend(function () {
 
 var vec3$7 = glmatrix.vec3;
 var mat4$5 = glmatrix.mat4;
-var vec4$2 = glmatrix.vec4;
+var vec4$1 = glmatrix.vec4;
 
 /**
  * @constructor
@@ -14885,21 +14889,21 @@ Plane.prototype = {
      */
     applyTransform: (function() {
         var inverseTranspose = mat4$5.create();
-        var normalv4 = vec4$2.create();
-        var pointv4 = vec4$2.create();
+        var normalv4 = vec4$1.create();
+        var pointv4 = vec4$1.create();
         pointv4[3] = 1;
         return function(m4) {
             m4 = m4._array;
             // Transform point on plane
             vec3$7.scale(pointv4, this.normal._array, this.distance);
-            vec4$2.transformMat4(pointv4, pointv4, m4);
+            vec4$1.transformMat4(pointv4, pointv4, m4);
             this.distance = vec3$7.dot(pointv4, this.normal._array);
             // Transform plane normal
             mat4$5.invert(inverseTranspose, m4);
             mat4$5.transpose(inverseTranspose, inverseTranspose);
             normalv4[3] = 0;
             vec3$7.copy(normalv4, this.normal._array);
-            vec4$2.transformMat4(normalv4, normalv4, inverseTranspose);
+            vec4$1.transformMat4(normalv4, normalv4, inverseTranspose);
             vec3$7.copy(this.normal._array, normalv4);
         };
     })(),
@@ -15424,7 +15428,7 @@ Ray.prototype = {
 };
 
 var vec3$5 = glmatrix.vec3;
-var vec4$1 = glmatrix.vec4;
+var vec4 = glmatrix.vec4;
 
 /**
  * @constructor qtek.Camera
@@ -15507,19 +15511,19 @@ var Camera = Node.extend(function () {
      * @return {qtek.math.Ray}
      */
     castRay: (function () {
-        var v4 = vec4$1.create();
+        var v4 = vec4.create();
         return function (ndc, out) {
             var ray = out !== undefined ? out : new Ray();
             var x = ndc._array[0];
             var y = ndc._array[1];
-            vec4$1.set(v4, x, y, -1, 1);
-            vec4$1.transformMat4(v4, v4, this.invProjectionMatrix._array);
-            vec4$1.transformMat4(v4, v4, this.worldTransform._array);
+            vec4.set(v4, x, y, -1, 1);
+            vec4.transformMat4(v4, v4, this.invProjectionMatrix._array);
+            vec4.transformMat4(v4, v4, this.worldTransform._array);
             vec3$5.scale(ray.origin._array, v4, 1 / v4[3]);
 
-            vec4$1.set(v4, x, y, 1, 1);
-            vec4$1.transformMat4(v4, v4, this.invProjectionMatrix._array);
-            vec4$1.transformMat4(v4, v4, this.worldTransform._array);
+            vec4.set(v4, x, y, 1, 1);
+            vec4.transformMat4(v4, v4, this.invProjectionMatrix._array);
+            vec4.transformMat4(v4, v4, this.worldTransform._array);
             vec3$5.scale(v4, v4, 1 / v4[3]);
             vec3$5.sub(ray.direction._array, v4, ray.origin._array);
 
@@ -17701,11 +17705,19 @@ var StaticGeometry = Geometry.extend(function () {
 
         var n = vec3Create();
 
-        // TODO if no indices
-        for (var f = 0; f < indices.length;) {
-            var i1 = indices[f++];
-            var i2 = indices[f++];
-            var i3 = indices[f++];
+        var len = indices ? indices.length : this.vertexCount;
+        var i1, i2, i3;
+        for (var f = 0; f < len;) {
+            if (indices) {
+                i1 = indices[f++];
+                i2 = indices[f++];
+                i3 = indices[f++];
+            }
+            else {
+                i1 = f++;
+                i2 = f++;
+                i3 = f++;
+            }
 
             vec3Set$2(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
             vec3Set$2(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
@@ -17757,10 +17769,19 @@ var StaticGeometry = Geometry.extend(function () {
         if (!normals) {
             normals = attributes.normal.value = new Float32Array(positions.length);
         }
-        for (var f = 0; f < indices.length;) {
-            var i1 = indices[f++];
-            var i2 = indices[f++];
-            var i3 = indices[f++];
+        var len = indices ? indices.length : this.vertexCount;
+        var i1, i2, i3;
+        for (var f = 0; f < len;) {
+            if (indices) {
+                i1 = indices[f++];
+                i2 = indices[f++];
+                i3 = indices[f++];
+            }
+            else {
+                i1 = f++;
+                i2 = f++;
+                i3 = f++;
+            }
 
             vec3Set$2(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
             vec3Set$2(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
@@ -17811,12 +17832,22 @@ var StaticGeometry = Geometry.extend(function () {
         var sdir = [0.0, 0.0, 0.0];
         var tdir = [0.0, 0.0, 0.0];
         var indices = this.indices;
-        for (var i = 0; i < indices.length;) {
-            var i1 = indices[i++],
-                i2 = indices[i++],
-                i3 = indices[i++],
 
-                st1s = texcoords[i1 * 2],
+        var len = indices ? indices.length : this.vertexCount;
+        var i1, i2, i3;
+        for (var i = 0; i < len;) {
+            if (indices) {
+                i1 = indices[i++];
+                i2 = indices[i++];
+                i3 = indices[i++];
+            }
+            else {
+                i1 = i++;
+                i2 = i++;
+                i3 = i++;
+            }
+
+            var st1s = texcoords[i1 * 2],
                 st2s = texcoords[i2 * 2],
                 st3s = texcoords[i3 * 2],
                 st1t = texcoords[i1 * 2 + 1],
@@ -17895,7 +17926,7 @@ var StaticGeometry = Geometry.extend(function () {
     },
 
     generateUniqueVertex: function () {
-        if (!this.vertexCount) {
+        if (!this.vertexCount || !this.indices) {
             return;
         }
 
@@ -17951,9 +17982,10 @@ var StaticGeometry = Geometry.extend(function () {
             return;
         }
         array = attributes.barycentric.value = new Float32Array(indices.length * 3);
-        for (var i = 0; i < indices.length;) {
+        
+        for (var i = 0; i < (indices ? indices.length : this.vertexCount / 3);) {
             for (var j = 0; j < 3; j++) {
-                var ii = indices[i++];
+                var ii = indices ? indices[i++] : (i * 3 + j);
                 array[ii * 3 + j] = 1;
             }
         }
@@ -18276,6 +18308,7 @@ function () {
      */
     load: function (url) {
         var self = this;
+        var isBinary = url.endsWith('.glb');
 
         if (this.rootPath == null) {
             this.rootPath = url.slice(0, url.lastIndexOf('/'));
@@ -18289,11 +18322,70 @@ function () {
             onerror: function (e) {
                 self.trigger('error', e);
             },
-            responseType: 'text',
+            responseType: isBinary ? 'arraybuffer' : 'text',
             onload: function (data) {
-                self.parse(JSON.parse(data));
+                if (isBinary) {
+                    self.parseBinary(data);
+                }
+                else {
+                    self.parse(JSON.parse(data));
+                }
             }
         });
+    },
+
+    /**
+     * Parse glTF binary
+     * @param {ArrayBuffer} buffer
+     */
+    parseBinary: function (buffer) {
+        var header = new Uint32Array(buffer, 0, 4);
+        if (header[0] !== 0x46546C67) {
+            this.trigger('error', 'Invalid glTF binary format: Invalid header');
+            return;
+        }
+        if (header[0] < 2) {
+            this.trigger('error', 'Only glTF2.0 is supported.');
+            return;
+        }
+        
+        var dataView = new DataView(buffer, 12);
+        
+        var json;
+        var buffers = [];
+        // Read chunks
+        for (var i = 0; i < dataView.byteLength;) {
+            var chunkLength = dataView.getUint32(i, true);
+            i += 4;
+            var chunkType = dataView.getUint32(i, true);
+            i += 4;
+
+            // json
+            if (chunkType === 0x4E4F534A) {
+                var arr = new Uint8Array(buffer, i + 12, chunkLength);
+                // TODO, for the browser not support TextDecoder.
+                var decoder = new TextDecoder();
+                var str = decoder.decode(arr);
+                try {
+                    json = JSON.parse(str);
+                }
+                catch (e) {
+                    this.trigger('error', 'JSON Parse error:' + e.toString());
+                    return;
+                }
+            }
+            else if (chunkType === 0x004E4942) {
+                buffers.push(buffer.slice(i + 12, i + 12 + chunkLength));
+            }
+
+            i += chunkLength;
+        }
+        if (!json) {
+            this.trigger('error', 'Invalid glTF binary format: Can\'t find JSON.');
+            return;
+        }
+
+        return this.parse(json, buffers);
     },
 
     /**
@@ -18305,6 +18397,7 @@ function () {
         var self = this;
 
         var lib = {
+            json: json,
             buffers: [],
             bufferViews: [],
             materials: [],
@@ -18346,6 +18439,7 @@ function () {
 
         function getResult() {
             return {
+                json: json,
                 scene: self.rootNode ? null : rootNode,
                 rootNode: self.rootNode ? rootNode : null,
                 cameras: lib.cameras,
@@ -18564,8 +18658,19 @@ function () {
             if (target === glenum.TEXTURE_2D) {
                 var texture = new Texture2D(parameters);
                 var imageInfo = json.images[textureInfo.source];
-                texture.load(this.resolveTexturePath(imageInfo.uri), this.crossOrigin);
-                lib.textures[idx] = texture;
+                var uri;
+                if (imageInfo.uri) {
+                    uri = this.resolveTexturePath(imageInfo.uri);
+                }
+                else if (imageInfo.bufferView != null) {
+                    uri = URL.createObjectURL(new Blob([lib.bufferViews[imageInfo.bufferView]], {
+                        type: imageInfo.mimeType
+                    }));
+                }
+                if (uri) {
+                    texture.load(uri, this.crossOrigin);
+                    lib.textures[idx] = texture;
+                }
             }
         }, this);
     },
@@ -18957,6 +19062,9 @@ function () {
                 });
                 if (materialInfo != null) {
                     mesh.culling = !materialInfo.doubleSided;
+                }
+                if (!mesh.geometry.attributes.normal.value) {
+                    mesh.geometry.generateVertexNormals();
                 }
                 if (((material instanceof StandardMaterial) && material.normalMap)
                     || (material.shader && material.shader.isTextureEnabled('normalMap'))
@@ -23397,7 +23505,9 @@ var ShadowMapPass = Base.extend(function () {
         if (!notUpdateScene) {
             scene.update();
         }
-        sceneCamera.update();
+        if (sceneCamera) {
+            sceneCamera.update();   
+        }
 
         this._update(renderer, scene);
 
@@ -25621,7 +25731,7 @@ var poissonKernel = [
 0.617074219636, 0.779817204925
 ];
 
-var gbufferEssl = "@export qtek.deferred.gbuffer.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat;\nuniform vec2 uvOffset;\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n#ifdef FIRST_PASS\nattribute vec3 normal : NORMAL;\n#endif\n@import qtek.chunk.skinning_header\n#ifdef FIRST_PASS\nvarying vec3 v_Normal;\nattribute vec4 tangent : TANGENT;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\n#endif\nvarying vec2 v_Texcoord;\nvarying vec4 v_ProjPos;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef FIRST_PASS\n    vec3 skinnedNormal = normal;\n    vec3 skinnedTangent = tangent.xyz;\n    bool hasTangent = dot(tangent, tangent) > 0.0;\n#endif\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    #ifdef FIRST_PASS\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n    if (hasTangent) {\n        skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n    }\n    #endif\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n#ifdef FIRST_PASS\n    v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n    if (hasTangent) {\n        v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n        v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n    }\n#endif\n    v_ProjPos = gl_Position;\n}\n@end\n@export qtek.deferred.gbuffer1.fragment\nuniform float glossiness;\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nuniform sampler2D normalMap;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\nuniform sampler2D roughGlossMap;\nuniform bool useRoughGlossMap;\nuniform bool useRoughness;\nuniform int roughGlossChannel: 0;\nvarying vec4 v_ProjPos;\nfloat indexingTexel(in vec4 texel, in int idx) {\n    if (idx == 3) return texel.a;\n    else if (idx == 1) return texel.g;\n    else if (idx == 2) return texel.b;\n    else return texel.r;\n}\nvoid main()\n{\n    vec3 N = v_Normal;\n    if (dot(v_Tangent, v_Tangent) > 0.0) {\n        vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n        if (dot(normalTexel, normalTexel) > 0.0) {            N = normalTexel * 2.0 - 1.0;\n            mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n            N = normalize(tbn * N);\n        }\n    }\n    gl_FragColor.rgb = (N + 1.0) * 0.5;\n    float g = glossiness;\n    if (useRoughGlossMap) {\n        float g2 = indexingTexel(texture2D(roughGlossMap, v_Texcoord), roughGlossChannel);\n        if (useRoughness) {\n            g2 = 1.0 - g2;\n        }\n        g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    }\n    gl_FragColor.a = g;\n}\n@end\n@export qtek.deferred.gbuffer2.fragment\nuniform sampler2D diffuseMap;\nuniform sampler2D metalnessMap;\nuniform vec3 color;\nuniform float metalness;\nuniform bool useMetalnessMap;\nuniform bool linear;\nvarying vec2 v_Texcoord;\n@import qtek.util.srgb\nvoid main ()\n{\n    float m = metalness;\n    if (useMetalnessMap) {\n        vec4 metalnessTexel = texture2D(metalnessMap, v_Texcoord);\n        m = clamp(metalnessTexel.r + (m * 2.0 - 1.0), 0.0, 1.0);\n    }\n    vec4 texel = texture2D(diffuseMap, v_Texcoord);\n    if (linear) {\n        texel = sRGBToLinear(texel);\n    }\n    gl_FragColor.rgb = texel.rgb * color;\n    gl_FragColor.a = m;\n}\n@end\n@export qtek.deferred.gbuffer.debug\n@import qtek.deferred.chunk.light_head\nuniform int debug: 0;\nvoid main ()\n{\n    @import qtek.deferred.chunk.gbuffer_read\n    if (debug == 0) {\n        gl_FragColor = vec4(N, 1.0);\n    }\n    else if (debug == 1) {\n        gl_FragColor = vec4(vec3(z), 1.0);\n    }\n    else if (debug == 2) {\n        gl_FragColor = vec4(position, 1.0);\n    }\n    else if (debug == 3) {\n        gl_FragColor = vec4(vec3(glossiness), 1.0);\n    }\n    else if (debug == 4) {\n        gl_FragColor = vec4(vec3(metalness), 1.0);\n    }\n    else {\n        gl_FragColor = vec4(albedo, 1.0);\n    }\n}\n@end";
+var gbufferEssl = "@export qtek.deferred.gbuffer.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 worldInverseTranspose : WORLDINVERSETRANSPOSE;\nuniform mat4 world : WORLD;\nuniform vec2 uvRepeat;\nuniform vec2 uvOffset;\nattribute vec3 position : POSITION;\nattribute vec2 texcoord : TEXCOORD_0;\n#ifdef FIRST_PASS\nattribute vec3 normal : NORMAL;\n#endif\n@import qtek.chunk.skinning_header\n#ifdef FIRST_PASS\nvarying vec3 v_Normal;\nattribute vec4 tangent : TANGENT;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\nvarying vec3 v_WorldPosition;\n#endif\nvarying vec2 v_Texcoord;\nvoid main()\n{\n    vec3 skinnedPosition = position;\n#ifdef FIRST_PASS\n    vec3 skinnedNormal = normal;\n    vec3 skinnedTangent = tangent.xyz;\n    bool hasTangent = dot(tangent, tangent) > 0.0;\n#endif\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n    #ifdef FIRST_PASS\n    skinnedNormal = (skinMatrixWS * vec4(normal, 0.0)).xyz;\n    if (hasTangent) {\n        skinnedTangent = (skinMatrixWS * vec4(tangent.xyz, 0.0)).xyz;\n    }\n    #endif\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition, 1.0);\n    v_Texcoord = texcoord * uvRepeat + uvOffset;\n#ifdef FIRST_PASS\n    v_Normal = normalize((worldInverseTranspose * vec4(skinnedNormal, 0.0)).xyz);\n    if (hasTangent) {\n        v_Tangent = normalize((worldInverseTranspose * vec4(skinnedTangent, 0.0)).xyz);\n        v_Bitangent = normalize(cross(v_Normal, v_Tangent) * tangent.w);\n    }\n    v_WorldPosition = (world * vec4(skinnedPosition, 1.0)).xyz;\n#endif\n}\n@end\n@export qtek.deferred.gbuffer1.fragment\nuniform mat4 viewInverse : VIEWINVERSE;\nuniform float glossiness;\nvarying vec2 v_Texcoord;\nvarying vec3 v_Normal;\nvarying vec3 v_WorldPosition;\nuniform sampler2D normalMap;\nvarying vec3 v_Tangent;\nvarying vec3 v_Bitangent;\nuniform sampler2D roughGlossMap;\nuniform bool useRoughGlossMap;\nuniform bool useRoughness;\nuniform bool doubleSided;\nuniform int roughGlossChannel: 0;\nfloat indexingTexel(in vec4 texel, in int idx) {\n    if (idx == 3) return texel.a;\n    else if (idx == 1) return texel.g;\n    else if (idx == 2) return texel.b;\n    else return texel.r;\n}\nvoid main()\n{\n    vec3 N = v_Normal;\n    if (doubleSided) {\n        vec3 eyePos = viewInverse[3].xyz;\n        vec3 V = eyePos - v_WorldPosition;\n        if (dot(N, V) < 0.0) {\n            N = -N;\n        }\n    }\n    if (dot(v_Tangent, v_Tangent) > 0.0) {\n        vec3 normalTexel = texture2D(normalMap, v_Texcoord).xyz;\n        if (dot(normalTexel, normalTexel) > 0.0) {            N = normalTexel * 2.0 - 1.0;\n            mat3 tbn = mat3(v_Tangent, v_Bitangent, v_Normal);\n            N = normalize(tbn * N);\n        }\n    }\n    gl_FragColor.rgb = (N + 1.0) * 0.5;\n    float g = glossiness;\n    if (useRoughGlossMap) {\n        float g2 = indexingTexel(texture2D(roughGlossMap, v_Texcoord), roughGlossChannel);\n        if (useRoughness) {\n            g2 = 1.0 - g2;\n        }\n        g = clamp(g2 + (g - 0.5) * 2.0, 0.0, 1.0);\n    }\n    gl_FragColor.a = g;\n}\n@end\n@export qtek.deferred.gbuffer2.fragment\nuniform sampler2D diffuseMap;\nuniform sampler2D metalnessMap;\nuniform vec3 color;\nuniform float metalness;\nuniform bool useMetalnessMap;\nuniform bool linear;\nvarying vec2 v_Texcoord;\n@import qtek.util.srgb\nvoid main ()\n{\n    float m = metalness;\n    if (useMetalnessMap) {\n        vec4 metalnessTexel = texture2D(metalnessMap, v_Texcoord);\n        m = clamp(metalnessTexel.r + (m * 2.0 - 1.0), 0.0, 1.0);\n    }\n    vec4 texel = texture2D(diffuseMap, v_Texcoord);\n    if (linear) {\n        texel = sRGBToLinear(texel);\n    }\n    gl_FragColor.rgb = texel.rgb * color;\n    gl_FragColor.a = m;\n}\n@end\n@export qtek.deferred.gbuffer.debug\n@import qtek.deferred.chunk.light_head\nuniform int debug: 0;\nvoid main ()\n{\n    @import qtek.deferred.chunk.gbuffer_read\n    if (debug == 0) {\n        gl_FragColor = vec4(N, 1.0);\n    }\n    else if (debug == 1) {\n        gl_FragColor = vec4(vec3(z), 1.0);\n    }\n    else if (debug == 2) {\n        gl_FragColor = vec4(position, 1.0);\n    }\n    else if (debug == 3) {\n        gl_FragColor = vec4(vec3(glossiness), 1.0);\n    }\n    else if (debug == 4) {\n        gl_FragColor = vec4(vec3(metalness), 1.0);\n    }\n    else {\n        gl_FragColor = vec4(albedo, 1.0);\n    }\n}\n@end";
 
 var chunkEssl = "@export qtek.deferred.chunk.light_head\nuniform sampler2D gBufferTexture1;\nuniform sampler2D gBufferTexture2;\nuniform sampler2D gBufferTexture3;\nuniform vec2 windowSize: WINDOW_SIZE;\nuniform vec4 viewport: VIEWPORT;\nuniform mat4 viewProjectionInv;\n#ifdef DEPTH_ENCODED\n@import qtek.util.decode_float\n#endif\n@end\n@export qtek.deferred.chunk.gbuffer_read\n    vec2 uv = gl_FragCoord.xy / windowSize;\n    vec2 uv2 = (gl_FragCoord.xy - viewport.xy) / viewport.zw;\n    vec4 texel1 = texture2D(gBufferTexture1, uv);\n    vec4 texel3 = texture2D(gBufferTexture3, uv);\n    if (dot(texel1.rgb, vec3(1.0)) == 0.0) {\n        discard;\n    }\n    float glossiness = texel1.a;\n    float metalness = texel3.a;\n    vec3 N = texel1.rgb * 2.0 - 1.0;\n    float z = texture2D(gBufferTexture2, uv).r * 2.0 - 1.0;\n    vec2 xy = uv2 * 2.0 - 1.0;\n    vec4 projectedPos = vec4(xy, z, 1.0);\n    vec4 p4 = viewProjectionInv * projectedPos;\n    vec3 position = p4.xyz / p4.w;\n    vec3 albedo = texel3.rgb;\n    vec3 diffuseColor = albedo * (1.0 - metalness);\n    vec3 specularColor = mix(vec3(0.04), albedo, metalness);\n@end\n@export qtek.deferred.chunk.light_equation\nfloat D_Phong(in float g, in float ndh) {\n    float a = pow(8192.0, g);\n    return (a + 2.0) / 8.0 * pow(ndh, a);\n}\nfloat D_GGX(in float g, in float ndh) {\n    float r = 1.0 - g;\n    float a = r * r;\n    float tmp = ndh * ndh * (a - 1.0) + 1.0;\n    return a / (3.1415926 * tmp * tmp);\n}\nvec3 F_Schlick(in float ndv, vec3 spec) {\n    return spec + (1.0 - spec) * pow(1.0 - ndv, 5.0);\n}\nvec3 lightEquation(\n    in vec3 lightColor, in vec3 diffuseColor, in vec3 specularColor,\n    in float ndl, in float ndh, in float ndv, in float g\n)\n{\n    return ndl * lightColor\n        * (diffuseColor + D_Phong(g, ndh) * F_Schlick(ndv, specularColor));\n}\n@end";
 
@@ -25672,6 +25782,7 @@ function getBeforeRenderHook1 (gl, defaultNormalMap, defaultRoughnessMap) {
         var glossiness;
         var roughGlossMap;
         var useRoughnessWorkflow = standardMaterial.shader.isDefined('fragment', 'USE_ROUGHNESS');
+        var doubleSided = standardMaterial.shader.isDefined('fragment', 'DOUBLE_SIDED');
         var roughGlossChannel;
         if (useRoughnessWorkflow) {
             glossiness = 1.0 - standardMaterial.get('roughness');
@@ -25697,6 +25808,7 @@ function getBeforeRenderHook1 (gl, defaultNormalMap, defaultRoughnessMap) {
             gBufferMat.set('roughGlossMap', roughGlossMap);
             gBufferMat.set('useRoughGlossMap', +useRoughGlossMap);
             gBufferMat.set('useRoughness', +useRoughnessWorkflow);
+            gBufferMat.set('doubleSided', +doubleSided);
             gBufferMat.set('roughGlossChannel', +roughGlossChannel || 0);
             gBufferMat.set('uvRepeat', uvRepeat);
             gBufferMat.set('uvOffset', uvOffset);
@@ -25714,6 +25826,7 @@ function getBeforeRenderHook1 (gl, defaultNormalMap, defaultRoughnessMap) {
             }
             gBufferMat.shader.setUniform(gl, '1i', 'useRoughGlossMap', +useRoughGlossMap);
             gBufferMat.shader.setUniform(gl, '1i', 'useRoughness', +useRoughnessWorkflow);
+            gBufferMat.shader.setUniform(gl, '1i', 'doubleSided', +doubleSided);
             gBufferMat.shader.setUniform(gl, '1i', 'roughGlossChannel', +roughGlossChannel || 0);
             if (uvRepeat != null) {
                 gBufferMat.shader.setUniform(gl, '2f', 'uvRepeat', uvRepeat);
@@ -31047,7 +31160,7 @@ Object.defineProperty(OrbitControl.prototype, 'target', {
     }
 });
 
-var vec4$3 = glmatrix.vec4;
+var vec4$2 = glmatrix.vec4;
 
 /**
  * @constructor
@@ -31070,7 +31183,7 @@ var Vector4 = function(x, y, z, w) {
      * @name _array
      * @type {Float32Array}
      */
-    this._array = vec4$3.fromValues(x, y, z, w);
+    this._array = vec4$2.fromValues(x, y, z, w);
 
     /**
      * Dirty flag is used by the Node to determine
@@ -31091,7 +31204,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     add: function(b) {
-        vec4$3.add(this._array, this._array, b._array);
+        vec4$2.add(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31142,7 +31255,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     copy: function(b) {
-        vec4$3.copy(this._array, b._array);
+        vec4$2.copy(this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31153,7 +31266,7 @@ Vector4.prototype = {
      * @return {number}
      */
     dist: function(b) {
-        return vec4$3.dist(this._array, b._array);
+        return vec4$2.dist(this._array, b._array);
     },
 
     /**
@@ -31162,7 +31275,7 @@ Vector4.prototype = {
      * @return {number}
      */
     distance: function(b) {
-        return vec4$3.distance(this._array, b._array);
+        return vec4$2.distance(this._array, b._array);
     },
 
     /**
@@ -31171,7 +31284,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     div: function(b) {
-        vec4$3.div(this._array, this._array, b._array);
+        vec4$2.div(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31182,7 +31295,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     divide: function(b) {
-        vec4$3.divide(this._array, this._array, b._array);
+        vec4$2.divide(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31193,7 +31306,7 @@ Vector4.prototype = {
      * @return {number}
      */
     dot: function(b) {
-        return vec4$3.dot(this._array, b._array);
+        return vec4$2.dot(this._array, b._array);
     },
 
     /**
@@ -31201,7 +31314,7 @@ Vector4.prototype = {
      * @return {number}
      */
     len: function() {
-        return vec4$3.len(this._array);
+        return vec4$2.len(this._array);
     },
 
     /**
@@ -31209,7 +31322,7 @@ Vector4.prototype = {
      * @return {number}
      */
     length: function() {
-        return vec4$3.length(this._array);
+        return vec4$2.length(this._array);
     },
     /**
      * Linear interpolation between a and b
@@ -31219,7 +31332,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     lerp: function(a, b, t) {
-        vec4$3.lerp(this._array, a._array, b._array, t);
+        vec4$2.lerp(this._array, a._array, b._array, t);
         this._dirty = true;
         return this;
     },
@@ -31230,7 +31343,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     min: function(b) {
-        vec4$3.min(this._array, this._array, b._array);
+        vec4$2.min(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31241,7 +31354,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     max: function(b) {
-        vec4$3.max(this._array, this._array, b._array);
+        vec4$2.max(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31252,7 +31365,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     mul: function(b) {
-        vec4$3.mul(this._array, this._array, b._array);
+        vec4$2.mul(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31263,7 +31376,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     multiply: function(b) {
-        vec4$3.multiply(this._array, this._array, b._array);
+        vec4$2.multiply(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31273,7 +31386,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     negate: function() {
-        vec4$3.negate(this._array, this._array);
+        vec4$2.negate(this._array, this._array);
         this._dirty = true;
         return this;
     },
@@ -31283,7 +31396,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     normalize: function() {
-        vec4$3.normalize(this._array, this._array);
+        vec4$2.normalize(this._array, this._array);
         this._dirty = true;
         return this;
     },
@@ -31294,7 +31407,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     random: function(scale) {
-        vec4$3.random(this._array, scale);
+        vec4$2.random(this._array, scale);
         this._dirty = true;
         return this;
     },
@@ -31305,7 +31418,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     scale: function(s) {
-        vec4$3.scale(this._array, this._array, s);
+        vec4$2.scale(this._array, this._array, s);
         this._dirty = true;
         return this;
     },
@@ -31316,7 +31429,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     scaleAndAdd: function(b, s) {
-        vec4$3.scaleAndAdd(this._array, this._array, b._array, s);
+        vec4$2.scaleAndAdd(this._array, this._array, b._array, s);
         this._dirty = true;
         return this;
     },
@@ -31327,7 +31440,7 @@ Vector4.prototype = {
      * @return {number}
      */
     sqrDist: function(b) {
-        return vec4$3.sqrDist(this._array, b._array);
+        return vec4$2.sqrDist(this._array, b._array);
     },
 
     /**
@@ -31336,7 +31449,7 @@ Vector4.prototype = {
      * @return {number}
      */
     squaredDistance: function(b) {
-        return vec4$3.squaredDistance(this._array, b._array);
+        return vec4$2.squaredDistance(this._array, b._array);
     },
 
     /**
@@ -31344,7 +31457,7 @@ Vector4.prototype = {
      * @return {number}
      */
     sqrLen: function() {
-        return vec4$3.sqrLen(this._array);
+        return vec4$2.sqrLen(this._array);
     },
 
     /**
@@ -31352,7 +31465,7 @@ Vector4.prototype = {
      * @return {number}
      */
     squaredLength: function() {
-        return vec4$3.squaredLength(this._array);
+        return vec4$2.squaredLength(this._array);
     },
 
     /**
@@ -31361,7 +31474,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     sub: function(b) {
-        vec4$3.sub(this._array, this._array, b._array);
+        vec4$2.sub(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31372,7 +31485,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     subtract: function(b) {
-        vec4$3.subtract(this._array, this._array, b._array);
+        vec4$2.subtract(this._array, this._array, b._array);
         this._dirty = true;
         return this;
     },
@@ -31383,7 +31496,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     transformMat4: function(m) {
-        vec4$3.transformMat4(this._array, this._array, m._array);
+        vec4$2.transformMat4(this._array, this._array, m._array);
         this._dirty = true;
         return this;
     },
@@ -31394,7 +31507,7 @@ Vector4.prototype = {
      * @return {qtek.math.Vector4}
      */
     transformQuat: function(q) {
-        vec4$3.transformQuat(this._array, this._array, q._array);
+        vec4$2.transformQuat(this._array, this._array, q._array);
         this._dirty = true;
         return this;
     },
@@ -31487,7 +31600,7 @@ if (defineProperty$3) {
  * @return {qtek.math.Vector4}
  */
 Vector4.add = function(out, a, b) {
-    vec4$3.add(out._array, a._array, b._array);
+    vec4$2.add(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31500,7 +31613,7 @@ Vector4.add = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.set = function(out, x, y, z, w) {
-    vec4$3.set(out._array, x, y, z, w);
+    vec4$2.set(out._array, x, y, z, w);
     out._dirty = true;
 };
 
@@ -31510,7 +31623,7 @@ Vector4.set = function(out, x, y, z, w) {
  * @return {qtek.math.Vector4}
  */
 Vector4.copy = function(out, b) {
-    vec4$3.copy(out._array, b._array);
+    vec4$2.copy(out._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31521,7 +31634,7 @@ Vector4.copy = function(out, b) {
  * @return {number}
  */
 Vector4.dist = function(a, b) {
-    return vec4$3.distance(a._array, b._array);
+    return vec4$2.distance(a._array, b._array);
 };
 
 /**
@@ -31539,7 +31652,7 @@ Vector4.distance = Vector4.dist;
  * @return {qtek.math.Vector4}
  */
 Vector4.div = function(out, a, b) {
-    vec4$3.divide(out._array, a._array, b._array);
+    vec4$2.divide(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31559,7 +31672,7 @@ Vector4.divide = Vector4.div;
  * @return {number}
  */
 Vector4.dot = function(a, b) {
-    return vec4$3.dot(a._array, b._array);
+    return vec4$2.dot(a._array, b._array);
 };
 
 /**
@@ -31567,7 +31680,7 @@ Vector4.dot = function(a, b) {
  * @return {number}
  */
 Vector4.len = function(b) {
-    return vec4$3.length(b._array);
+    return vec4$2.length(b._array);
 };
 
 // Vector4.length = Vector4.len;
@@ -31580,7 +31693,7 @@ Vector4.len = function(b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.lerp = function(out, a, b, t) {
-    vec4$3.lerp(out._array, a._array, b._array, t);
+    vec4$2.lerp(out._array, a._array, b._array, t);
     out._dirty = true;
     return out;
 };
@@ -31592,7 +31705,7 @@ Vector4.lerp = function(out, a, b, t) {
  * @return {qtek.math.Vector4}
  */
 Vector4.min = function(out, a, b) {
-    vec4$3.min(out._array, a._array, b._array);
+    vec4$2.min(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31604,7 +31717,7 @@ Vector4.min = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.max = function(out, a, b) {
-    vec4$3.max(out._array, a._array, b._array);
+    vec4$2.max(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31616,7 +31729,7 @@ Vector4.max = function(out, a, b) {
  * @return {qtek.math.Vector4}
  */
 Vector4.mul = function(out, a, b) {
-    vec4$3.multiply(out._array, a._array, b._array);
+    vec4$2.multiply(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31636,7 +31749,7 @@ Vector4.multiply = Vector4.mul;
  * @return {qtek.math.Vector4}
  */
 Vector4.negate = function(out, a) {
-    vec4$3.negate(out._array, a._array);
+    vec4$2.negate(out._array, a._array);
     out._dirty = true;
     return out;
 };
@@ -31647,7 +31760,7 @@ Vector4.negate = function(out, a) {
  * @return {qtek.math.Vector4}
  */
 Vector4.normalize = function(out, a) {
-    vec4$3.normalize(out._array, a._array);
+    vec4$2.normalize(out._array, a._array);
     out._dirty = true;
     return out;
 };
@@ -31658,7 +31771,7 @@ Vector4.normalize = function(out, a) {
  * @return {qtek.math.Vector4}
  */
 Vector4.random = function(out, scale) {
-    vec4$3.random(out._array, scale);
+    vec4$2.random(out._array, scale);
     out._dirty = true;
     return out;
 };
@@ -31670,7 +31783,7 @@ Vector4.random = function(out, scale) {
  * @return {qtek.math.Vector4}
  */
 Vector4.scale = function(out, a, scale) {
-    vec4$3.scale(out._array, a._array, scale);
+    vec4$2.scale(out._array, a._array, scale);
     out._dirty = true;
     return out;
 };
@@ -31683,7 +31796,7 @@ Vector4.scale = function(out, a, scale) {
  * @return {qtek.math.Vector4}
  */
 Vector4.scaleAndAdd = function(out, a, b, scale) {
-    vec4$3.scaleAndAdd(out._array, a._array, b._array, scale);
+    vec4$2.scaleAndAdd(out._array, a._array, b._array, scale);
     out._dirty = true;
     return out;
 };
@@ -31694,7 +31807,7 @@ Vector4.scaleAndAdd = function(out, a, b, scale) {
  * @return {number}
  */
 Vector4.sqrDist = function(a, b) {
-    return vec4$3.sqrDist(a._array, b._array);
+    return vec4$2.sqrDist(a._array, b._array);
 };
 
 /**
@@ -31710,7 +31823,7 @@ Vector4.squaredDistance = Vector4.sqrDist;
  * @return {number}
  */
 Vector4.sqrLen = function(a) {
-    return vec4$3.sqrLen(a._array);
+    return vec4$2.sqrLen(a._array);
 };
 /**
  * @method
@@ -31726,7 +31839,7 @@ Vector4.squaredLength = Vector4.sqrLen;
  * @return {qtek.math.Vector4}
  */
 Vector4.sub = function(out, a, b) {
-    vec4$3.subtract(out._array, a._array, b._array);
+    vec4$2.subtract(out._array, a._array, b._array);
     out._dirty = true;
     return out;
 };
@@ -31746,7 +31859,7 @@ Vector4.subtract = Vector4.sub;
  * @return {qtek.math.Vector4}
  */
 Vector4.transformMat4 = function(out, a, m) {
-    vec4$3.transformMat4(out._array, a._array, m._array);
+    vec4$2.transformMat4(out._array, a._array, m._array);
     out._dirty = true;
     return out;
 };
@@ -31758,7 +31871,7 @@ Vector4.transformMat4 = function(out, a, m) {
  * @return {qtek.math.Vector4}
  */
 Vector4.transformQuat = function(out, a, q) {
-    vec4$3.transformQuat(out._array, a._array, q._array);
+    vec4$2.transformQuat(out._array, a._array, q._array);
     out._dirty = true;
     return out;
 };
@@ -32302,6 +32415,9 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     var loader = new GLTFLoader(loaderOpts);
     if (typeof gltfFile === 'string') {
         loader.load(gltfFile);
+    }
+    else if (gltfFile instanceof ArrayBuffer) {
+        loader.parseBinary(gltfFile);
     }
     else {
         loader.parse(gltfFile, opts.buffers);
