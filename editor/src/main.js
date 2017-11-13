@@ -374,20 +374,20 @@ function initUI() {
     pbrRoughnessMetallicPanel = controlKit.addPanel({ label: 'Material - Metalllic Roughness', width: 240, fixed: false, align: 'left', position: [10, 10] });
     addCommmonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel
-        .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'metalnessMap', { label: 'Metalness Map', onChange: changeTexture.bind(null, 'metalnessMap'), getFileName: getTextureFileName })
-        .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial })
-        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap'), getFileName: getTextureFileName });
+        .addSlider(materialConfig, 'metalness', '$metalnessRange', { label: 'Metalness', onChange: updateMaterial })
+        .addCustomComponent(TextureUI, materialConfig, 'roughnessMap', { label: 'Roughness Map', onChange: changeTexture.bind(null, 'roughnessMap'), getFileName: getTextureFileName })
+        .addSlider(materialConfig, 'roughness', '$roughnessRange', { label: 'Roughness', onChange: updateMaterial });
     addUncommonProperties(pbrRoughnessMetallicPanel);
     pbrRoughnessMetallicPanel.disable();
 
     pbrSpecularGlossinessPanel = controlKit.addPanel({ label: 'Material - Specular Glossiness', width: 240, fixed: false, align: 'left', position: [10, 10] });
     addCommmonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel
-        .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'specularMap', { label: 'Specular Map', onChange: changeTexture.bind(null, 'specularMap'), getFileName: getTextureFileName })
-        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial })
+        .addColor(materialConfig, 'specularColor', { label: 'Specular Factor', onChange: updateMaterial })
         .addCustomComponent(TextureUI, materialConfig, 'glossinessMap', { label: 'Glossiness Map', onChange: changeTexture.bind(null, 'glossinessMap'), getFileName: getTextureFileName })
+        .addSlider(materialConfig, 'glossiness', '$glossinessRange', { label: 'Glossiness', onChange: updateMaterial });
     addUncommonProperties(pbrSpecularGlossinessPanel);
     pbrSpecularGlossinessPanel.disable();
 }
