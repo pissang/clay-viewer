@@ -261,7 +261,9 @@ function init() {
         }).catch(function (err) {
 
             hideLoading();
-            showTip();
+            if (!viewer.getModelRoot()) {
+                showTip();
+            }
             updateAnimationUI(viewer);
 
             console.log(err);
@@ -414,6 +416,7 @@ function reset() {
         showTip();
 
         timeline.updateAnimationUI(viewer);
+        hideBackgroundProgress();
     }).catch(function () {});
 }
 

@@ -916,7 +916,7 @@ Viewer.prototype.getMaterial = function (name) {
     });
     function getTextureUri(propName) {
         var texture = mat.get(propName);
-        if (!texture || !texture.isRenderable()) {
+        if (!texture) {
             return '';
         }
         var image = texture.image;
