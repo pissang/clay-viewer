@@ -226,6 +226,7 @@ function init() {
                 files: filesMap,
                 buffers: buffers,
                 textureFlipY: config.textureFlipY,
+                doubleSided: true,
                 upAxis: config.zUpToYUp ? 'z' : 'y',
                 includeTexture: !haveQMVConfig
             }).on('ready', function () {
