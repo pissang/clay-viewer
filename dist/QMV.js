@@ -18513,6 +18513,10 @@ function () {
      * @param {string} path
      */
     resolveBinaryPath: function (path) {
+        if (path && path.match(/^data:(.*?)base64,/)) {
+            return path;
+        }
+        
         var rootPath = this.bufferRootPath;
         if (rootPath == null) {
             rootPath = this.rootPath;
@@ -18525,6 +18529,10 @@ function () {
      * @param {string} path
      */
     resolveTexturePath: function (path) {
+        if (path && path.match(/^data:(.*?)base64,/)) {
+            return path;
+        }
+
         var rootPath = this.textureRootPath;
         if (rootPath == null) {
             rootPath = this.rootPath;
@@ -29862,7 +29870,7 @@ var defaultSceneConfig = {
         // Environment panorama texture url for cubemap lighting
         texture: '',
         // Exposure factor when parsing hdr format.
-        exposure: 1,
+        exposure: 3,
         // Intensity of diffuse radiance.
         diffuseIntensity: 0.5,
         // Intensity of specular radiance.
@@ -32388,6 +32396,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
             if (uri.match(/^data:(.*?)base64,/)) {
                 return uri;
             }
+            uri = uri.replace(/[\\\/]+/g, '/');
             var fileName = uri.substr(uri.lastIndexOf('/') + 1);
             if (opts.files[fileName]) {
                 return opts.files[fileName];
@@ -32874,7 +32883,7 @@ Viewer.prototype.getMaterial = function (name) {
     });
     function getTextureUri(propName) {
         var texture = mat.get(propName);
-        if (!texture || !texture.isRenderable()) {
+        if (!texture) {
             return '';
         }
         var image = texture.image;
