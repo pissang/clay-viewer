@@ -16,6 +16,8 @@ import notifier from 'qtek/src/core/mixin/notifier';
 import shaderLibrary from 'qtek/src/shader/library';
 import textureUtil from 'qtek/src/util/texture';
 
+import normalizePath from 'normalize-path';
+
 import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
 import SceneHelper from './graphic/SceneHelper';
@@ -430,6 +432,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
             if (uri.match(/^data:(.*?)base64,/)) {
                 return uri;
             }
+            uri = normalizePath(uri);
             var fileName = uri.substr(uri.lastIndexOf('/') + 1);
             if (opts.files[fileName]) {
                 return opts.files[fileName];
