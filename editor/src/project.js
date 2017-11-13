@@ -444,6 +444,9 @@ function downloadProject(format, onsuccess, onerror) {
                             delete newGLTF[key];
                         }
                     });
+                    if (!newGLTF.textures) {
+                        delete newGLTF.samplers;
+                    }
                     // Remove unused images
                     files = files.filter(function (file) {
                         if (file.type.match(/image/)) {
