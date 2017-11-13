@@ -69,7 +69,7 @@ export default {
         // Environment panorama texture url for cubemap lighting
         texture: '',
         // Exposure factor when parsing hdr format.
-        exposure: 1,
+        exposure: 3,
         // Intensity of diffuse radiance.
         diffuseIntensity: 0.5,
         // Intensity of specular radiance.

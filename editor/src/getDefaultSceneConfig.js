@@ -87,7 +87,7 @@ export default function () {
             $textureOptions: ['pisa', 'Barce_Rooftop_C', 'Factory_Catwalk', 'Grand_Canyon_C', 'Ice_Lake', 'Hall', 'Old_Industrial_Hall'],
     
             // Exposure factor when parsing hdr format.
-            exposure: 1,
+            exposure: 3,
             // Intensity of diffuse radiance.
             diffuseIntensity: 0.5,
             // Intensity of specular radiance.
