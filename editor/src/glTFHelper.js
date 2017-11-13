@@ -317,7 +317,7 @@ function convertToBinary(glTF, binaryBuffers, imageBuffersMap) {
     var jsonAlignedLength = alignedLength(jsonBuffer.length);
     var padding;
     if (jsonAlignedLength !== jsonBuffer.length) {
-        padding = jsonAlignedLength- jsonBuffer.length;
+        padding = jsonAlignedLength - jsonBuffer.length;
     }
     var totalSize = 12 + // file header: magic + version + length
         8 + // json chunk header: json length + type
