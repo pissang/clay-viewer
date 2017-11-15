@@ -2,10 +2,9 @@
   "name": "qtek-model-viewer",
   "version": "0.1.0",
   "description": "QTEK Model Viewer built on top of WebGL, Supported FBX, DAE, OBJ, glTF2.0 model formats.",
-  "main": "index.js",
+  "main": "dist/QMV.js",
   "dependencies": {
-    "qtek": "^0.5.0",
-    "normalize-path": "^2.1.1",
+    "qtek": "^0.6.0",
     "zrender": "^3.7.2"
   },
   "devDependencies": {

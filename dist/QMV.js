@@ -264,7 +264,7 @@ var notifier = {
     },
 
     /**
-     * Alias of on('success')
+     * Remove event listener
      * @param  {Function} action
      * @param  {Object} [context]
      * @chainable
@@ -580,7 +580,7 @@ function GLInfo(_gl) {
      * @memberOf qtek.core.glinfo
      */
     this.getExtension = function (name) {
-        if (typeof(extensions[name]) == 'undefined') {
+        if (!(name in extensions)) {
             createExtension(name);
         }
         return extensions[name];
@@ -1106,8 +1106,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 
 (function(_global) {
-  "use strict";
-
   var shim = {};
   {
     // gl-matrix lives in commonjs, define its namespaces in exports
@@ -7616,19 +7614,19 @@ var SHADER_STATE_KEEP_ENABLE = 2;
 var SHADER_STATE_PENDING = 3;
 
 /**
- * @constructor qtek.Shader
+ * @constructor
  * @extends qtek.core.Base
- *
+ * @alias qtek.Shader
  * @example
- *     // Create a phong shader
- *     var shader = new qtek.Shader({
- *         vertex: qtek.Shader.source('qtek.phong.vertex'),
- *         fragment: qtek.Shader.source('qtek.phong.fragment')
- *     });
- *     // Enable diffuse texture
- *     shader.enableTexture('diffuseMap');
- *     // Use alpha channel in diffuse texture
- *     shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
+ * // Create a phong shader
+ * var shader = new qtek.Shader({
+ *     vertex: qtek.Shader.source('qtek.phong.vertex'),
+ *     fragment: qtek.Shader.source('qtek.phong.fragment')
+ * });
+ * // Enable diffuse texture
+ * shader.enableTexture('diffuseMap');
+ * // Use alpha channel in diffuse texture
+ * shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
  */
 var Shader = Base.extend(function () {
     return /** @lends qtek.Shader# */ {
@@ -7718,6 +7716,11 @@ var Shader = Base.extend(function () {
 },
 /** @lends qtek.Shader.prototype */
 {
+    /**
+     * If code is equal with given shader.
+     * @param {qtek.Shader}
+     * @return {boolean}
+     */
     isEqual: function (otherShader) {
         if (!otherShader) {
             return false;
@@ -7758,7 +7761,7 @@ var Shader = Base.extend(function () {
     /**
      * Bind shader program
      * Return true or error msg if error happened
-     * @param {WebGLRenderingContext} _gl
+     * @param {qtek.Renderer} renderer
      */
     bind: function (renderer) {
         var cache = this._cache;
@@ -7839,7 +7842,7 @@ var Shader = Base.extend(function () {
     },
 
     /**
-     * Add a #define micro in shader code
+     * Add a #define macro in shader code
      * @param  {string} shaderType Can be vertex, fragment or both
      * @param  {string} symbol
      * @param  {number} [val]
@@ -7874,6 +7877,7 @@ var Shader = Base.extend(function () {
     },
 
     /**
+     * Remove a #define macro in shader code
      * @param  {string} shaderType Can be vertex, fragment or both
      * @param  {string} symbol
      */
@@ -7903,6 +7907,7 @@ var Shader = Base.extend(function () {
     },
 
     /**
+     * If macro is defined in shader.
      * @param  {string} shaderType Can be vertex, fragment or both
      * @param  {string} symbol
      */
@@ -7915,6 +7920,7 @@ var Shader = Base.extend(function () {
         }
     },
     /**
+     * Get macro value defined in shader.
      * @param  {string} shaderType Can be vertex, fragment or both
      * @param  {string} symbol
      */
@@ -7927,7 +7933,7 @@ var Shader = Base.extend(function () {
         }
     },
     /**
-     * Enable a texture, actually it will add a #define micro in the shader code
+     * Enable a texture, actually it will add a #define macro in the shader code
      * For example, if texture symbol is diffuseMap, it will add a line `#define DIFFUSEMAP_ENABLED` in the shader code
      * @param  {string} symbol
      */
@@ -7960,7 +7966,7 @@ var Shader = Base.extend(function () {
         this.dirty();
     },
     /**
-     * Disable a texture, it remove a #define micro in the shader
+     * Disable a texture, it remove a #define macro in the shader
      * @param  {string} symbol
      */
     disableTexture: function (symbol) {
@@ -7992,6 +7998,7 @@ var Shader = Base.extend(function () {
         this.dirty();
     },
     /**
+     * If texture of given type is enabled.
      * @param  {string}  symbol
      * @return {boolean}
      */
@@ -8001,6 +8008,10 @@ var Shader = Base.extend(function () {
             && textureStatus[symbol].enabled;
     },
 
+    /**
+     * Get all enabled textures
+     * @return {string[]}
+     */
     getEnabledTextures: function () {
         var enabledTextures = [];
         var textureStatus = this._textureStatus;
@@ -8746,7 +8757,6 @@ Shader.codes = {};
  * Get shader source
  * @param  {string} name
  * @return {string}
- * @memberOf qtek.Shader
  */
 Shader.source = function (name) {
     var parts = name.split('.');
@@ -8794,9 +8804,9 @@ function ShaderLibrary () {
  * @return {qtek.Shader}
  *
  * @example
- *     qtek.shader.library.get('qtek.phong', 'diffuseMap', 'normalMap');
- *     qtek.shader.library.get('qtek.phong', ['diffuseMap', 'normalMap']);
- *     qtek.shader.library.get('qtek.phong', {
+ *     qtek.shader.library.get('qtek.standard', 'diffuseMap', 'normalMap');
+ *     qtek.shader.library.get('qtek.standard', ['diffuseMap', 'normalMap']);
+ *     qtek.shader.library.get('qtek.standard', {
  *         textures: ['diffuseMap'],
  *         vertexDefines: {},
  *         fragmentDefines: {}
@@ -8897,7 +8907,13 @@ function template(name, vertex, fragment) {
 
 var defaultLibrary = new ShaderLibrary();
 
+/**
+ * @alias qtek.shader.library
+ */
 var library = {
+    /**
+     * Create a new shader library.
+     */
     createLibrary: function () {
         return new ShaderLibrary();
     },
@@ -8915,49 +8931,81 @@ var library = {
  * TODO mapping
  */
 /**
- * @constructor qtek.Texture
+ * @constructor
+ * @alias qtek.Texture
  * @extends qtek.core.Base
  */
 var Texture = Base.extend(
 /** @lends qtek.Texture# */
 {
     /**
-     * Texture width, only needed when the texture is used as a render target
+     * Texture width, readonly when the texture source is image
      * @type {number}
      */
     width: 512,
     /**
-     * Texture height, only needed when the texture is used as a render target
+     * Texture height, readonly when the texture source is image
      * @type {number}
      */
     height: 512,
     /**
-     * Texel data type
+     * Texel data type.
+     * Possible values:
+     *  + {@link qtek.Texture.UNSIGNED_BYTE}
+     *  + {@link qtek.Texture.HALF_FLOAT}
+     *  + {@link qtek.Texture.FLOAT}
+     *  + {@link qtek.Texture.UNSIGNED_INT_24_8_WEBGL}
+     *  + {@link qtek.Texture.UNSIGNED_INT}
      * @type {number}
      */
     type: glenum.UNSIGNED_BYTE,
     /**
      * Format of texel data
+     * Possible values:
+     *  + {@link qtek.Texture.RGBA}
+     *  + {@link qtek.Texture.DEPTH_COMPONENT}
+     *  + {@link qtek.Texture.DEPTH_STENCIL}
      * @type {number}
      */
     format: glenum.RGBA,
     /**
+     * Texture wrap. Default to be REPEAT.
+     * Possible values:
+     *  + {@link qtek.Texture.CLAMP_TO_EDGE}
+     *  + {@link qtek.Texture.REPEAT}
+     *  + {@link qtek.Texture.MIRRORED_REPEAT}
      * @type {number}
      */
     wrapS: glenum.REPEAT,
     /**
+     * Texture wrap. Default to be REPEAT.
+     * Possible values:
+     *  + {@link qtek.Texture.CLAMP_TO_EDGE}
+     *  + {@link qtek.Texture.REPEAT}
+     *  + {@link qtek.Texture.MIRRORED_REPEAT}
      * @type {number}
      */
     wrapT: glenum.REPEAT,
     /**
+     * Possible values:
+     *  + {@link qtek.Texture.NEAREST}
+     *  + {@link qtek.Texture.LINEAR}
+     *  + {@link qtek.Texture.NEAREST_MIPMAP_NEAREST}
+     *  + {@link qtek.Texture.LINEAR_MIPMAP_NEAREST}
+     *  + {@link qtek.Texture.NEAREST_MIPMAP_LINEAR}
+     *  + {@link qtek.Texture.LINEAR_MIPMAP_LINEAR}
      * @type {number}
      */
     minFilter: glenum.LINEAR_MIPMAP_LINEAR,
     /**
+     * Possible values:
+     *  + {@link qtek.Texture.NEAREST}
+     *  + {@link qtek.Texture.LINEAR}
      * @type {number}
      */
     magFilter: glenum.LINEAR,
     /**
+     * If enable mimap.
      * @type {boolean}
      */
     useMipmap: true,
@@ -8971,15 +9019,19 @@ var Texture = Base.extend(
     // pixelStorei parameters, not available when texture is used as render target
     // http://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml
     /**
+     * If flip in y axis for given image source
      * @type {boolean}
+     * @default true
      */
     flipY: true,
     /**
      * @type {number}
+     * @default 4
      */
     unpackAlignment: 4,
     /**
      * @type {boolean}
+     * @default false
      */
     premultiplyAlpha: false,
 
@@ -9043,7 +9095,7 @@ var Texture = Base.extend(
             this.useMipmap = false;
         }
 
-        var sRGBExt = renderer.getGLExtension( 'EXT_sRGB');
+        var sRGBExt = renderer.getGLExtension('EXT_sRGB');
         // Fallback
         if (this.format === Texture.SRGB && !sRGBExt) {
             this.format = Texture.RGB;
@@ -9121,6 +9173,10 @@ var Texture = Base.extend(
      */
     isRenderable: function () {},
 
+    /**
+     * Test if texture size is power of two
+     * @return {boolean}
+     */
     isPowerOfTwo: function () {}
 });
 
@@ -9142,29 +9198,85 @@ Object.defineProperty(Texture.prototype, 'height', {
 });
 
 /* DataType */
+
+/**
+ * @type {number}
+ */
 Texture.BYTE = glenum.BYTE;
+/**
+ * @type {number}
+ */
 Texture.UNSIGNED_BYTE = glenum.UNSIGNED_BYTE;
+/**
+ * @type {number}
+ */
 Texture.SHORT = glenum.SHORT;
+/**
+ * @type {number}
+ */
 Texture.UNSIGNED_SHORT = glenum.UNSIGNED_SHORT;
+/**
+ * @type {number}
+ */
 Texture.INT = glenum.INT;
+/**
+ * @type {number}
+ */
 Texture.UNSIGNED_INT = glenum.UNSIGNED_INT;
+/**
+ * @type {number}
+ */
 Texture.FLOAT = glenum.FLOAT;
+/**
+ * @type {number}
+ */
 Texture.HALF_FLOAT = 0x8D61;
 
-// ext.UNSIGNED_INT_24_8_WEBGL for WEBGL_depth_texture extension
+/**
+ * UNSIGNED_INT_24_8_WEBGL for WEBGL_depth_texture extension
+ * @type {number}
+ */
 Texture.UNSIGNED_INT_24_8_WEBGL = 34042;
 
 /* PixelFormat */
+/**
+ * @type {number}
+ */
 Texture.DEPTH_COMPONENT = glenum.DEPTH_COMPONENT;
+/**
+ * @type {number}
+ */
 Texture.DEPTH_STENCIL = glenum.DEPTH_STENCIL;
+/**
+ * @type {number}
+ */
 Texture.ALPHA = glenum.ALPHA;
+/**
+ * @type {number}
+ */
 Texture.RGB = glenum.RGB;
+/**
+ * @type {number}
+ */
 Texture.RGBA = glenum.RGBA;
+/**
+ * @type {number}
+ */
 Texture.LUMINANCE = glenum.LUMINANCE;
+/**
+ * @type {number}
+ */
 Texture.LUMINANCE_ALPHA = glenum.LUMINANCE_ALPHA;
 
-// https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
+/**
+ * @see https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
+ * @type {number}
+ */
 Texture.SRGB = 0x8C40;
+/**
+ * @see https://www.khronos.org/registry/webgl/extensions/EXT_sRGB/
+ * @type {number}
+ */
 Texture.SRGB_ALPHA = 0x8C42;
 
 /* Compressed Texture */
@@ -9174,24 +9286,45 @@ Texture.COMPRESSED_RGBA_S3TC_DXT3_EXT = 0x83F2;
 Texture.COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
 
 /* TextureMagFilter */
+/**
+ * @type {number}
+ */
 Texture.NEAREST = glenum.NEAREST;
+/**
+ * @type {number}
+ */
 Texture.LINEAR = glenum.LINEAR;
 
 /* TextureMinFilter */
-/*      NEAREST */
-/*      LINEAR */
+/**
+ * @type {number}
+ */
 Texture.NEAREST_MIPMAP_NEAREST = glenum.NEAREST_MIPMAP_NEAREST;
+/**
+ * @type {number}
+ */
 Texture.LINEAR_MIPMAP_NEAREST = glenum.LINEAR_MIPMAP_NEAREST;
+/**
+ * @type {number}
+ */
 Texture.NEAREST_MIPMAP_LINEAR = glenum.NEAREST_MIPMAP_LINEAR;
+/**
+ * @type {number}
+ */
 Texture.LINEAR_MIPMAP_LINEAR = glenum.LINEAR_MIPMAP_LINEAR;
 
-/* TextureParameterName */
-// Texture.TEXTURE_MAG_FILTER = glenum.TEXTURE_MAG_FILTER;
-// Texture.TEXTURE_MIN_FILTER = glenum.TEXTURE_MIN_FILTER;
-
 /* TextureWrapMode */
+/**
+ * @type {number}
+ */
 Texture.REPEAT = glenum.REPEAT;
+/**
+ * @type {number}
+ */
 Texture.CLAMP_TO_EDGE = glenum.CLAMP_TO_EDGE;
+/**
+ * @type {number}
+ */
 Texture.MIRRORED_REPEAT = glenum.MIRRORED_REPEAT;
 
 /**
@@ -9263,13 +9396,6 @@ var Material = Base.extend(
 /** @lends qtek.Material.prototype */
 {
 
-    /**
-     * @param  {WebGLRenderingContext} renderer
-     * @param  {qtek.Shader} [shader]
-     * @param  {qtek.Material} [prevMaterial]
-     * @param  {qtek.Shader} [prevShader]
-     * @return {Object}
-     */
     bind: function(renderer, shader, prevMaterial, prevShader) {
         var _gl = renderer.gl;
         // PENDING Same texture in different material take different slot?
@@ -9383,6 +9509,9 @@ var Material = Base.extend(
     },
 
     /**
+     * Set material uniform
+     * @example
+     *  mat.setUniform('color', [1, 1, 1, 1]);
      * @param {string} symbol
      * @param {number|array|qtek.Texture|ArrayBufferView} value
      */
@@ -9406,11 +9535,11 @@ var Material = Base.extend(
         }
     },
 
-    /**
-     * Enable a uniform
-     * It only have effect on the uniform exists in shader.
-     * @param  {string} symbol
-     */
+    // /**
+    //  * Enable a uniform
+    //  * It only have effect on the uniform exists in shader.
+    //  * @param  {string} symbol
+    //  */
     // enableUniform: function (symbol) {
     //     if (this.uniforms[symbol] && !this.isUniformEnabled(symbol)) {
     //         this._enabledUniforms.push(symbol);
@@ -10545,6 +10674,7 @@ var Renderer = Base.extend(function () {
 
     /**
      * Get viewport aspect,
+     * @return {number}
      */
     getViewportAspect: function () {
         var viewport = this.viewport;
@@ -10791,6 +10921,11 @@ var Renderer = Base.extend(function () {
         this._currentShader = null;
     },
 
+    /**
+     * Callback during rendering process to determine if render given renderable.
+     * @param {qtek.Renderable} given renderable.
+     * @return {boolean}
+     */
     ifRenderObject: function (obj) {
         return true;
     },
@@ -11230,8 +11365,7 @@ var Renderer = Base.extend(function () {
     /**
      * Dispose renderer
      */
-    dispose: function () {
-    },
+    dispose: function () {},
 
     /**
      * Convert screen coords to normalized device coordinates(NDC)
@@ -11341,8 +11475,20 @@ var matrices = {
     WORLDVIEWPROJECTIONINVERSETRANSPOSE: mat4Create()
 };
 
+/**
+ * @name qtek.Renderer.COLOR_BUFFER_BIT
+ * @type {number}
+ */
 Renderer.COLOR_BUFFER_BIT = glenum.COLOR_BUFFER_BIT;
+/**
+ * @name qtek.Renderer.DEPTH_BUFFER_BIT
+ * @type {number}
+ */
 Renderer.DEPTH_BUFFER_BIT = glenum.DEPTH_BUFFER_BIT;
+/**
+ * @name qtek.Renderer.STENCIL_BUFFER_BIT
+ * @type {number}
+ */
 Renderer.STENCIL_BUFFER_BIT = glenum.STENCIL_BUFFER_BIT;
 
 function get(options) {
@@ -12223,9 +12369,15 @@ var Node = Base.extend(
      * @private
      */
     _scene: null,
-
+    /**
+     * @type {boolean}
+     * @private
+     */
     _needsUpdateWorldTransform: true,
-
+    /**
+     * @type {boolean}
+     * @private
+     */
     _inIterating: false,
 
     // Depth for transparent queue sorting
@@ -12257,21 +12409,20 @@ var Node = Base.extend(
 {
 
     /**
-     * @memberOf qtek.Node
-     * @type {qtek.math.Vector3}
+     * @type {?qtek.math.Vector3}
      * @instance
      */
     target: null,
     /**
      * If node and its chilren invisible
      * @type {boolean}
-     * @memberOf qtek.Node
      * @instance
      */
     invisible: false,
 
     /**
-     * Return if Node is a skinned mesh
+     * If Node is a skinned mesh
+     * @return {boolean}
      */
     isSkinnedMesh: function () {
         return false;
@@ -12406,13 +12557,18 @@ var Node = Base.extend(
     },
 
     /**
-     * Get a new created array of all its children nodes
+     * Get a new created array of all children nodes
      * @return {qtek.Node[]}
      */
     children: function () {
         return this._children.slice();
     },
 
+    /**
+     * Get child scene node at given index.
+     * @param {number} idx
+     * @return {qtek.Node}
+     */
     childAt: function (idx) {
         return this._children[idx];
     },
@@ -12455,6 +12611,8 @@ var Node = Base.extend(
      * Query descendant node by path
      * @param {string} path
      * @return {qtek.Node}
+     * @example
+     *  node.queryNode('root/parent/child');
      */
     queryNode: function (path) {
         if (!path) {
@@ -12490,6 +12648,7 @@ var Node = Base.extend(
 
     /**
      * Get query path, relative to rootNode(default is scene)
+     * @param {qtek.Node} [rootNode]
      * @return {string}
      */
     getPath: function (rootNode) {
@@ -12630,6 +12789,7 @@ var Node = Base.extend(
 
     /**
      * Update world transform, assume its parent world transform have been updated
+     * @private
      */
     _updateWorldTransformTopDown: function () {
         var localTransform = this.localTransform._array;
@@ -12646,7 +12806,9 @@ var Node = Base.extend(
         }
     },
 
-    // Update world transform before whole scene is updated.
+    /**
+     * Update world transform before whole scene is updated.
+     */
     updateWorldTransform: function () {
         // Find the root node which transform needs update;
         var rootNodeIsDirty = this;
@@ -12654,8 +12816,7 @@ var Node = Base.extend(
             && rootNodeIsDirty.getParent().transformNeedsUpdate()
         ) {
             rootNodeIsDirty = rootNodeIsDirty.getParent();
-        }
-        rootNodeIsDirty.update();
+        }rootNodeIsDirty.update();
     },
 
     /**
@@ -12695,14 +12856,24 @@ var Node = Base.extend(
             return !el.invisible && el.geometry;
         }
         var tmpBBox = new BoundingBox();
+        var tmpMat4 = new Matrix4();
+        var invWorldTransform = new Matrix4();
         return function (filter, out) {
             out = out || new BoundingBox();
             filter = filter || defaultFilter;
             
+            if (this._parent) {
+                Matrix4.invert(invWorldTransform, this._parent.worldTransform);
+            }
+            else {
+                Matrix4.identity(invWorldTransform);
+            }
+
             this.traverse(function (mesh) {
                 if (mesh.geometry && mesh.geometry.boundingBox) {
                     tmpBBox.copy(mesh.geometry.boundingBox);
-                    tmpBBox.applyTransform(mesh.worldTransform);
+                    Matrix4.multiply(tmpMat4, invWorldTransform, mesh.worldTransform);
+                    tmpBBox.applyTransform(tmpMat4);
                     out.union(tmpBBox);
                 }
             }, this, defaultFilter);
@@ -12733,8 +12904,6 @@ var Node = Base.extend(
             return new Vector3(m[12], m[13], m[14]);
         }
     },
-
-    // TODO Set world transform
 
     /**
      * Clone a new node
@@ -12793,7 +12962,6 @@ var Node = Base.extend(
      * @see http://www.opengl.org/sdk/docs/man2/xhtml/gluLookAt.xml
      * @method
      */
-    // TODO world space ?
     lookAt: (function () {
         var m = new Matrix4();
         return function (target, up) {
@@ -12877,7 +13045,7 @@ var Scene = Node.extend(function () {
     return /** @lends qtek.Scene# */ {
         /**
          * Global material of scene
-         * @type {Material}
+         * @type {qtek.Material}
          */
         material: null,
 
@@ -12888,14 +13056,14 @@ var Scene = Node.extend(function () {
 
         /**
          * Opaque renderable list, it will be updated automatically
-         * @type {Renderable[]}
+         * @type {qtek.Renderable[]}
          * @readonly
          */
         opaqueQueue: [],
 
         /**
          * Opaque renderable list, it will be updated automatically
-         * @type {Renderable[]}
+         * @type {qtek.Renderable[]}
          * @readonly
          */
         transparentQueue: [],
@@ -13335,132 +13503,122 @@ function releaseShader(shader, renderer) {
     }
 }
 
+/**
+ * Standard material without custom shader.
+ * @constructor qtek.StandardMaterial
+ * @extends qtek.Base
+ * @example
+ * var mat = new qtek.StandardMaterial({
+ *     color: [1, 1, 1],
+ *     diffuseMap: diffuseTexture
+ * });
+ * mat.roughness = 1;
+ */
 var StandardMaterial = Material.extend(function () {
 
-    return {
+    return /** @lends qtek.StandardMaterial# */ {
 
         /**
          * @type {Array.<number>}
-         * @name color
          * @default [1, 1, 1]
          */
         color: [1, 1, 1],
 
         /**
          * @type {Array.<number>}
-         * @name emission
          * @default [0, 0, 0]
          */
         emission: [0, 0, 0],
 
         /**
          * @type {number}
-         * @name emissionIntensity
          * @default 0
          */
         emissionIntensity: 0,
 
         /**
          * @type {number}
-         * @name roughness
          * @default 0.5
          */
         roughness: 0.5,
 
         /**
          * @type {number}
-         * @name metalness
          * @default 0
          */
         metalness: 0,
 
         /**
          * @type {number}
-         * @name alpha
          * @default 1
          */
         alpha: 1,
 
         /**
          * @type {boolean}
-         * @name alphaTest
          */
         alphaTest: false,
 
         /**
          * Cutoff threshold for alpha test
          * @type {number}
-         * @name  alphaCutoff
          */
         alphaCutoff: 0.9,
 
         /**
          * @type {boolean}
-         * @name doubleSided
          */
         // TODO Must disable culling.
         doubleSided: false,
 
         /**
          * @type {qtek.Texture2D}
-         * @name diffuseMap
          */
 
         /**
          * @type {qtek.Texture2D}
-         * @name normalMap
          */
 
         /**
          * @type {qtek.Texture2D}
-         * @name roughnessMap
          */
 
         /**
          * @type {qtek.Texture2D}
-         * @name metalnessMap
          */
         /**
          * @type {qtek.Texture2D}
-         * @name emissiveMap
          */
 
         /**
          * @type {qtek.TextureCube}
-         * @name environmentMap
          */
 
         /**
          * @type {qtek.math.BoundingBox}
-         * @name environmentBox
          */
 
         /**
          * BRDF Lookup is generated by qtek.util.cubemap.integrateBrdf
          * @type {qtek.Texture2D}
-         * @name brdfLookup
          */
 
         /**
          * @type {qtek.Texture2D}
-         * @name ssaoMap
          */
 
         /**
          * @type {qtek.Texture2D}
-         * @name aoMap
          */
 
         /**
          * @type {Array.<number>}
-         * @name uvRepeat
          * @default [1, 1]
          */
         uvRepeat: [1, 1],
 
         /**
          * @type {Array.<number>}
-         * @name uvOffset
          * @default [0, 0]
          */
         uvOffset: [0, 0],
@@ -13473,7 +13631,6 @@ var StandardMaterial = Material.extend(function () {
 
         /**
          * @type {number}
-         * @name jointCount
          * @default 0
          */
         // FIXME Redundant with mesh
@@ -13481,36 +13638,30 @@ var StandardMaterial = Material.extend(function () {
 
         /**
          * @type {boolean}
-         * @name environmentMapPrefiltered
          */
         environmentMapPrefiltered: false,
 
         /**
          * @type {boolean}
-         * @name linear
          */
         linear: false,
 
         /**
          * @type {boolean}
-         * @name encodeRGBM
          */
         encodeRGBM: false,
 
         /**
          * @type {boolean}
-         * @name decodeRGBM
          */
         decodeRGBM: false,
 
         /**
          * @type {Number}
-         * @name {roughnessChannel}
          */
         roughnessChannel: 0,
         /**
          * @type {Number}
-         * @name {metalnessChannel}
          */
         metalnessChannel: 1
     };
@@ -13684,6 +13835,10 @@ Object.defineProperty(StandardMaterial.prototype, 'environmentBox', {
 Object.defineProperty(StandardMaterial.prototype, 'shader', {
     get: function () {
         // FIXME updateShader needs gl context.
+        if (!this._shader) {
+            // this._shaderDirty = true;
+            // this.updateShader();
+        }
         return this._shader;
     },
     set: function () {
@@ -13716,7 +13871,8 @@ function VertexArrayObject(
     this.vao = null;
 }
 /**
- * @constructor qtek.Renderable
+ * @constructor
+ * @alias qtek.Renderable
  * @extends qtek.Node
  */
 var Renderable = Node.extend(
@@ -13759,20 +13915,32 @@ var Renderable = Node.extend(
     lineWidth: 1,
 
     /**
+     * If enable culling
      * @type {boolean}
      */
     culling: true,
     /**
+     * Specify which side of polygon will be culled.
+     * Possible values:
+     *  + {@link qtek.Renderable.BACK}
+     *  + {@link qtek.Renderable.FRONT}
+     *  + {@link qtek.Renderable.FRONT_AND_BACK}
+     * @see https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/cullFace
      * @type {number}
      */
     cullFace: glenum.BACK,
     /**
+     * Specify which side is front face.
+     * Possible values:
+     *  + {@link qtek.Renderable.CW}
+     *  + {@link qtek.Renderable.CCW}
+     * @see https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/frontFace
      * @type {number}
      */
     frontFace: glenum.CCW,
 
     /**
-     * Software frustum culling
+     * If enable software frustum culling 
      * @type {boolean}
      */
     frustumCulling: true,
@@ -13810,14 +13978,12 @@ var Renderable = Node.extend(
     /**
      * Before render hook
      * @type {Function}
-     * @memberOf qtek.Renderable
      */
     beforeRender: function (_gl) {},
 
     /**
      * Before render hook
      * @type {Function}
-     * @memberOf qtek.Renderable
      */
     afterRender: function (_gl, renderStat) {},
 
@@ -14040,7 +14206,9 @@ var Renderable = Node.extend(
         var properties = [
             'castShadow', 'receiveShadow',
             'mode', 'culling', 'cullFace', 'frontFace',
-            'frustumCulling'
+            'frustumCulling',
+            'renderOrder', 'lineWidth',
+            'ignorePicking', 'ignorePreZ', 'ignoreGBuffer'
         ];
         return function() {
             var renderable = Node.prototype.clone.call(this);
@@ -14061,23 +14229,53 @@ var Renderable = Node.extend(
     })()
 });
 
-Renderable.beforeFrame = function() {
-    prevDrawID = 0;
-};
-
-// Enums
+/**
+ * @type {number}
+ */
 Renderable.POINTS = glenum.POINTS;
+/**
+ * @type {number}
+ */
 Renderable.LINES = glenum.LINES;
+/**
+ * @type {number}
+ */
 Renderable.LINE_LOOP = glenum.LINE_LOOP;
+/**
+ * @type {number}
+ */
 Renderable.LINE_STRIP = glenum.LINE_STRIP;
+/**
+ * @type {number}
+ */
 Renderable.TRIANGLES = glenum.TRIANGLES;
+/**
+ * @type {number}
+ */
 Renderable.TRIANGLE_STRIP = glenum.TRIANGLE_STRIP;
+/**
+ * @type {number}
+ */
 Renderable.TRIANGLE_FAN = glenum.TRIANGLE_FAN;
-
+/**
+ * @type {number}
+ */
 Renderable.BACK = glenum.BACK;
+/**
+ * @type {number}
+ */
 Renderable.FRONT = glenum.FRONT;
+/**
+ * @type {number}
+ */
 Renderable.FRONT_AND_BACK = glenum.FRONT_AND_BACK;
+/**
+ * @type {number}
+ */
 Renderable.CW = glenum.CW;
+/**
+ * @type {number}
+ */
 Renderable.CCW = glenum.CCW;
 
 Renderable.RenderInfo = RenderInfo;
@@ -14129,11 +14327,12 @@ var isPowerOfTwo = mathUtil.isPowerOfTwo;
 var Texture2D = Texture.extend(function () {
     return /** @lends qtek.Texture2D# */ {
         /**
-         * @type {HTMLImageElement|HTMLCanvasElemnet}
+         * @type {?HTMLImageElement|HTMLCanvasElemnet}
          */
         image: null,
         /**
-         * @type {Uint8Array|Float32Array}
+         * Pixels data. Will be ignored if image is set.
+         * @type {?Uint8Array|Float32Array}
          */
         pixels: null,
         /**
@@ -14346,6 +14545,7 @@ var Mesh = Renderable.extend(
 
     /**
      * If store the skin matrices in vertex texture
+     * @type {bool}
      */
     useSkinMatricesTexture: false
 
@@ -15492,6 +15692,7 @@ var Camera = Node.extend(function () {
 
     /**
      * Set camera projection matrix
+     * @param {qtek.math.Matrix4} projectionMatrix
      */
     setProjectionMatrix: function (projectionMatrix) {
         Matrix4.copy(this.projectionMatrix, projectionMatrix);
@@ -16243,11 +16444,16 @@ Clip.prototype = {
 
         return clip;
     },
-
+    /**
+     * Pause the clip.
+     */
     pause: function () {
         this._paused = true;
     },
 
+    /**
+     * Resume the clip.
+     */
     resume: function () {
         this._paused = false;
     }
@@ -16258,6 +16464,8 @@ var quat$3 = glmatrix.quat;
 var vec3$9 = glmatrix.vec3;
 
 /**
+ * 
+ * Animation clip that manage a collection of {@link qtek.animation.SamplerTrack}
  * @constructor
  * @alias qtek.animation.TrackClip
  *
@@ -16274,6 +16482,7 @@ var vec3$9 = glmatrix.vec3;
  * @param {function} [opts.onframe]
  * @param {function} [opts.onfinish]
  * @param {function} [opts.onrestart]
+ * @param {Array.<qtek.animation.SamplerTrack>} [opts.tracks]
  */
 var TrackClip = function (opts) {
 
@@ -16281,6 +16490,10 @@ var TrackClip = function (opts) {
 
     Clip.call(this, opts);
 
+    /**
+     * 
+     * @type {qtek.animation.SamplerTrack[]}
+     */
     this.tracks = opts.tracks || [];
 };
 
@@ -16336,14 +16549,14 @@ TrackClip.prototype.calcLifeFromTracks = function () {
 };
 
 /**
- * @param {qtek.animation.TransformTrack|qtek.animation.SamplerTrack} jointClip
+ * @param {qtek.animation.SamplerTrack} jointClip
  */
 TrackClip.prototype.addTrack = function (track) {
     this.tracks.push(track);
 };
 
 /**
- * @param {qtek.animation.TransformTrack|qtek.animation.SamplerTrack} jointClip
+ * @param {qtek.animation.SamplerTrack} jointClip
  */
 TrackClip.prototype.removeTarck = function (track) {
     var idx = this.tracks.indexOf(track);
@@ -16378,7 +16591,7 @@ TrackClip.prototype.getSubClip = function (startTime, endTime, isLoop) {
 };
 
 /**
- * 1d blending between two skinning clips
+ * 1d blending from two skinning clips
  * @param  {qtek.animation.TrackClip} clip1
  * @param  {qtek.animation.TrackClip} clip2
  * @param  {number} w
@@ -16394,7 +16607,7 @@ TrackClip.prototype.blend1D = function (clip1, clip2, w) {
 };
 
 /**
- * Additive blending between two skinning clips
+ * Additive blending from two skinning clips
  * @param  {qtek.animation.TrackClip} clip1
  * @param  {qtek.animation.TrackClip} clip2
  */
@@ -16409,7 +16622,7 @@ TrackClip.prototype.additiveBlend = function (clip1, clip2) {
 };
 
 /**
- * Subtractive blending between two skinning clips
+ * Subtractive blending from two skinning clips
  * @param  {qtek.animation.TrackClip} clip1
  * @param  {qtek.animation.TrackClip} clip2
  */
@@ -16424,7 +16637,7 @@ TrackClip.prototype.subtractiveBlend = function (clip1, clip2) {
 };
 
 /**
- * 2D blending between three skinning clips
+ * 2D blending from three skinning clips
  * @param  {qtek.animation.TrackClip} clip1
  * @param  {qtek.animation.TrackClip} clip2
  * @param  {qtek.animation.TrackClip} clip3
@@ -16473,13 +16686,6 @@ function keyframeSort(a, b) {
     return a.time - b.time;
 }
 
-/**
- * @constructor
- * @alias qtek.animation.TransformTrack
- * @extends qtek.animation.Clip
- *
- * @param {object[]} [opts.keyFrames]
- */
 var TransformTrack = function (opts) {
 
     this.name = opts.name || '';
@@ -16786,6 +16992,14 @@ function quatSlerp(out, a, b, t, oa, ob) {
     return out;
 }
 
+/**
+ * SamplerTrack manages `position`, `rotation`, `scale` tracks in animation of single scene node.
+ * @constructor
+ * @alias qtek.animation.SamplerTrack
+ * @param {Object} [opts]
+ * @param {string} [opts.name] Track name
+ * @param {qtek.Node} [opts.target] Target node's transform will updated automatically
+ */
 var SamplerTrack = function (opts) {
     opts = opts || {};
 
@@ -16896,6 +17110,9 @@ SamplerTrack.prototype.setTime = function (time) {
     this.updateTarget();
 };
 
+/**
+ * Update transform of target node manually
+ */
 SamplerTrack.prototype.updateTarget = function () {
     var channels = this.channels;
     if (this.target) {
@@ -17063,6 +17280,13 @@ SamplerTrack.prototype.clone = function () {
 
 };
 
+var vec3$12 = glmatrix.vec3;
+var mat4$6 = glmatrix.mat4;
+
+var vec3Create = vec3$12.create;
+var vec3Add = vec3$12.add;
+var vec3Set$2 = vec3$12.set;
+
 function getArrayCtorByType (type) {
     return ({
         'byte': vendor.Int8Array,
@@ -17072,29 +17296,63 @@ function getArrayCtorByType (type) {
     })[type] || vendor.Float32Array;
 }
 
-function Attribute(name, type, size, semantic) {
-    this.name = name;
-    this.type = type;
-    this.size = size;
-    if (semantic) {
-        this.semantic = semantic;
-    }
+function makeAttrKey(attrName) {
+    return 'attr_' + attrName;
 }
-Attribute.prototype.clone = function(copyValue) {
-    var ret = new this.constructor(this.name, this.type, this.size, this.semantic);
-    // FIXME
-    if (copyValue) {
-        console.warn('todo');
-    }
-    return ret;
-};
-
-
 /**
- * Attribute for static geometry
+ * Geometry attribute
+ * @alias qtek.Geometry.Attribute
+ * @constructor
  */
-function StaticAttribute$1 (name, type, size, semantic) {
-    Attribute.call(this, name, type, size, semantic);
+function Attribute(name, type, size, semantic) {
+    /**
+     * Attribute name
+     * @type {string}
+     */
+    this.name = name;
+    /**
+     * Attribute type
+     * Possible values:
+     *  + `'byte'`
+     *  + `'ubyte'`
+     *  + `'short'`
+     *  + `'ushort'`
+     *  + `'float'` Most commonly used.
+     * @type {string}
+     */
+    this.type = type;
+    /**
+     * Size of attribute component. 1 - 4.
+     * @type {number}
+     */
+    this.size = size;
+    /**
+     * Semantic of this attribute.
+     * Possible values:
+     *  + `'POSITION'`
+     *  + `'NORMAL'`
+     *  + `'BINORMAL'`
+     *  + `'TANGENT'`
+     *  + `'TEXCOORD'`
+     *  + `'TEXCOORD_0'`
+     *  + `'TEXCOORD_1'`
+     *  + `'COLOR'`
+     *  + `'JOINT'`
+     *  + `'WEIGHT'`
+     * 
+     * In shader, attribute with same semantic will be automatically mapped. For example:
+     * ```glsl
+     * attribute vec3 pos: POSITION
+     * ```
+     * will use the attribute value with semantic POSITION in geometry, no matter what name it used.
+     * @type {string}
+     */
+    this.semantic = semantic || '';
+
+    /**
+     * Value of the attribute.
+     * @type {TypedArray}
+     */
     this.value = null;
 
     // Init getter setter
@@ -17187,16 +17445,49 @@ function StaticAttribute$1 (name, type, size, semantic) {
     }
 }
 
-StaticAttribute$1.prototype.constructor = new Attribute();
+/**
+ * Set item value at give index. Second parameter val is number if size is 1
+ * @method
+ * @name qtek.Geometry.Attribute#set
+ * @param {number} idx
+ * @param {number[]|number} val
+ * @example
+ * geometry.getAttribute('position').set(0, [1, 1, 1]);
+ */
 
-StaticAttribute$1.prototype.init = function (nVertex) {
+/**
+ * Get item value at give index. Second parameter out is no need if size is 1
+ * @method
+ * @name qtek.Geometry.Attribute#set
+ * @param {number} idx
+ * @param {number[]} [out]
+ * @example
+ * geometry.getAttribute('position').get(0, out);
+ */
+
+/**
+ * Initialize attribute with given vertex count
+ * @param {number} nVertex 
+ */
+Attribute.prototype.init = function (nVertex) {
     if (!this.value || this.value.length != nVertex * this.size) {
         var ArrayConstructor = getArrayCtorByType(this.type);
         this.value = new ArrayConstructor(nVertex * this.size);
     }
 };
 
-StaticAttribute$1.prototype.fromArray = function (array) {
+/**
+ * Initialize attribute with given array. Which can be 1 dimensional or 2 dimensional
+ * @param {Array} array
+ * @example
+ *  geometry.getAttribute('position').fromArray(
+ *      [-1, 0, 0, 1, 0, 0, 0, 1, 0]
+ *  );
+ *  geometry.getAttribute('position').fromArray(
+ *      [ [-1, 0, 0], [1, 0, 0], [0, 1, 0] ]
+ *  );
+ */
+Attribute.prototype.fromArray = function (array) {
     var ArrayConstructor = getArrayCtorByType(this.type);
     var value;
     // Convert 2d array to flat
@@ -17214,6 +17505,15 @@ StaticAttribute$1.prototype.fromArray = function (array) {
         value = new ArrayConstructor(array);
     }
     this.value = value;
+};
+
+Attribute.prototype.clone = function(copyValue) {
+    var ret = new Attribute(this.name, this.type, this.size, this.semantic);
+    // FIXME
+    if (copyValue) {
+        console.warn('todo');
+    }
+    return ret;
 };
 
 function AttributeBuffer(name, type, buffer, size, semantic) {
@@ -17236,36 +17536,63 @@ function IndicesBuffer(buffer) {
     this.count = 0;
 }
 
-function notImplementedWarn() {
-    console.warn('Geometry doesn\'t implement this method, use StaticGeometry instead');
-}
-
 /**
  * @constructor qtek.Geometry
  * @extends qtek.core.Base
  */
-var Geometry = Base.extend(
-/** @lends qtek.Geometry# */
-{
-    /**
-     * @type {qtek.math.BoundingBox}
-     */
-    boundingBox : null,
+var Geometry = Base.extend(function () {
+    return /** @lends qtek.Geometry# */ {
+        /**
+         * Attributes of geometry. Including:
+         *  + `position`
+         *  + `texcoord0`
+         *  + `texcoord1`
+         *  + `normal`
+         *  + `tangent`
+         *  + `color`
+         *  + `weight`
+         *  + `joint`
+         *  + `barycentric`
+         * @type {Object}
+         */
+        attributes: {
+            position: new Attribute('position', 'float', 3, 'POSITION'),
+            texcoord0: new Attribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
+            texcoord1: new Attribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
+            normal: new Attribute('normal', 'float', 3, 'NORMAL'),
+            tangent: new Attribute('tangent', 'float', 4, 'TANGENT'),
+            color: new Attribute('color', 'float', 4, 'COLOR'),
+            // Skinning attributes
+            // Each vertex can be bind to 4 bones, because the
+            // sum of weights is 1, so the weights is stored in vec3 and the last
+            // can be calculated by 1-w.x-w.y-w.z
+            weight: new Attribute('weight', 'float', 3, 'WEIGHT'),
+            joint: new Attribute('joint', 'float', 4, 'JOINT'),
+            // For wireframe display
+            // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
+            barycentric: new Attribute('barycentric', 'float', 3, null),
+        },
+        /**
+         * Calculated bounding box of geometry.
+         * @type {qtek.math.BoundingBox}
+         */
+        boundingBox: null,
 
-    /**
-     * Vertex attributes
-     * @type {Object}
-     */
-    attributes : {},
+        /**
+         * Indices of geometry.
+         * @type {Uint16Array|Uint32Array}
+         */
+        indices: null,
 
-    indices : null,
+        /**
+         * Is vertices data dynamically updated.
+         * Attributes value can't be changed after first render if dyanmic is false.
+         * @type {boolean}
+         */
+        dynamic: true,
 
-    /**
-     * Is vertices data dynamically updated
-     * @type {boolean}
-     */
-    dynamic: false,
-
+        _enabledAttributes: null
+    };
 }, function() {
     // Use cache
     this._cache = new Cache();
@@ -17275,169 +17602,34 @@ var Geometry = Base.extend(
 /** @lends qtek.Geometry.prototype */
 {
     /**
-     * User defined ray picking algorithm instead of default
-     * triangle ray intersection
-     * x, y are NDC.
-     * (x, y, renderer, camera, renderable, out) => boolean
-     * @type {Function}
-     */
-    pickByRay: null,
-
-    /**
-     * User defined picking algorithm instead of default
-     * triangle ray intersection
-     * (ray: qtek.math.Ray, renderable: qtek.Renderable, out: Array) => boolean
-     * @type {Function}
-     */
-    pick: null,
-
-    /**
      * Main attribute will be used to count vertex number
      * @type {string}
      */
     mainAttribute: 'position',
     /**
-     * Mark attributes in geometry is dirty
-     * @method
+     * User defined picking algorithm instead of default
+     * triangle ray intersection
+     * x, y are NDC.
+     * ```typescript
+     * (x, y, renderer, camera, renderable, out) => boolean
+     * ```
+     * @type {?Function}
      */
-    dirty: notImplementedWarn,
-    /**
-     * Create a new attribute
-     * @method
-     * @param {string} name
-     * @param {string} type
-     * @param {number} size
-     * @param {string} [semantic]
-     */
-    createAttribute: notImplementedWarn,
-    /**
-     * Remove attribute
-     * @method
-     * @param {string} name
-     */
-    removeAttribute: notImplementedWarn,
+    pick: null,
 
     /**
-     * @method
-     * @param {number} idx
-     * @param {Array.<number>} out
-     * @return {Array.<number>}
+     * User defined ray picking algorithm instead of default
+     * triangle ray intersection
+     * ```typescript
+     * (ray: qtek.math.Ray, renderable: qtek.Renderable, out: Array) => boolean
+     * ```
+     * @type {?Function}
      */
-    getTriangleIndices: notImplementedWarn,
+    pickByRay: null,
 
     /**
-     * @method
-     * @param {number} idx
-     * @param {Array.<number>} face
+     * Update boundingBox of Geometry
      */
-    setTriangleIndices: notImplementedWarn,
-    /**
-     * @method
-     * @return {boolean}
-     */
-    isUseIndices: notImplementedWarn,
-
-    getEnabledAttributes: notImplementedWarn,
-    getBufferChunks: notImplementedWarn,
-
-    /**
-     * @method
-     */
-    generateVertexNormals: notImplementedWarn,
-    /**
-     * @method
-     */
-    generateFaceNormals: notImplementedWarn,
-    /**
-     * @method
-     * @return {boolean}
-     */
-    isUniqueVertex: notImplementedWarn,
-    /**
-     * @method
-     */
-    generateUniqueVertex: notImplementedWarn,
-    /**
-     * @method
-     */
-    generateTangents: notImplementedWarn,
-    /**
-     * @method
-     */
-    generateBarycentric: notImplementedWarn,
-    /**
-     * @method
-     * @param {qtek.math.Matrix4} matrix
-     */
-    applyTransform: notImplementedWarn,
-    /**
-     * @method
-     * @param {WebGLRenderingContext} [gl]
-     */
-    dispose: notImplementedWarn
-});
-
-Geometry.STATIC_DRAW = glenum.STATIC_DRAW;
-Geometry.DYNAMIC_DRAW = glenum.DYNAMIC_DRAW;
-Geometry.STREAM_DRAW = glenum.STREAM_DRAW;
-
-Geometry.AttributeBuffer = AttributeBuffer;
-Geometry.IndicesBuffer = IndicesBuffer;
-Geometry.Attribute = Attribute;
-Geometry.StaticAttribute = StaticAttribute$1;
-
-/**
- * StaticGeometry can not be changed once they've been setup
- */
-var mat4$6 = glmatrix.mat4;
-var vec3$12 = glmatrix.vec3;
-
-var StaticAttribute = Geometry.StaticAttribute;
-var vec3Create = vec3$12.create;
-var vec3Add = vec3$12.add;
-var vec3Set$2 = vec3$12.set;
-
-function makeAttrKey(attrName) {
-    return 'attr_' + attrName;
-}
-/**
- * @constructor qtek.StaticGeometry
- * @extends qtek.Geometry
- */
-var StaticGeometry = Geometry.extend(function () {
-    return /** @lends qtek.StaticGeometry# */ {
-        attributes: {
-            position: new StaticAttribute('position', 'float', 3, 'POSITION'),
-            texcoord0: new StaticAttribute('texcoord0', 'float', 2, 'TEXCOORD_0'),
-            texcoord1: new StaticAttribute('texcoord1', 'float', 2, 'TEXCOORD_1'),
-            normal: new StaticAttribute('normal', 'float', 3, 'NORMAL'),
-            tangent: new StaticAttribute('tangent', 'float', 4, 'TANGENT'),
-            color: new StaticAttribute('color', 'float', 4, 'COLOR'),
-            // Skinning attributes
-            // Each vertex can be bind to 4 bones, because the
-            // sum of weights is 1, so the weights is stored in vec3 and the last
-            // can be calculated by 1-w.x-w.y-w.z
-            weight: new StaticAttribute('weight', 'float', 3, 'WEIGHT'),
-            joint: new StaticAttribute('joint', 'float', 4, 'JOINT'),
-            // For wireframe display
-            // http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
-            barycentric: new StaticAttribute('barycentric', 'float', 3, null),
-        },
-
-        hint: glenum.STATIC_DRAW,
-
-        /**
-         * @type {Uint16Array|Uint32Array}
-         */
-        indices: null,
-
-        _normalType: 'vertex',
-
-        _enabledAttributes: null
-    };
-},
-/** @lends qtek.StaticGeometry.prototype */
-{
     updateBoundingBox: function () {
         var bbox = this.boundingBox;
         if (!bbox) {
@@ -17467,7 +17659,9 @@ var StaticGeometry = Geometry.extend(function () {
             max._dirty = true;
         }
     },
-
+    /**
+     * Mark attributes and indices in geometry needs to update.
+     */
     dirty: function () {
         var enabledAttributes = this.getEnabledAttributes();
         for (var i = 0; i < enabledAttributes.length; i++) {
@@ -17476,16 +17670,26 @@ var StaticGeometry = Geometry.extend(function () {
         this.dirtyIndices();
         this._enabledAttributes = null;
     },
-
+    /**
+     * Mark the indices needs to update.
+     */
     dirtyIndices: function () {
         this._cache.dirtyAll('indices');
     },
-
+    /**
+     * Mark the attributes needs to update.
+     * @param {string} [attrName]
+     */
     dirtyAttribute: function (attrName) {
         this._cache.dirtyAll(makeAttrKey(attrName));
         this._cache.dirtyAll('attributes');
     },
-
+    /**
+     * Get indices of triangle at given index.
+     * @param {number} idx
+     * @param {Array.<number>} out
+     * @return {Array.<number>}
+     */
     getTriangleIndices: function (idx, out) {
         if (idx < this.triangleCount && idx >= 0) {
             if (!out) {
@@ -17499,6 +17703,11 @@ var StaticGeometry = Geometry.extend(function () {
         }
     },
 
+    /**
+     * Set indices of triangle at given index.
+     * @param {number} idx
+     * @param {Array.<number>} arr
+     */
     setTriangleIndices: function (idx, arr) {
         var indices = this.indices;
         indices[idx * 3] = arr[0];
@@ -17510,6 +17719,10 @@ var StaticGeometry = Geometry.extend(function () {
         return !!this.indices;
     },
 
+    /**
+     * Initialize indices from an array.
+     * @param {Array} array 
+     */
     initIndicesFromArray: function (array) {
         var value;
         var ArrayConstructor = this.vertexCount > 0xffff
@@ -17532,9 +17745,15 @@ var StaticGeometry = Geometry.extend(function () {
 
         this.indices = value;
     },
-
+    /**
+     * Create a new attribute
+     * @param {string} name
+     * @param {string} type
+     * @param {number} size
+     * @param {string} [semantic]
+     */
     createAttribute: function (name, type, size, semantic) {
-        var attrib = new StaticAttribute(name, type, size, semantic);
+        var attrib = new Attribute(name, type, size, semantic);
         if (this.attributes[name]) {
             this.removeAttribute(name);
         }
@@ -17542,7 +17761,10 @@ var StaticGeometry = Geometry.extend(function () {
         this._attributeList.push(name);
         return attrib;
     },
-
+    /**
+     * Remove attribute
+     * @param {string} name
+     */
     removeAttribute: function (name) {
         var attributeList = this._attributeList;
         var idx = attributeList.indexOf(name);
@@ -17552,6 +17774,15 @@ var StaticGeometry = Geometry.extend(function () {
             return true;
         }
         return false;
+    },
+
+    /**
+     * Get attribute
+     * @param {string} name
+     * @return {qtek.Geometry.Attribute}
+     */
+    getAttribute: function (name) {
+        return this.attribute[name];
     },
 
     /**
@@ -17651,10 +17882,10 @@ var StaticGeometry = Geometry.extend(function () {
                     // Only update when they are dirty.
                     // TODO: Use BufferSubData?
                     _gl.bindBuffer(_gl.ARRAY_BUFFER, buffer);
-                    _gl.bufferData(_gl.ARRAY_BUFFER, attribute.value, this.hint);
+                    _gl.bufferData(_gl.ARRAY_BUFFER, attribute.value, this.dynamic ? glenum.DYNAMIC_DRAW : glenum.STATIC_DRAW);
                 }
 
-                attributeBuffers[k] = new Geometry.AttributeBuffer(name, attribute.type, buffer, attribute.size, attribute.semantic);
+                attributeBuffers[k] = new AttributeBuffer(name, attribute.type, buffer, attribute.size, attribute.semantic);
             }
             // Remove unused attributes buffers.
             // PENDING
@@ -17667,15 +17898,18 @@ var StaticGeometry = Geometry.extend(function () {
 
         if (this.isUseIndices() && (isIndicesDirty || firstUpdate)) {
             if (!indicesBuffer) {
-                indicesBuffer = new Geometry.IndicesBuffer(_gl.createBuffer());
+                indicesBuffer = new IndicesBuffer(_gl.createBuffer());
                 chunk.indicesBuffer = indicesBuffer;
             }
             indicesBuffer.count = this.indices.length;
             _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, indicesBuffer.buffer);
-            _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, this.indices, this.hint);
+            _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, this.indices, this.dynamic ? glenum.DYNAMIC_DRAW : glenum.STATIC_DRAW);
         }
     },
 
+    /**
+     * Generate normals per vertex.
+     */
     generateVertexNormals: function () {
         if (!this.vertexCount) {
             return;
@@ -17744,6 +17978,9 @@ var StaticGeometry = Geometry.extend(function () {
         this.dirty();
     },
 
+    /**
+     * Generate normals per face.
+     */
     generateFaceNormals: function () {
         if (!this.vertexCount) {
             return;
@@ -17802,6 +18039,9 @@ var StaticGeometry = Geometry.extend(function () {
         this.dirty();
     },
 
+    /**
+     * Generate tangents attributes.
+     */
     generateTangents: function () {
         if (!this.vertexCount) {
             return;
@@ -17915,7 +18155,10 @@ var StaticGeometry = Geometry.extend(function () {
         }
         this.dirty();
     },
-
+    
+    /**
+     * If vertices are not shared by different indices.
+     */
     isUniqueVertex: function () {
         if (this.isUseIndices()) {
             return this.vertexCount === this.indices.length;
@@ -17924,7 +18167,9 @@ var StaticGeometry = Geometry.extend(function () {
             return true;
         }
     },
-
+    /**
+     * Create a unique vertex for each index.
+     */
     generateUniqueVertex: function () {
         if (!this.vertexCount || !this.indices) {
             return;
@@ -17965,6 +18210,9 @@ var StaticGeometry = Geometry.extend(function () {
         this.dirty();
     },
 
+    /**
+     * Generate barycentric coordinates for wireframe draw.
+     */
     generateBarycentric: function () {
         if (!this.vertexCount) {
             return;
@@ -17992,6 +18240,10 @@ var StaticGeometry = Geometry.extend(function () {
         this.dirty();
     },
 
+    /**
+     * Apply transform to geometry attributes.
+     * @param {qtek.math.Matrix4} matrix
+     */
     applyTransform: function (matrix) {
 
         var attributes = this.attributes;
@@ -18019,7 +18271,10 @@ var StaticGeometry = Geometry.extend(function () {
             this.updateBoundingBox();
         }
     },
-
+    /**
+     * Dispose geometry data in GL context.
+     * @param {qtek.Renderer} renderer
+     */
     dispose: function (renderer) {
 
         var cache = this._cache;
@@ -18038,10 +18293,16 @@ var StaticGeometry = Geometry.extend(function () {
         }
         cache.deleteContext(renderer.__GUID__);
     }
+
 });
 
 if (Object.defineProperty) {
-    Object.defineProperty(StaticGeometry.prototype, 'vertexCount', {
+    /**
+     * @name qtek.Geometry#vertexCount
+     * @type {number}
+     * @readOnly
+     */
+    Object.defineProperty(Geometry.prototype, 'vertexCount', {
 
         enumerable: false,
 
@@ -18053,7 +18314,12 @@ if (Object.defineProperty) {
             return mainAttribute.value.length / mainAttribute.size;
         }
     });
-    Object.defineProperty(StaticGeometry.prototype, 'triangleCount', {
+    /**
+     * @name qtek.Geometry#triangleCount
+     * @type {number}
+     * @readOnly
+     */
+    Object.defineProperty(Geometry.prototype, 'triangleCount', {
 
         enumerable: false,
 
@@ -18069,7 +18335,14 @@ if (Object.defineProperty) {
     });
 }
 
-StaticGeometry.Attribute = Geometry.StaticAttribute;
+Geometry.STATIC_DRAW = glenum.STATIC_DRAW;
+Geometry.DYNAMIC_DRAW = glenum.DYNAMIC_DRAW;
+Geometry.STREAM_DRAW = glenum.STREAM_DRAW;
+
+Geometry.AttributeBuffer = AttributeBuffer;
+Geometry.IndicesBuffer = IndicesBuffer;
+
+Geometry.Attribute = Attribute;
 
 var utilEssl = "\n@export qtek.util.rand\nhighp float rand(vec2 uv) {\n    const highp float a = 12.9898, b = 78.233, c = 43758.5453;\n    highp float dt = dot(uv.xy, vec2(a,b)), sn = mod(dt, 3.141592653589793);\n    return fract(sin(sn) * c);\n}\n@end\n@export qtek.util.calculate_attenuation\nuniform float attenuationFactor : 5.0;\nfloat lightAttenuation(float dist, float range)\n{\n    float attenuation = 1.0;\n    attenuation = dist*dist/(range*range+1.0);\n    float att_s = attenuationFactor;\n    attenuation = 1.0/(attenuation*att_s+1.0);\n    att_s = 1.0/(att_s+1.0);\n    attenuation = attenuation - att_s;\n    attenuation /= 1.0 - att_s;\n    return clamp(attenuation, 0.0, 1.0);\n}\n@end\n@export qtek.util.edge_factor\nfloat edgeFactor(float width)\n{\n    vec3 d = fwidth(v_Barycentric);\n    vec3 a3 = smoothstep(vec3(0.0), d * width, v_Barycentric);\n    return min(min(a3.x, a3.y), a3.z);\n}\n@end\n@export qtek.util.encode_float\nvec4 encodeFloat(const in float depth)\n{\n    const vec4 bitShifts = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n    vec4 res = fract(depth * bitShifts);\n    res -= res.xxyz * bit_mask;\n    return res;\n}\n@end\n@export qtek.util.decode_float\nfloat decodeFloat(const in vec4 color)\n{\n    const vec4 bitShifts = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n    return dot(color, bitShifts);\n}\n@end\n@export qtek.util.float\n@import qtek.util.encode_float\n@import qtek.util.decode_float\n@end\n@export qtek.util.rgbm_decode\nvec3 RGBMDecode(vec4 rgbm, float range) {\n  return range * rgbm.rgb * rgbm.a;\n}\n@end\n@export qtek.util.rgbm_encode\nvec4 RGBMEncode(vec3 color, float range) {\n    if (dot(color, color) == 0.0) {\n        return vec4(0.0);\n    }\n    vec4 rgbm;\n    color /= range;\n    rgbm.a = clamp(max(max(color.r, color.g), max(color.b, 1e-6)), 0.0, 1.0);\n    rgbm.a = ceil(rgbm.a * 255.0) / 255.0;\n    rgbm.rgb = color / rgbm.a;\n    return rgbm;\n}\n@end\n@export qtek.util.rgbm\n@import qtek.util.rgbm_decode\n@import qtek.util.rgbm_encode\nvec4 decodeHDR(vec4 color)\n{\n#if defined(RGBM_DECODE) || defined(RGBM)\n    return vec4(RGBMDecode(color, 51.5), 1.0);\n#else\n    return color;\n#endif\n}\nvec4 encodeHDR(vec4 color)\n{\n#if defined(RGBM_ENCODE) || defined(RGBM)\n    return RGBMEncode(color.xyz, 51.5);\n#else\n    return color;\n#endif\n}\n@end\n@export qtek.util.srgb\nvec4 sRGBToLinear(in vec4 value) {\n    return vec4(mix(pow(value.rgb * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), value.rgb * 0.0773993808, vec3(lessThanEqual(value.rgb, vec3(0.04045)))), value.w);\n}\nvec4 linearTosRGB(in vec4 value) {\n    return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.w);\n}\n@end\n@export qtek.chunk.skinning_header\n#ifdef SKINNING\nattribute vec3 weight : WEIGHT;\nattribute vec4 joint : JOINT;\n#ifdef USE_SKIN_MATRICES_TEXTURE\nuniform sampler2D skinMatricesTexture;\nuniform float skinMatricesTextureSize: unconfigurable;\nmat4 getSkinMatrix(float idx) {\n    float j = idx * 4.0;\n    float x = mod(j, skinMatricesTextureSize);\n    float y = floor(j / skinMatricesTextureSize) + 0.5;\n    vec2 scale = vec2(skinMatricesTextureSize);\n    return mat4(\n        texture2D(skinMatricesTexture, vec2(x + 0.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 1.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 2.5, y) / scale),\n        texture2D(skinMatricesTexture, vec2(x + 3.5, y) / scale)\n    );\n}\n#else\nuniform mat4 skinMatrix[JOINT_COUNT] : SKIN_MATRIX;\nmat4 getSkinMatrix(float idx) {\n    return skinMatrix[int(idx)];\n}\n#endif\n#endif\n@end\n@export qtek.chunk.skin_matrix\nmat4 skinMatrixWS = getSkinMatrix(joint.x) * weight.x;\nif (weight.y > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.y) * weight.y;\n}\nif (weight.z > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.z) * weight.z;\n}\nfloat weightW = 1.0-weight.x-weight.y-weight.z;\nif (weightW > 1e-4)\n{\n    skinMatrixWS += getSkinMatrix(joint.w) * weightW;\n}\n@end\n@export qtek.util.parallax_correct\nvec3 parallaxCorrect(in vec3 dir, in vec3 pos, in vec3 boxMin, in vec3 boxMax) {\n    vec3 first = (boxMax - pos) / dir;\n    vec3 second = (boxMin - pos) / dir;\n    vec3 further = max(first, second);\n    float dist = min(further.x, min(further.y, further.z));\n    vec3 fixedPos = pos + dir * dist;\n    vec3 boxCenter = (boxMax + boxMin) * 0.5;\n    return normalize(fixedPos - boxCenter);\n}\n@end\n@export qtek.util.clamp_sample\nvec4 clampSample(const in sampler2D texture, const in vec2 coord)\n{\n#ifdef STEREO\n    float eye = step(0.5, coord.x) * 0.5;\n    vec2 coordClamped = clamp(coord, vec2(eye, 0.0), vec2(0.5 + eye, 1.0));\n#else\n    vec2 coordClamped = clamp(coord, vec2(0.0), vec2(1.0));\n#endif\n    return texture2D(texture, coordClamped);\n}\n@end";
 
@@ -18220,13 +18493,16 @@ function getAccessorData(json, lib, accessorIdx, isIndices) {
 
 /**
  * @typedef {Object} qtek.loader.GLTF.IResult
+ * @property {Object} json
  * @property {qtek.Scene} scene
  * @property {qtek.Node} rootNode
- * @property {Object.<string, qtek.Camera>} cameras
- * @property {Object.<string, qtek.Texture>} textures
- * @property {Object.<string, qtek.Material>} materials
- * @property {Object.<string, qtek.Skeleton>} skeletons
- * @property {Object.<string, qtek.Mesh>} meshes
+ * @property {qtek.Camera[]} cameras
+ * @property {qtek.Texture[]} textures
+ * @property {qtek.Material[]} materials
+ * @property {qtek.Skeleton[]} skeletons
+ * @property {qtek.Mesh[]} meshes
+ * @property {qtek.animation.TrackClip[]} clips
+ * @property {qtek.Node[]} nodes
  */
 
 /**
@@ -18237,48 +18513,59 @@ var GLTFLoader = Base.extend(
 /** @lends qtek.loader.GLTF# */
 {
     /**
+     * 
      * @type {qtek.Node}
      */
     rootNode: null,
     /**
+     * Root path for uri parsing.
      * @type {string}
      */
     rootPath: null,
 
     /**
+     * Root path for texture uri parsing. Defaultly use the rootPath
      * @type {string}
      */
     textureRootPath: null,
 
     /**
+     * Root path for buffer uri parsing. Defaultly use the rootPath
      * @type {string}
      */
     bufferRootPath: null,
 
     /**
+     * Shader used when creating the materials.
      * @type {string}
+     * @default 'qtek.standard'
      */
     shaderName: 'qtek.standard',
 
     /**
+     * If use {@link qtek.StandardMaterial}
      * @type {string}
      */
     useStandardMaterial: false,
 
     /**
+     * If loading the cameras.
      * @type {boolean}
      */
     includeCamera: true,
 
     /**
+     * If loading the animations.
      * @type {boolean}
      */
     includeAnimation: true,
     /**
+     * If loading the meshes
      * @type {boolean}
      */
     includeMesh: true,
     /**
+     * If loading the textures.
      * @type {boolean}
      */
     includeTexture: true,
@@ -18289,9 +18576,8 @@ var GLTFLoader = Base.extend(
     crossOrigin: '',
     /**
      * @type {boolean}
+     * @see https://github.com/KhronosGroup/glTF/issues/674
      */
-    // PENDING
-    // https://github.com/KhronosGroup/glTF/issues/674
     textureFlipY: false,
 
     shaderLibrary: null
@@ -18304,7 +18590,7 @@ function () {
 /** @lends qtek.loader.GLTF.prototype */
 {
     /**
-     * @param  {string} url
+     * @param {string} url
      */
     load: function (url) {
         var self = this;
@@ -18337,6 +18623,7 @@ function () {
     /**
      * Parse glTF binary
      * @param {ArrayBuffer} buffer
+     * @return {qtek.loader.GLTF.IResult}
      */
     parseBinary: function (buffer) {
         var header = new Uint32Array(buffer, 0, 4);
@@ -18390,7 +18677,7 @@ function () {
 
     /**
      * @param {Object} json
-     * @param {Array.<ArrayBuffer>} [buffer]
+     * @param {ArrayBuffer[]} [buffer]
      * @return {qtek.loader.GLTF.IResult}
      */
     parse: function (json, buffers) {
@@ -18980,7 +19267,8 @@ function () {
             // Geometry
             for (var pp = 0; pp < meshInfo.primitives.length; pp++) {
                 var primitiveInfo = meshInfo.primitives[pp];
-                var geometry = new StaticGeometry({
+                var geometry = new Geometry({
+                    dynamic: false,
                     // PENDIGN
                     name: meshInfo.name,
                     boundingBox: new BoundingBox()
@@ -19815,21 +20103,21 @@ var requestAnimationFrame$1 = window.requestAnimationFrame
  * @extends qtek.core.Base
  *
  * @example
- *     var animation = new qtek.animation.Animation();
- *     var node = new qtek.Node();
- *     animation.animate(node.position)
- *         .when(1000, {
- *             x: 500,
- *             y: 500
- *         })
- *         .when(2000, {
- *             x: 100,
- *             y: 100
- *         })
- *         .when(3000, {
- *             z: 10
- *         })
- *         .start('spline');
+ * var animation = new qtek.animation.Animation();
+ * var node = new qtek.Node();
+ * animation.animate(node.position)
+ *     .when(1000, {
+ *         x: 500,
+ *         y: 500
+ *     })
+ *     .when(2000, {
+ *         x: 100,
+ *         y: 100
+ *     })
+ *     .when(3000, {
+ *         z: 10
+ *     })
+ *     .start('spline');
  */
 var Animation = Base.extend(function () {
     return /** @lends qtek.animation.Animation# */{
@@ -20049,7 +20337,9 @@ var meshUtil = {
         var templateGeo = templateMesh.geometry;
         var material = templateMesh.material;
 
-        var geometry = new StaticGeometry();
+        var geometry = new Geometry({
+            dynamic: false
+        });
         geometry.boundingBox = new BoundingBox();
 
         var attributeNames = templateGeo.getEnabledAttributes();
@@ -20288,7 +20578,7 @@ var meshUtil = {
             }
             subMat.name = [material.name, b].join('-');
 
-            var subGeo = new StaticGeometry();
+            var subGeo = new Geometry();
 
             var subMesh = new Mesh({
                 name: [mesh.name, i].join('-'),
@@ -20730,14 +21020,15 @@ TaskGroup.prototype.getTaskNumber = function (recursive) {
 
 /**
  * @constructor qtek.geometry.Plane
- * @extends qtek.StaticGeometry
+ * @extends qtek.Geometry
  * @param {Object} [opt]
  * @param {number} [opt.widthSegments]
  * @param {number} [opt.heightSegments]
  */
-var Plane$2 = StaticGeometry.extend(
+var Plane$2 = Geometry.extend(
 /** @lends qtek.geometry.Plane# */
 {
+    dynamic: false,
     /**
      * @type {number}
      */
@@ -21087,12 +21378,12 @@ var TextureCube = Texture.extend(function () {
     return /** @lends qtek.TextureCube# */{
         /**
          * @type {Object}
-         * @property {HTMLImageElement|HTMLCanvasElemnet} px
-         * @property {HTMLImageElement|HTMLCanvasElemnet} nx
-         * @property {HTMLImageElement|HTMLCanvasElemnet} py
-         * @property {HTMLImageElement|HTMLCanvasElemnet} ny
-         * @property {HTMLImageElement|HTMLCanvasElemnet} pz
-         * @property {HTMLImageElement|HTMLCanvasElemnet} nz
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} px
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} nx
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} py
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} ny
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} pz
+         * @property {?HTMLImageElement|HTMLCanvasElemnet} nz
          */
         image: {
             px: null,
@@ -21103,13 +21394,14 @@ var TextureCube = Texture.extend(function () {
             nz: null
         },
         /**
+         * Pixels data of each side. Will be ignored if images are set.
          * @type {Object}
-         * @property {Uint8Array} px
-         * @property {Uint8Array} nx
-         * @property {Uint8Array} py
-         * @property {Uint8Array} ny
-         * @property {Uint8Array} pz
-         * @property {Uint8Array} nz
+         * @property {?Uint8Array} px
+         * @property {?Uint8Array} nx
+         * @property {?Uint8Array} py
+         * @property {?Uint8Array} ny
+         * @property {?Uint8Array} pz
+         * @property {?Uint8Array} nz
          */
         pixels: {
             px: null,
@@ -21496,13 +21788,12 @@ var FrameBuffer = Base.extend(
         }
     },
 
-    /**
-     * 0x8CD5, 36053, FRAMEBUFFER_COMPLETE
-     * 0x8CD6, 36054, FRAMEBUFFER_INCOMPLETE_ATTACHMENT
-     * 0x8CD7, 36055, FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
-     * 0x8CD9, 36057, FRAMEBUFFER_INCOMPLETE_DIMENSIONS
-     * 0x8CDD, 36061, FRAMEBUFFER_UNSUPPORTED
-     */
+    
+    // 0x8CD5, 36053, FRAMEBUFFER_COMPLETE
+    // 0x8CD6, 36054, FRAMEBUFFER_INCOMPLETE_ATTACHMENT
+    // 0x8CD7, 36055, FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
+    // 0x8CD9, 36057, FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+    // 0x8CDD, 36061, FRAMEBUFFER_UNSUPPORTED
     checkStatus: function (_gl) {
         return _gl.checkFramebufferStatus(GL_FRAMEBUFFER);
     },
@@ -21833,7 +22124,7 @@ var EnvironmentMapPass = Base.extend(function() {
 
 /**
  * @constructor qtek.geometry.Sphere
- * @extends qtek.StaticGeometry
+ * @extends qtek.Geometry
  * @param {Object} [opt]
  * @param {number} [widthSegments]
  * @param {number} [heightSegments]
@@ -21843,9 +22134,10 @@ var EnvironmentMapPass = Base.extend(function() {
  * @param {number} [thetaLength]
  * @param {number} [radius]
  */
-var Sphere = StaticGeometry.extend(
+var Sphere = Geometry.extend(
 /** @lends qtek.geometry.Sphere# */
 {
+    dynamic: false,
     /**
      * @type {number}
      */
@@ -22352,7 +22644,7 @@ var ret$1 = {
 };
 
 /**
- * @namespace qtek.util.texture
+ * @alias qtek.util.texture
  */
 var textureUtil = {
     /**
@@ -22361,8 +22653,6 @@ var textureUtil = {
      * @param  {Function} [onsuccess]
      * @param  {Function} [onerror]
      * @return {qtek.Texture}
-     *
-     * @memberOf qtek.util.texture
      */
     loadTexture: function (path, option, onsuccess, onerror) {
         var texture;
@@ -22432,8 +22722,6 @@ var textureUtil = {
      * @param  {number} [option.exposure]
      * @param  {Function} [onsuccess]
      * @param  {Function} [onerror]
-     *
-     * @memberOf qtek.util.texture
      */
     loadPanorama: function (renderer, path, cubeMap, option, onsuccess, onerror) {
         var self = this;
@@ -22463,8 +22751,6 @@ var textureUtil = {
      * @param  {qtek.TextureCube} cubeMap
      * @param  {Object} option
      * @param  {boolean} [option.encodeRGBM]
-     *
-     * @memberOf qtek.util.texture
      */
     panoramaToCubeMap: function (renderer, panoramaMap, cubeMap, option) {
         var environmentMapPass = new EnvironmentMapPass();
@@ -22599,8 +22885,6 @@ var textureUtil = {
      * @param  {string} [color1]
      * @param  {string} [color2]
      * @return {qtek.Texture2D}
-     *
-     * @memberOf qtek.util.texture
      */
     createChessboard: function (size, unitSize, color1, color2) {
         size = size || 512;
@@ -22639,8 +22923,6 @@ var textureUtil = {
      * Create a blank pure color 1x1 texture
      * @param  {string} color
      * @return {qtek.Texture2D}
-     *
-     * @memberOf qtek.util.texture
      */
     createBlank: function (color) {
         var canvas = document.createElement('canvas');
@@ -23191,6 +23473,8 @@ function isPowerOfTwo$2(width, height) {
 var shadowmapEssl = "@export qtek.sm.depth.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nattribute vec3 position : POSITION;\n#ifdef SHADOW_TRANSPARENT\nattribute vec2 texcoord : TEXCOORD_0;\n#endif\n@import qtek.chunk.skinning_header\nvarying vec4 v_ViewPosition;\n#ifdef SHADOW_TRANSPARENT\nvarying vec2 v_Texcoord;\n#endif\nvoid main(){\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    v_ViewPosition = worldViewProjection * vec4(skinnedPosition, 1.0);\n    gl_Position = v_ViewPosition;\n#ifdef SHADOW_TRANSPARENT\n    v_Texcoord = texcoord;\n#endif\n}\n@end\n@export qtek.sm.depth.fragment\nvarying vec4 v_ViewPosition;\n#ifdef SHADOW_TRANSPARENT\nvarying vec2 v_Texcoord;\n#endif\nuniform float bias : 0.001;\nuniform float slopeScale : 1.0;\n#ifdef SHADOW_TRANSPARENT\nuniform sampler2D transparentMap;\n#endif\n@import qtek.util.encode_float\nvoid main(){\n    float depth = v_ViewPosition.z / v_ViewPosition.w;\n#ifdef USE_VSM\n    depth = depth * 0.5 + 0.5;\n    float moment1 = depth;\n    float moment2 = depth * depth;\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    moment2 += 0.25*(dx*dx+dy*dy);\n    gl_FragColor = vec4(moment1, moment2, 0.0, 1.0);\n#else\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    depth += sqrt(dx*dx + dy*dy) * slopeScale + bias;\n#ifdef SHADOW_TRANSPARENT\n    if (texture2D(transparentMap, v_Texcoord).a <= 0.1) {\n        gl_FragColor = encodeFloat(0.9999);\n        return;\n    }\n#endif\n    gl_FragColor = encodeFloat(depth * 0.5 + 0.5);\n#endif\n}\n@end\n@export qtek.sm.debug_depth\nuniform sampler2D depthMap;\nvarying vec2 v_Texcoord;\n@import qtek.util.decode_float\nvoid main() {\n    vec4 tex = texture2D(depthMap, v_Texcoord);\n#ifdef USE_VSM\n    gl_FragColor = vec4(tex.rgb, 1.0);\n#else\n    float depth = decodeFloat(tex);\n    gl_FragColor = vec4(depth, depth, depth, 1.0);\n#endif\n}\n@end\n@export qtek.sm.distance.vertex\nuniform mat4 worldViewProjection : WORLDVIEWPROJECTION;\nuniform mat4 world : WORLD;\nattribute vec3 position : POSITION;\n@import qtek.chunk.skinning_header\nvarying vec3 v_WorldPosition;\nvoid main (){\n    vec3 skinnedPosition = position;\n#ifdef SKINNING\n    @import qtek.chunk.skin_matrix\n    skinnedPosition = (skinMatrixWS * vec4(position, 1.0)).xyz;\n#endif\n    gl_Position = worldViewProjection * vec4(skinnedPosition , 1.0);\n    v_WorldPosition = (world * vec4(skinnedPosition, 1.0)).xyz;\n}\n@end\n@export qtek.sm.distance.fragment\nuniform vec3 lightPosition;\nuniform float range : 100;\nvarying vec3 v_WorldPosition;\n@import qtek.util.encode_float\nvoid main(){\n    float dist = distance(lightPosition, v_WorldPosition);\n#ifdef USE_VSM\n    gl_FragColor = vec4(dist, dist * dist, 0.0, 0.0);\n#else\n    dist = dist / range;\n    gl_FragColor = encodeFloat(dist);\n#endif\n}\n@end\n@export qtek.plugin.shadow_map_common\n@import qtek.util.decode_float\nfloat tapShadowMap(sampler2D map, vec2 uv, float z){\n    vec4 tex = texture2D(map, uv);\n    return step(z, decodeFloat(tex) * 2.0 - 1.0);\n}\nfloat pcf(sampler2D map, vec2 uv, float z, float textureSize, vec2 scale) {\n    float shadowContrib = tapShadowMap(map, uv, z);\n    vec2 offset = vec2(1.0 / textureSize) * scale;\n#ifdef PCF_KERNEL_SIZE\n    for (int _idx_ = 0; _idx_ < PCF_KERNEL_SIZE; _idx_++) {{\n        shadowContrib += tapShadowMap(map, uv + offset * pcfKernel[_idx_], z);\n    }}\n    return shadowContrib / float(PCF_KERNEL_SIZE + 1);\n#else\n    shadowContrib += tapShadowMap(map, uv+vec2(offset.x, 0.0), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(offset.x, offset.y), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(-offset.x, offset.y), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(0.0, offset.y), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(-offset.x, 0.0), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(-offset.x, -offset.y), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(offset.x, -offset.y), z);\n    shadowContrib += tapShadowMap(map, uv+vec2(0.0, -offset.y), z);\n    return shadowContrib / 9.0;\n#endif\n}\nfloat pcf(sampler2D map, vec2 uv, float z, float textureSize) {\n    return pcf(map, uv, z, textureSize, vec2(1.0));\n}\nfloat chebyshevUpperBound(vec2 moments, float z){\n    float p = 0.0;\n    z = z * 0.5 + 0.5;\n    if (z <= moments.x) {\n        p = 1.0;\n    }\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, 0.0000001);\n    float mD = moments.x - z;\n    float pMax = variance / (variance + mD * mD);\n    pMax = clamp((pMax-0.4)/(1.0-0.4), 0.0, 1.0);\n    return max(p, pMax);\n}\nfloat computeShadowContrib(\n    sampler2D map, mat4 lightVPM, vec3 position, float textureSize, vec2 scale, vec2 offset\n) {\n    vec4 posInLightSpace = lightVPM * vec4(position, 1.0);\n    posInLightSpace.xyz /= posInLightSpace.w;\n    float z = posInLightSpace.z;\n    if(all(greaterThan(posInLightSpace.xyz, vec3(-0.99, -0.99, -1.0))) &&\n        all(lessThan(posInLightSpace.xyz, vec3(0.99, 0.99, 1.0)))){\n        vec2 uv = (posInLightSpace.xy+1.0) / 2.0;\n        #ifdef USE_VSM\n            vec2 moments = texture2D(map, uv * scale + offset).xy;\n            return chebyshevUpperBound(moments, z);\n        #else\n            return pcf(map, uv * scale + offset, z, textureSize, scale);\n        #endif\n    }\n    return 1.0;\n}\nfloat computeShadowContrib(sampler2D map, mat4 lightVPM, vec3 position, float textureSize) {\n    return computeShadowContrib(map, lightVPM, position, textureSize, vec2(1.0), vec2(0.0));\n}\nfloat computeShadowContribOmni(samplerCube map, vec3 direction, float range)\n{\n    float dist = length(direction);\n    vec4 shadowTex = textureCube(map, direction);\n#ifdef USE_VSM\n    vec2 moments = shadowTex.xy;\n    float variance = moments.y - moments.x * moments.x;\n    float mD = moments.x - dist;\n    float p = variance / (variance + mD * mD);\n    if(moments.x + 0.001 < dist){\n        return clamp(p, 0.0, 1.0);\n    }else{\n        return 1.0;\n    }\n#else\n    return step(dist, (decodeFloat(shadowTex) + 0.0002) * range);\n#endif\n}\n@end\n@export qtek.plugin.compute_shadow_map\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT) || defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT) || defined(POINT_LIGHT_SHADOWMAP_COUNT)\n#ifdef SPOT_LIGHT_SHADOWMAP_COUNT\nuniform sampler2D spotLightShadowMaps[SPOT_LIGHT_SHADOWMAP_COUNT];\nuniform mat4 spotLightMatrices[SPOT_LIGHT_SHADOWMAP_COUNT];\nuniform float spotLightShadowMapSizes[SPOT_LIGHT_SHADOWMAP_COUNT];\n#endif\n#ifdef DIRECTIONAL_LIGHT_SHADOWMAP_COUNT\n#if defined(SHADOW_CASCADE)\nuniform sampler2D directionalLightShadowMaps[1];\nuniform mat4 directionalLightMatrices[SHADOW_CASCADE];\nuniform float directionalLightShadowMapSizes[1];\nuniform float shadowCascadeClipsNear[SHADOW_CASCADE];\nuniform float shadowCascadeClipsFar[SHADOW_CASCADE];\n#else\nuniform sampler2D directionalLightShadowMaps[DIRECTIONAL_LIGHT_SHADOWMAP_COUNT];\nuniform mat4 directionalLightMatrices[DIRECTIONAL_LIGHT_SHADOWMAP_COUNT];\nuniform float directionalLightShadowMapSizes[DIRECTIONAL_LIGHT_SHADOWMAP_COUNT];\n#endif\n#endif\n#ifdef POINT_LIGHT_SHADOWMAP_COUNT\nuniform samplerCube pointLightShadowMaps[POINT_LIGHT_SHADOWMAP_COUNT];\nuniform float pointLightShadowMapSizes[POINT_LIGHT_SHADOWMAP_COUNT];\n#endif\nuniform bool shadowEnabled : true;\n#ifdef PCF_KERNEL_SIZE\nuniform vec2 pcfKernel[PCF_KERNEL_SIZE];\n#endif\n@import qtek.plugin.shadow_map_common\n#if defined(SPOT_LIGHT_SHADOWMAP_COUNT)\nvoid computeShadowOfSpotLights(vec3 position, inout float shadowContribs[SPOT_LIGHT_COUNT] ) {\n    float shadowContrib;\n    for(int _idx_ = 0; _idx_ < SPOT_LIGHT_SHADOWMAP_COUNT; _idx_++) {{\n        shadowContrib = computeShadowContrib(\n            spotLightShadowMaps[_idx_], spotLightMatrices[_idx_], position,\n            spotLightShadowMapSizes[_idx_]\n        );\n        shadowContribs[_idx_] = shadowContrib;\n    }}\n    for(int _idx_ = SPOT_LIGHT_SHADOWMAP_COUNT; _idx_ < SPOT_LIGHT_COUNT; _idx_++){{\n        shadowContribs[_idx_] = 1.0;\n    }}\n}\n#endif\n#if defined(DIRECTIONAL_LIGHT_SHADOWMAP_COUNT)\n#ifdef SHADOW_CASCADE\nvoid computeShadowOfDirectionalLights(vec3 position, inout float shadowContribs[DIRECTIONAL_LIGHT_COUNT]){\n    float depth = (2.0 * gl_FragCoord.z - gl_DepthRange.near - gl_DepthRange.far)\n                    / (gl_DepthRange.far - gl_DepthRange.near);\n    float shadowContrib;\n    shadowContribs[0] = 1.0;\n    for (int _idx_ = 0; _idx_ < SHADOW_CASCADE; _idx_++) {{\n        if (\n            depth >= shadowCascadeClipsNear[_idx_] &&\n            depth <= shadowCascadeClipsFar[_idx_]\n        ) {\n            shadowContrib = computeShadowContrib(\n                directionalLightShadowMaps[0], directionalLightMatrices[_idx_], position,\n                directionalLightShadowMapSizes[0],\n                vec2(1.0 / float(SHADOW_CASCADE), 1.0),\n                vec2(float(_idx_) / float(SHADOW_CASCADE), 0.0)\n            );\n            shadowContribs[0] = shadowContrib;\n        }\n    }}\n    for(int _idx_ = DIRECTIONAL_LIGHT_SHADOWMAP_COUNT; _idx_ < DIRECTIONAL_LIGHT_COUNT; _idx_++) {{\n        shadowContribs[_idx_] = 1.0;\n    }}\n}\n#else\nvoid computeShadowOfDirectionalLights(vec3 position, inout float shadowContribs[DIRECTIONAL_LIGHT_COUNT]){\n    float shadowContrib;\n    for(int _idx_ = 0; _idx_ < DIRECTIONAL_LIGHT_SHADOWMAP_COUNT; _idx_++) {{\n        shadowContrib = computeShadowContrib(\n            directionalLightShadowMaps[_idx_], directionalLightMatrices[_idx_], position,\n            directionalLightShadowMapSizes[_idx_]\n        );\n        shadowContribs[_idx_] = shadowContrib;\n    }}\n    for(int _idx_ = DIRECTIONAL_LIGHT_SHADOWMAP_COUNT; _idx_ < DIRECTIONAL_LIGHT_COUNT; _idx_++) {{\n        shadowContribs[_idx_] = 1.0;\n    }}\n}\n#endif\n#endif\n#if defined(POINT_LIGHT_SHADOWMAP_COUNT)\nvoid computeShadowOfPointLights(vec3 position, inout float shadowContribs[POINT_LIGHT_COUNT] ){\n    vec3 lightPosition;\n    vec3 direction;\n    for(int _idx_ = 0; _idx_ < POINT_LIGHT_SHADOWMAP_COUNT; _idx_++) {{\n        lightPosition = pointLightPosition[_idx_];\n        direction = position - lightPosition;\n        shadowContribs[_idx_] = computeShadowContribOmni(pointLightShadowMaps[_idx_], direction, pointLightRange[_idx_]);\n    }}\n    for(int _idx_ = POINT_LIGHT_SHADOWMAP_COUNT; _idx_ < POINT_LIGHT_COUNT; _idx_++) {{\n        shadowContribs[_idx_] = 1.0;\n    }}\n}\n#endif\n#endif\n@end";
 
 var mat4$8 = glmatrix.mat4;
+var vec3$15 = glmatrix.vec3;
+
 var targets$1 = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
 Shader['import'](shadowmapEssl);
@@ -23845,6 +24129,7 @@ var ShadowMapPass = Base.extend(function () {
             height: size,
             type: Texture.FLOAT
         };
+        var _gl = renderer.gl;
         var tmpTexture = this._texturePool.get(parameter);
 
         this._frameBuffer.attach(tmpTexture);
@@ -25916,6 +26201,16 @@ function getBeforeRenderHook2(gl, defaultDiffuseMap, defaultMetalnessMap) {
     };
 }
 
+/**
+ * GBuffer is provided for deferred rendering and SSAO, SSR pass.
+ * It will do two passes rendering to three target textures. See
+ * + {@link qtek.deferred.GBuffer#getTargetTexture1}
+ * + {@link qtek.deferred.GBuffer#getTargetTexture2}
+ * + {@link qtek.deferred.GBuffer#getTargetTexture3}
+ * @constructor
+ * @alias qtek.deferred.GBuffer
+ * @extends qtek.core.Base
+ */
 var GBuffer = Base.extend(function () {
 
     return {
@@ -25979,8 +26274,13 @@ var GBuffer = Base.extend(function () {
             fragment: Shader.source('qtek.deferred.gbuffer.debug')
         })
     };
-}, {
+}, /** @lends qtek.deferred.GBuffer# */{
 
+    /**
+     * Set G Buffer size.
+     * @param {number} width
+     * @param {number} height
+     */
     resize: function (width, height) {
         if (this._gBufferTex1.width === width
             && this._gBufferTex1.height === height
@@ -26027,6 +26327,12 @@ var GBuffer = Base.extend(function () {
         }
     },
 
+    /**
+     * Update G Buffer
+     * @param {qtek.Renderer} renderer
+     * @param {qtek.Scene} scene
+     * @param {qtek.camera.Perspective} camera
+     */
     update: function (renderer, scene, camera) {
 
         var gl = renderer.gl;
@@ -26188,14 +26494,38 @@ var GBuffer = Base.extend(function () {
         renderer.restoreClear();
     },
 
+    /**
+     * Get first target texture.
+     * Channel storage:
+     * + R: normal.x * 0.5 + 0.5
+     * + G: normal.y * 0.5 + 0.5
+     * + B: normal.z * 0.5 + 0.5
+     * + A: glossiness
+     * @return {qtek.Texture2D}
+     */
     getTargetTexture1: function () {
         return this._gBufferTex1;
     },
 
+    /**
+     * Get second target texture.
+     * Channel storage:
+     * + R: depth
+     * @return {qtek.Texture2D}
+     */
     getTargetTexture2: function () {
         return this._gBufferTex2;
     },
 
+    /**
+     * Get third target texture.
+     * Channel storage:
+     * + R: albedo.r
+     * + G: albedo.g
+     * + B: albedo.b
+     * + A: metalness
+     * @return {qtek.Texture2D}
+     */
     getTargetTexture3: function () {
         return this._gBufferTex3;
     },
@@ -26279,6 +26609,10 @@ var GBuffer = Base.extend(function () {
         }
     },
 
+
+    /**
+     * @param  {qtek.Renderer} renderer
+     */
     dispose: function (renderer) {
         for (var name in this._gBufferMaterials) {
             var matObj = this._gBufferMaterials[name];
@@ -26486,16 +26820,17 @@ var planeMatrix = new Matrix4();
 
 /**
  * @constructor qtek.geometry.Cube
- * @extends qtek.StaticGeometry
+ * @extends qtek.Geometry
  * @param {Object} [opt]
  * @param {number} [opt.widthSegments]
  * @param {number} [opt.heightSegments]
  * @param {number} [opt.depthSegments]
  * @param {boolean} [opt.inside]
  */
-var Cube = StaticGeometry.extend(
+var Cube = Geometry.extend(
 /**@lends qtek.geometry.Cube# */
 {
+    dynamic: false,
     /**
      * @type {number}
      */
@@ -26731,14 +27066,15 @@ var cubemapUtil = {};
 var targets$2 = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 
 /**
+ * @name qtek.util.cubemap.prefilterEnvironmentMap
  * @param  {qtek.Renderer} renderer
  * @param  {qtek.Texture} envMap
  * @param  {Object} [textureOpts]
- * @param  {number} [textureOpts.width]
- * @param  {number} [textureOpts.height]
+ * @param  {number} [textureOpts.width=64]
+ * @param  {number} [textureOpts.height=64]
  * @param  {number} [textureOpts.type]
- * @param  {boolean} [textureOpts.encodeRGBM]
- * @param  {boolean} [textureOpts.decodeRGBM]
+ * @param  {boolean} [textureOpts.encodeRGBM=false]
+ * @param  {boolean} [textureOpts.decodeRGBM=false]
  * @param  {qtek.Texture2D} [normalDistribution]
  * @param  {qtek.Texture2D} [brdfLookup]
  */
@@ -26976,6 +27312,8 @@ cubemapUtil.generateNormalDistribution = function (roughnessLevels, sampleSize) 
 
 // https://docs.unrealengine.com/latest/INT/Engine/Rendering/LightingAndShadows/AmbientCubemap/
 /**
+ * Ambient cubemap light provides specular parts of Image Based Lighting.
+ * Which is a basic requirement for Physically Based Rendering
  * @constructor qtek.light.AmbientCubemap
  * @extends qtek.Light
  */
@@ -26998,6 +27336,11 @@ var AmbientCubemapLight = Light.extend({
 
     type: 'AMBIENT_CUBEMAP_LIGHT',
 
+    /**
+     * Do prefitering the cubemap
+     * @param {qtek.Renderer} renderer
+     * @param {number} [size=32]
+     */
     prefilter: function (renderer, size) {
         if (!this._brdfLookup) {
             this._normalDistribution = cubemapUtil.generateNormalDistribution();
@@ -27105,7 +27448,7 @@ var AmbientSHLight = Light.extend({
 });
 
 // Spherical Harmonic Helpers
-var vec3$17 = glmatrix.vec3;
+var vec3$16 = glmatrix.vec3;
 var sh = {};
 
 var targets$3 = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
@@ -27156,15 +27499,15 @@ var normalTransform = {
 // Project on cpu.
 function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
     var coeff = new vendor.Float32Array(9 * 3);
-    var normal = vec3$17.create();
-    var texel = vec3$17.create();
-    var fetchNormal = vec3$17.create();
+    var normal = vec3$16.create();
+    var texel = vec3$16.create();
+    var fetchNormal = vec3$16.create();
     for (var m = 0; m < 9; m++) {
-        var result = vec3$17.create();
+        var result = vec3$16.create();
         for (var k = 0; k < targets$3.length; k++) {
             var pixels = cubePixels[targets$3[k]];
 
-            var sideResult = vec3$17.create();
+            var sideResult = vec3$16.create();
             var divider = 0;
             var i = 0;
             var transform = normalTransform[targets$3[k]];
@@ -27175,7 +27518,7 @@ function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
                     // TODO Flip y?
                     normal[1] = y / (height - 1.0) * 2.0 - 1.0;
                     normal[2] = -1.0;
-                    vec3$17.normalize(normal, normal);
+                    vec3$16.normalize(normal, normal);
 
                     fetchNormal[0] = normal[transform[0]] * transform[3];
                     fetchNormal[1] = normal[transform[1]] * transform[4];
@@ -27190,12 +27533,12 @@ function projectEnvironmentMapCPU(renderer, cubePixels, width, height) {
                     texel[1] *= scale;
                     texel[2] *= scale;
 
-                    vec3$17.scaleAndAdd(sideResult, sideResult, texel, harmonics(fetchNormal, m) * -normal[2]);
+                    vec3$16.scaleAndAdd(sideResult, sideResult, texel, harmonics(fetchNormal, m) * -normal[2]);
                     // -normal.z equals cos(theta) of Lambertian
                     divider += -normal[2];
                 }
             }
-            vec3$17.scaleAndAdd(result, result, sideResult, 1 / divider);
+            vec3$16.scaleAndAdd(result, result, sideResult, 1 / divider);
         }
 
         coeff[m * 3] = result[0] / 6.0;
@@ -27709,15 +28052,7 @@ helper.firstNotNull = function () {
             return arguments[i];
         }
     }
-},
-/**
- * @param {string|HTMLImageElement|HTMLCanvasElement} imgValue
- * @param {Viewer} app
- * @param {Object} [textureOpts]
- * @param {Function} cb
- */
-// TODO Promise, test
-helper.loadTexture = function (imgValue, app, textureOpts, cb) {
+}, helper.loadTexture = function (imgValue, app, textureOpts, cb) {
     if (typeof textureOpts === 'function') {
         cb = textureOpts;
         textureOpts = {};
@@ -29681,39 +30016,41 @@ SceneHelper.prototype = {
         var self = this;
 
         // TODO Change exposure
-        if (!this._currentCubemapLights || textureUrl !== this._currentCubemapLights.textureUrl) {
-            if (this._currentCubemapLights) {
-                this._lightRoot.remove(this._currentCubemapLights.diffuse);
-                if (this._currentCubemapLights.specular) {
-                    this._lightRoot.remove(this._currentCubemapLights.specular);
-                    this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
-                }
-            }
-            if (textureUrl) {
-                var lights = helper.createAmbientCubemap(opts, app, function () {
-                    // Use prefitered cubemap
-                    if (lights.specular && (self._skybox instanceof Skybox)) {
-                        self._skybox.setEnvironmentMap(lights.specular.cubemap);
+        if ('texture' in opts) {
+            if (!this._currentCubemapLights || textureUrl !== this._currentCubemapLights.textureUrl) {
+                if (this._currentCubemapLights) {
+                    this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                    if (this._currentCubemapLights.specular) {
+                        this._lightRoot.remove(this._currentCubemapLights.specular);
+                        this._currentCubemapLights.specular.cubemap.dispose(renderer.gl);
                     }
-                    app.refresh();
-                });
-                if (lights.diffuse) {
-                    this._lightRoot.add(lights.diffuse);
                 }
-                if (lights.specular) {
-                    this._lightRoot.add(lights.specular);
+                if (textureUrl) {
+                    var lights = helper.createAmbientCubemap(opts, app, function () {
+                        // Use prefitered cubemap
+                        if (lights.specular && (self._skybox instanceof Skybox)) {
+                            self._skybox.setEnvironmentMap(lights.specular.cubemap);
+                        }
+                        app.refresh();
+                    });
+                    if (lights.diffuse) {
+                        this._lightRoot.add(lights.diffuse);
+                    }
+                    if (lights.specular) {
+                        this._lightRoot.add(lights.specular);
+                    }
+        
+                    this._currentCubemapLights = lights;
+                    this._currentCubemapLights.textureUrl = textureUrl;
                 }
-    
-                this._currentCubemapLights = lights;
-                this._currentCubemapLights.textureUrl = textureUrl;
-            }
-            else if (this._currentCubemapLights) {
-                this._lightRoot.remove(this._currentCubemapLights.diffuse);
-                this._lightRoot.remove(this._currentCubemapLights.specular);
-                this._currentCubemapLights = null;
+                else if (this._currentCubemapLights) {
+                    this._lightRoot.remove(this._currentCubemapLights.diffuse);
+                    this._lightRoot.remove(this._currentCubemapLights.specular);
+                    this._currentCubemapLights = null;
+                }
             }
         }
-
+        
         if (this._currentCubemapLights) {
             if (opts.specularIntensity != null && this._currentCubemapLights.specular) {
                 this._currentCubemapLights.specular.intensity = opts.specularIntensity;
@@ -30299,7 +30636,7 @@ function isPrimitive(obj) {
     return obj[primitiveKey];
 }
 
-var vec3$18 = glmatrix.vec3;
+var vec3$17 = glmatrix.vec3;
 
 function getBoundingBoxOfSkinningMesh(mesh, out) {
     var pos = [];
@@ -30331,16 +30668,16 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
         jointAttr.get(i, joint);
         weight[3] = 1 - weight[0] - weight[1] - weight[2];
 
-        vec3$18.set(skinnedPos, 0, 0, 0);
+        vec3$17.set(skinnedPos, 0, 0, 0);
         for (var k = 0; k < 4; k++) {
             if (joint[k] >= 0 && weight[k] > 1e-6) {
-                vec3$18.transformMat4(tmp, pos, skinMatrices[joint[k]]);
-                vec3$18.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
+                vec3$17.transformMat4(tmp, pos, skinMatrices[joint[k]]);
+                vec3$17.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
             }   
         }
 
-        vec3$18.min(min, min, skinnedPos);
-        vec3$18.max(max, max, skinnedPos);
+        vec3$17.min(min, min, skinnedPos);
+        vec3$17.max(max, max, skinnedPos);
     }
     out.min.setArray(min);
     out.max.setArray(max);
@@ -31884,6 +32221,9 @@ Vector4.transformQuat = function(out, a, q) {
     return out;
 };
 
+var DEFAULT_FAR_ALPHA = 0.1;
+var DEFAULT_NEAR_ALPHA = 1.0;
+
 var HotspotManger = Base.extend(function () {
 
     return {
@@ -31972,6 +32312,8 @@ var HotspotManger = Base.extend(function () {
             var p = hotspot.position;
             pos.set(p[0], p[1], p[2], 1);
             pos.transformMat4(this.camera.viewMatrix);
+            var linearDepth = pos.z;
+
             pos.transformMat4(this.camera.projectionMatrix);
             pos.scale(1 / pos.w);
 
@@ -31982,8 +32324,12 @@ var HotspotManger = Base.extend(function () {
             hotspot.dom.style.top = this.renderer.getHeight() - y + 'px';
 
             // Upadte alpha
+            var farAlpha = hotspot.farAlpha == null ? DEFAULT_FAR_ALPHA : hotspot.farAlpha;
+            var nearAlpha = hotspot.nearAlpha == null ? DEFAULT_NEAR_ALPHA : hotspot.nearAlpha;
+
             tmpBBox.copy(this._boundingBox);
             tmpBBox.applyTransform(this.camera.viewMatrix);
+            var percent = (linearDepth - tmpBBox.max.z) / (tmpBBox.min.z - tmpBBox.max.z);
             hotspot.dom.style.opacity = 1;
 
             hotspot.onupdate && hotspot.onupdate(x, y);
@@ -33106,7 +33452,8 @@ Viewer.prototype.dispose = function () {
 util.extend(Viewer.prototype, notifier);
 
 var index = {
-    Viewer: Viewer
+    Viewer: Viewer,
+    version: '0.1.0'
 };
 
 exports.Viewer = Viewer;

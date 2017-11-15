@@ -37,19 +37,19 @@
 
     <script type="text/javascript">
         var viewer = new QMV.Viewer(document.getElementById('main'), {
-            shadow: false,
+            shadow: true,
+            ambientCubemapLight: {
+                intensity: 1,
+                texture: './asset/texture/pisa.hdr'
+            },
             postEffect: {
                 enable: true
             }
-            // renderDebugSkeleton: true
         });
 
         var modelUrl = location.search.slice(1);
 
-        viewer.loadModel((modelUrl || 'baidu_asset/dragon/dragon') + '.gltf', {
-            textureFlipY: true
-            // shader: 'basic'
-        })
+        viewer.loadModel('./asset/DamagedHelmet/DamagedHelmet.gltf')
             .on('loadmodel', function (modelStat) {
                 viewer.setCameraControl({
                     alpha: 20,
@@ -84,7 +84,7 @@
             lightColor: '#fff',
             lightAlpha: 45,
             lightBeta: 45,
-            ambientIntensity: 0.3
+            ambientIntensity: 1
         }
         var gui = new dat.GUI();
 
@@ -95,15 +95,16 @@
                 alpha: config.lightAlpha,
                 beta: config.lightBeta
             });
-            viewer.setAmbientLight({
-                intensity: config.ambientIntensity
+            viewer.setAmbientCubemapLight({
+                specularIntensity: config.ambientIntensity,
+                diffuseIntensity: config.ambientIntensity
             });
         }
         gui.add(config, 'lightIntensity', 0, 4).onChange(updateLight);
         gui.addColor(config, 'lightColor').onChange(updateLight);
         gui.add(config, 'lightAlpha', 0, 180).onChange(updateLight);
         gui.add(config, 'lightBeta', -180, 180).onChange(updateLight);
-        gui.add(config, 'ambientIntensity', 0, 1).onChange(updateLight);
+        gui.add(config, 'ambientIntensity', 0, 2).onChange(updateLight);
 
         updateLight();
     </script>
