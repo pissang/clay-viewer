@@ -9,10 +9,12 @@
     "appId": "ECOMFE.QTEKModelViewer",
     "mac": {
       "category": "public.app-category.graphics-design",
-      "target": "zip"
+      "target": "zip",
+      "icon": "icon.icns"
     },
     "win": {
-      "target": "zip"
+      "target": "zip",
+      "icon": "icon.ico"
     },
     "asarUnpack": "electron/convert/**/*"
   },
