@@ -10,7 +10,7 @@
 
 ## App
 
-[Download app](https://github.com/pissang/qtek-model-viewer/releases/tag/0.1.0) on Windows and macOS with FBX/DAE/OBj converting. Use it as a model preview tool!
+[Download App](https://github.com/pissang/qtek-model-viewer/releases/tag/0.1.0) on Windows and macOS with FBX/DAE/OBj import. Use it as a common model preview tool!
 
 ## Loader
 
