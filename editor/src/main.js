@@ -9,6 +9,7 @@ import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
 import { updateAnimationUI } from './timeline';
+import open from 'vendor/open';
 
 var config = getDefaultSceneConfig();
 var materialConfig = getDefaultMaterialConfig();
@@ -18,7 +19,6 @@ var viewer;
 var controlKit = new ControlKit({
     loadAndSave: true,
     useExternalStyle: true
-    // history: true
 });
 
 function updateLight() {
@@ -539,4 +539,9 @@ window.addEventListener('dragover', function (e) {
 });
 window.addEventListener('drop', function (e) {
     e.preventDefault();
+});
+
+$(document).on('click', 'a[href^="http"]', function(event) {
+    event.preventDefault();
+    open(this.href);
 });
