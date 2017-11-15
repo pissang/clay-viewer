@@ -8,6 +8,10 @@
     <img src="./screenshots/editor.jpg" width="600px" />
 </a>
 
+## App
+
+[Download app](https://github.com/pissang/qtek-model-viewer/releases/tag/0.1.0) on Windows and macOS with FBX/DAE/OBj converting. Use it as a model preview tool!
+
 ## Loader
 
 ```js
