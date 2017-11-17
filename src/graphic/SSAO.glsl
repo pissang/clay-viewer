@@ -192,7 +192,8 @@ void main()
 #endif
 #ifdef DEPTHTEX_ENABLED
         float d = getLinearDepth(coord);
-        w *= (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));
+        // PENDING Better equation?
+        w *= (1.0 - smoothstep(abs(centerDepth - d) / depthRange, 0.0, 1.0));
 #endif
 
         weightAll += w;
