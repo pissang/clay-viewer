@@ -138,12 +138,6 @@ uniform sampler2D ssaoTexture;
 uniform sampler2D normalTex;
 #endif
 
-#ifdef DEPTHTEX_ENABLED
-uniform sampler2D depthTex;
-uniform mat4 projection;
-uniform float depthRange : 0.05;
-#endif
-
 varying vec2 v_Texcoord;
 
 uniform vec2 textureSize;
@@ -153,9 +147,13 @@ uniform float blurSize : 1.0;
 uniform int direction: 0.0;
 
 #ifdef DEPTHTEX_ENABLED
+uniform sampler2D depthTex;
+uniform mat4 projection;
+uniform float depthRange : 0.05;
+
 float getLinearDepth(vec2 coord)
 {
-    float depth = texture2D(depthTex, v_Texcoord).r * 2.0 - 1.0;
+    float depth = texture2D(depthTex, coord).r * 2.0 - 1.0;
     return projection[3][2] / (depth * projection[2][3] - projection[2][2]);
 }
 #endif
@@ -174,30 +172,31 @@ void main()
 
     vec2 coord = v_Texcoord;
 
-    vec4 sum = vec4(0.0);
+    float sum = 0.0;
     float weightAll = 0.0;
 
 #ifdef NORMALTEX_ENABLED
     vec3 centerNormal = texture2D(normalTex, v_Texcoord).rgb * 2.0 - 1.0;
-#elif defined(DEPTHTEX_ENABLED)
+#endif
+#if defined(DEPTHTEX_ENABLED)
     float centerDepth = getLinearDepth(v_Texcoord);
 #endif
 
     for (int i = 0; i < 9; i++) {
         vec2 coord = clamp(v_Texcoord + vec2(float(i) - 4.0) * off, vec2(0.0), vec2(1.0));
 
+        float w = gaussianKernel[i];
 #ifdef NORMALTEX_ENABLED
         vec3 normal = texture2D(normalTex, coord).rgb * 2.0 - 1.0;
-        float w = gaussianKernel[i] * clamp(dot(normal, centerNormal), 0.0, 1.0);
-#elif defined(DEPTHTEX_ENABLED)
+        w *= clamp(dot(normal, centerNormal), 0.0, 1.0);
+#endif
+#ifdef DEPTHTEX_ENABLED
         float d = getLinearDepth(coord);
-        float w = gaussianKernel[i] * (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));
-#else
-        float w = gaussianKernel[i];
+        w *= (1.0 - clamp(abs(centerDepth - d) / depthRange, 0.0, 1.0));
 #endif
 
         weightAll += w;
-        sum += texture2D(ssaoTexture, coord) * w;
+        sum += texture2D(ssaoTexture, coord).r * w;
     }
 
    gl_FragColor = vec4(vec3(sum / weightAll), 1.0);

@@ -86,9 +86,12 @@ function SSAOPass(opt) {
         this._ssaoPass.material.shader.disableTexture('normalTex');
         this._blurPass.material.shader.disableTexture('normalTex');
     }
+    if (!this._depthTex) {
+        this._blurPass.material.shader.disableTexture('depthTex');
+    }
 
-    this._blurPass.material.shader.disableTexture('depthTex');
     this._blurPass.material.setUniform('normalTex', this._normalTex);
+    this._blurPass.material.setUniform('depthTex', this._depthTex);
 }
 
 SSAOPass.prototype.setDepthTexture = function (depthTex) {
@@ -138,6 +141,7 @@ SSAOPass.prototype.update = function (renderer, camera, frame) {
     ssaoPass.render(renderer);
 
     blurPass.setUniform('textureSize', [width, height]);
+    blurPass.setUniform('projection', camera.projectionMatrix._array);
     this._framebuffer.attach(blurTexture);
     blurPass.setUniform('direction', 0);
     blurPass.setUniform('ssaoTexture', ssaoTexture);
