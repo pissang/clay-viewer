@@ -447,6 +447,10 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
     if (this._enableSSR) {
         this._ssrPass.update(renderer, camera, sourceTexture, frame);
         targetTexture = this._ssrPass.getTargetTexture();
+
+        this._ssrPass.setSSAOTexture(
+            this._enableSSAO ? this._ssaoPass.getTargetTexture() : null
+        );
     }
     this._sourceNode.texture = targetTexture;
 

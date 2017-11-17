@@ -102,6 +102,17 @@ SSRPass.prototype.setParameter = function (name, val) {
     }
 };
 
+SSRPass.prototype.setSSAOTexture = function (texture) {
+    var blendPass = this._blurPass2;
+    if (texture) {
+        blendPass.material.shader.enableTexture('ssaoTex');
+        blendPass.material.set('ssaoTex', texture);
+    }
+    else {
+        blendPass.material.shader.disableTexture('ssaoTex');
+    }
+};
+
 SSRPass.prototype.dispose = function (renderer) {
     this._texture1.dispose(renderer);
     this._texture2.dispose(renderer);

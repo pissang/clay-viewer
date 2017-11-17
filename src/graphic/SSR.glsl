@@ -286,7 +286,9 @@ uniform vec2 textureSize;
 uniform float blurSize : 4.0;
 
 #ifdef BLEND
-// uniform sampler2D ssaoTex;
+    #ifdef SSAOTEX_ENABLED
+uniform sampler2D ssaoTex;
+    #endif
 uniform sampler2D sourceTexture;
 #endif
 
@@ -320,9 +322,13 @@ void main()
     }
 
 #ifdef BLEND
+
+    float aoFactor = 1.0;
+    #ifdef SSAOTEX_ENABLED
+    aoFactor = texture2D(ssaoTex, v_Texcoord).r;
+    #endif
     gl_FragColor = encodeHDR(
-        sum / weightAll + decodeHDR(texture2D(sourceTexture, v_Texcoord))
-        // sum / weightAll
+        sum / weightAll * aoFactor + decodeHDR(texture2D(sourceTexture, v_Texcoord))
     );
 #else
     gl_FragColor = encodeHDR(sum / weightAll);
