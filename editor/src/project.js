@@ -2,6 +2,7 @@ import env from './env';
 import { updateGLTFMaterials, mergeMetallicRoughness, mergeSpecularGlossiness, convertToBinary, TEXTURES } from './glTFHelper';
 import convert from 'vendor/convert';
 import mime from 'mime-types';
+import downloadFile from 'vendor/download';
 
 
 var fs;
@@ -480,7 +481,7 @@ function downloadProject(format, onsuccess, onerror) {
                                 obj[imageFiles[idx].name] = ab;
                                 return obj;
                             }, {}));
-                            saveAs(new Blob([ab], {type: 'model/json-binary'}), 'model.glb');
+                            downloadFile(new Blob([ab], {type: 'model/json-binary'}), 'model.glb');
                             onsuccess && onsuccess();
                         }).catch(onerror);
                     }
@@ -488,7 +489,7 @@ function downloadProject(format, onsuccess, onerror) {
                         zip.file(glTFFile.name, JSON.stringify(newGLTF, null, 2));
                         zip.generateAsync({ type: 'blob' })
                         .then(function (blob) {
-                            saveAs(blob, 'model.zip');
+                            downloadFile(blob, 'model.zip');
                             onsuccess && onsuccess();
                         }).catch(onerror);
                     }

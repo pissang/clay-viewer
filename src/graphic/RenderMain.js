@@ -93,7 +93,6 @@ RenderMain.prototype.setProjection = function (projection) {
             }
         }
     }
-    // PENDING
     this.camera.near = 0.1;
     this.camera.far = 2000;
 };

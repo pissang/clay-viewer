@@ -9,7 +9,7 @@ import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
 import { updateAnimationUI } from './timeline';
-import open from 'vendor/open';
+import openURL from 'vendor/openURL';
 
 var config = getDefaultSceneConfig();
 var materialConfig = getDefaultMaterialConfig();
@@ -543,5 +543,5 @@ window.addEventListener('drop', function (e) {
 
 $(document).on('click', 'a[href^="http"]', function(event) {
     event.preventDefault();
-    open(this.href);
+    openURL(this.href);
 });
