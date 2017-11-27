@@ -217,7 +217,7 @@ helper.createAmbientCubemap = function (opt, app, cb) {
             ambientCubemap.cubemap = cubemap;
             // TODO Performance when multiple view
             cubemap.flipY = false;
-            ambientCubemap.prefilter(renderer, 32);
+            ambientCubemap.prefilter(renderer, 64);
             ambientSH.coefficients = shUtil.projectEnvironmentMap(renderer, ambientCubemap.cubemap, {
                 lod: 1
             });
