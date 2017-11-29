@@ -91,6 +91,7 @@
         viewer.loadModel(baseUrl + '.gltf', {
                 // shader: 'basic',
                 // includeTexture: false,
+                doubleSided: true,
                 textureFlipY: true,
             })
             .on('loadmodel', function (modelStat) {
