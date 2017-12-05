@@ -27,19 +27,19 @@ SceneHelper.prototype = {
          * @type {qtek.light.Directional}
          */
         this.mainLight = new DirectionalLight({
-            shadowBias: 0.001
+            shadowBias: 0.005
         });
         /**
          * @type {qtek.light.Directional}
          */
         this.secondaryLight = new DirectionalLight({
-            shadowBias: 0.001
+            shadowBias: 0.005
         });
         /**
          * @type {qtek.light.Directional}
          */
         this.tertiaryLight = new DirectionalLight({
-            shadowBias: 0.001
+            shadowBias: 0.005
         });
 
         /**

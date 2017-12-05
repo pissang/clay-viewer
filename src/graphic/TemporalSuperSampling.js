@@ -129,8 +129,8 @@ TemporalSuperSampling.prototype = {
             blendPass.setUniform('weight2', 1);
         }
         else {
-            blendPass.setUniform('weight1', 0.974);
-            blendPass.setUniform('weight2', 0.026);
+            blendPass.setUniform('weight1', 0.9);
+            blendPass.setUniform('weight2', 0.1);
         }
         blendPass.setUniform('texture1', this._prevFrameTex);
         blendPass.setUniform('texture2', this._sourceTex);

@@ -3,7 +3,7 @@
 @export ecgl.ssr.main
 
 #define MAX_ITERATION 20;
-#define SAMPLE_PER_FRAME 10;
+#define SAMPLE_PER_FRAME 5;
 
 uniform sampler2D sourceTexture;
 uniform sampler2D gBufferTexture1;
@@ -25,7 +25,7 @@ uniform float eyeFadeStart : 0.2; // ray direction's Z that ray hits will start 
 uniform float eyeFadeEnd: 0.8; // ray direction's Z that ray hits will be cut (0.0 -> 1.0)
 
 uniform float minGlossiness: 0.2; // Object larger than minGlossiness will have ssr effect
-uniform float zThicknessThreshold: 10;
+uniform float zThicknessThreshold: 1;
 
 uniform float nearZ;
 uniform vec2 viewportSize : VIEWPORT_SIZE;
@@ -39,17 +39,18 @@ varying vec2 v_Texcoord;
 #endif
 
 #ifdef PHYSICALLY_CORRECT
-uniform sampler2D normalDistribution;
+uniform vec3 lambertNormals[SAMPLE_PER_FRAME];
 uniform float normalJitter: 0;
-vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-    vec3 H = texture2D(normalDistribution, vec2(roughness, i + normalJitter)).rgb;
-
+vec3 transformNormal(vec3 H, vec3 N) {
     vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     vec3 tangentX = normalize(cross(upVector, N));
     vec3 tangentY = cross(N, tangentX);
     // Tangent to world space
     return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 }
+// vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
+//     vec3 H = texture2D(normalDistribution, vec2(roughness, i + normalJitter)).rgb;
+// }
 float G_Smith(float g, float ndv, float ndl) {
     float roughness = 1.0 - g;
     float k = roughness * roughness / 2.0;
@@ -194,7 +195,7 @@ bool traceScreenSpaceRay(
         iterationCount += 1.0;
 
         // PENDING Right on all platforms?
-        if (intersect) {
+        if (intersect && iterationCount > 1.0) {
             break;
         }
     }
@@ -278,9 +279,10 @@ void main()
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
     for (int i = 0; i < SAMPLE_PER_FRAME; i++) {
-        vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
-        // vec3 H = N;
-        vec3 rayDir = normalize(reflect(-V, H));
+        // vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
+        vec3 H = transformNormal(lambertNormals[i], N);
+        // vec3 rayDir = normalize(reflect(-V, H));
+        vec3 rayDir = H;
 #else
         vec3 rayDir = normalize(reflect(-V, N));
 #endif
@@ -297,20 +299,21 @@ void main()
         vec3 hitNormal = texture2D(gBufferTexture1, hitPixel).rgb * 2.0 - 1.0;
         hitNormal = normalize((viewInverseTranspose * vec4(hitNormal, 0.0)).xyz);
 #ifdef PHYSICALLY_CORRECT
-        if (intersect) {
+        if (dot(hitNormal, rayDir) < 0.0 && intersect) {
             float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
-            float ndh = clamp(dot(N, H), 0.0, 1.0);
-            float vdh = clamp(dot(V, H), 0.0, 1.0);
+            // float ndh = clamp(dot(N, H), 0.0, 1.0);
+            // float vdh = clamp(dot(V, H), 0.0, 1.0);
             vec3 litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
             // PENDING
-            float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 2.0);
-            color.rgb += ndl * litTexel * fade * (
-                // Diffuse + Specular
-                diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
-            );
+            float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 4.0);
+            // color.rgb += ndl * litTexel * fade * (
+            //     // Diffuse + Specular
+            //     diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+            // );
+            color.rgb += ndl * litTexel * fade * diffuseColor;
         }
     }
-    // color.rgb /= float(SAMPLE_PER_FRAME);
+    color.rgb /= 1024.0;
 #else
     // Ignore the pixel not face the ray
     // TODO fadeout ?
@@ -342,7 +345,7 @@ uniform float depthRange : 0.05;
 varying vec2 v_Texcoord;
 
 uniform vec2 textureSize;
-uniform float blurSize : 4.0;
+uniform float blurSize : 1.0;
 
 #ifdef BLEND
     #ifdef SSAOTEX_ENABLED
@@ -368,9 +371,9 @@ void main()
     float g = centerNTexel.a;
     float maxBlurSize = clamp(1.0 - g + 0.1, 0.0, 1.0) * blurSize;
 #ifdef VERTICAL
-    vec2 off = vec2(0.0, maxBlurSize / textureSize.y);
+    vec2 off = vec2(0.0, blurSize / textureSize.y);
 #else
-    vec2 off = vec2(maxBlurSize / textureSize.x, 0.0);
+    vec2 off = vec2(blurSize / textureSize.x, 0.0);
 #endif
 
     vec2 coord = v_Texcoord;

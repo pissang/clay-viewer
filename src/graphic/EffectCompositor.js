@@ -393,9 +393,9 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
             })[value] || 20;
             var pixelStride = ({
                 low: 32,
-                medium: 32,
-                high: 16,
-                ultra: 16
+                medium: 16,
+                high: 8,
+                ultra: 4
             })[value] || 16;
             this._ssrPass.setParameter('maxIteration', maxIteration);
             this._ssrPass.setParameter('pixelStride', pixelStride);
