@@ -6,6 +6,7 @@ import Pass from 'qtek/src/compositor/Pass';
 import Shader from 'qtek/src/Shader';
 import FrameBuffer from 'qtek/src/FrameBuffer';
 import halton from './halton';
+import cubemapUtil from 'qtek/src/util/cubemap';
 
 import SSRGLSLCode from './SSR.glsl.js';
 
@@ -31,7 +32,10 @@ function SSRPass(opt) {
     this._ssrPass.setUniform('gBufferTexture2', opt.depthTexture);
 
     this._blurPass1.setUniform('gBufferTexture1', opt.normalTexture);
+    this._blurPass1.setUniform('gBufferTexture2', opt.depthTexture);
+    
     this._blurPass2.setUniform('gBufferTexture1', opt.normalTexture);
+    this._blurPass2.setUniform('gBufferTexture2', opt.depthTexture);
 
     this._blurPass2.material.shader.define('fragment', 'VERTICAL');
     this._blurPass2.material.shader.define('fragment', 'BLEND');
@@ -44,6 +48,13 @@ function SSRPass(opt) {
     });
 
     this._frameBuffer = new FrameBuffer();
+
+    this._normalDistribution = null;
+
+    this._sampleSize = 1024;
+    this._samplePerFrame = 10;
+
+    this._ssrPass.material.shader.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
 }
 
 SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
@@ -68,12 +79,16 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose._array);
     ssrPass.setUniform('nearZ', camera.near);
     ssrPass.setUniform('jitterOffset', frame / 30);
+    ssrPass.setUniform('normalJitter', frame / 30 / this._samplePerFrame);
 
     var textureSize = [width, height];
 
     blurPass1.setUniform('textureSize', textureSize);
     blurPass2.setUniform('textureSize', textureSize);
     blurPass2.setUniform('sourceTexture', sourceTexture);
+
+    blurPass1.setUniform('projection', camera.projectionMatrix._array);
+    blurPass2.setUniform('projection', camera.projectionMatrix._array);
 
     frameBuffer.attach(texture2);
     frameBuffer.bind(renderer);
@@ -99,6 +114,19 @@ SSRPass.prototype.setParameter = function (name, val) {
     }
     else {
         this._ssrPass.setUniform(name, val);
+    }
+};
+
+SSRPass.prototype.setPhysicallyCorrect = function (isPhysicallyCorrect) {
+    if (isPhysicallyCorrect) {
+        if (!this._normalDistribution) {
+            this._normalDistribution = cubemapUtil.generateNormalDistribution(256, this._sampleSize);
+        }
+        this._ssrPass.material.shader.define('fragment', 'PHYSICALLY_CORRECT');
+        this._ssrPass.material.set('normalDistribution', this._normalDistribution);
+    }
+    else {
+        this._ssrPass.material.shader.undefine('fragment', 'PHYSICALLY_CORRECT');
     }
 };
 

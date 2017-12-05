@@ -100,6 +100,7 @@ function EffectCompositor() {
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
+    this._ssrPass.setPhysicallyCorrect(true);
     // this._edgePass = new EdgePass(gBufferObj);
 }
 
