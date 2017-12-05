@@ -191,8 +191,11 @@ RenderMain.prototype.hasDOF = function () {
 };
 
 RenderMain.prototype.isAccumulateFinished = function () {
-    return this.needsTemporalSS() ? this._temporalSS.isFinished()
-        : (this._frame > 30);
+    var frame = this._frame;
+    return !(this.needsTemporalSS() && !this._temporalSS.isFinished(frame))
+        && !(this._compositor && !this._compositor.isSSAOFinished(frame))
+        && !(this._compositor && !this._compositor.isSSRFinished(frame))
+        && !(this._compositor && frame < 30);
 };
 
 RenderMain.prototype._doRender = function (accumulating, accumFrame) {

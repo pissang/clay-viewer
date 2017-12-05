@@ -67,7 +67,7 @@ TemporalSuperSampling.prototype = {
         var width = viewport.width * dpr;
         var height = viewport.height * dpr;
 
-        var offset = this._haltonSequence[this._frame];
+        var offset = this._haltonSequence[this._frame % this._haltonSequence.length];
 
         var translationMat = new Matrix4();
         translationMat._array[12] = (offset[0] * 2.0 - 1.0) / width;
@@ -129,8 +129,8 @@ TemporalSuperSampling.prototype = {
             blendPass.setUniform('weight2', 1);
         }
         else {
-            blendPass.setUniform('weight1', 0.9);
-            blendPass.setUniform('weight2', 0.1);
+            blendPass.setUniform('weight1', 0.974);
+            blendPass.setUniform('weight2', 0.026);
         }
         blendPass.setUniform('texture1', this._prevFrameTex);
         blendPass.setUniform('texture2', this._sourceTex);

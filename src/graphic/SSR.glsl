@@ -8,12 +8,13 @@
 uniform sampler2D sourceTexture;
 uniform sampler2D gBufferTexture1;
 uniform sampler2D gBufferTexture2;
+uniform sampler2D gBufferTexture3;
 
 uniform mat4 projection;
 uniform mat4 projectionInv;
 uniform mat4 viewInverseTranspose;
 
-uniform float maxRayDistance: 50;
+uniform float maxRayDistance: 200;
 
 uniform float pixelStride: 16;
 uniform float pixelStrideZCutoff: 50; // ray origin Z at this distance will have a pixel stride of 1.0
@@ -24,7 +25,7 @@ uniform float eyeFadeStart : 0.2; // ray direction's Z that ray hits will start 
 uniform float eyeFadeEnd: 0.8; // ray direction's Z that ray hits will be cut (0.0 -> 1.0)
 
 uniform float minGlossiness: 0.2; // Object larger than minGlossiness will have ssr effect
-uniform float zThicknessThreshold: 1;
+uniform float zThicknessThreshold: 10;
 
 uniform float nearZ;
 uniform vec2 viewportSize : VIEWPORT_SIZE;
@@ -47,11 +48,9 @@ vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
     vec3 tangentX = normalize(cross(upVector, N));
     vec3 tangentY = cross(N, tangentX);
     // Tangent to world space
-    return tangentX * H.x + tangentY * H.y + N * H.z;
+    return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 }
-float G_Smith(float g, float ndv, float ndl)
-{
-    // float k = (roughness+1.0) * (roughness+1.0) * 0.125;
+float G_Smith(float g, float ndv, float ndl) {
     float roughness = 1.0 - g;
     float k = roughness * roughness / 2.0;
     float G1V = ndv / (ndv * (1.0 - k) + k);
@@ -267,20 +266,23 @@ void main()
     vec4 projectedPos = vec4(v_Texcoord * 2.0 - 1.0, fetchDepth(gBufferTexture2, v_Texcoord), 1.0);
     vec4 pos = projectionInv * projectedPos;
     vec3 rayOrigin = pos.xyz / pos.w;
-    vec3 V = normalize(rayOrigin);
+    vec3 V = -normalize(rayOrigin);
 
     float ndv = clamp(dot(N, V), 0.0, 1.0);
     float iterationCount;
 #ifdef PHYSICALLY_CORRECT
     vec4 color = vec4(vec3(0.0), 1.0);
-    // TODO
-    vec3 spec = vec3(0.01);
+    vec4 albedoMetalness = texture2D(gBufferTexture3, v_Texcoord);
+    vec3 albedo = albedoMetalness.rgb;
+    float m = albedoMetalness.a;
+    vec3 diffuseColor = albedo * (1.0 - m);
+    vec3 spec = mix(vec3(0.04), albedo, m);
     for (int i = 0; i < SAMPLE_PER_FRAME; i++) {
         vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
         // vec3 H = N;
-        vec3 rayDir = normalize(reflect(V, H));
+        vec3 rayDir = normalize(reflect(-V, H));
 #else
-        vec3 rayDir = normalize(reflect(V, N));
+        vec3 rayDir = normalize(reflect(-V, N));
 #endif
         vec2 hitPixel;
         vec3 hitPoint;
@@ -295,17 +297,20 @@ void main()
         vec3 hitNormal = texture2D(gBufferTexture1, hitPixel).rgb * 2.0 - 1.0;
         hitNormal = normalize((viewInverseTranspose * vec4(hitNormal, 0.0)).xyz);
 #ifdef PHYSICALLY_CORRECT
-        if (dot(hitNormal, rayDir) < 0.0 && intersect) {
+        if (intersect) {
             float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
             float ndh = clamp(dot(N, H), 0.0, 1.0);
             float vdh = clamp(dot(V, H), 0.0, 1.0);
             vec3 litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
-            float fade = clamp(1.0 - dist / maxRayDistance, 0.0, 1.0);
-            color.rgb += ndl * litTexel * fade;
-                // * vec4(F_Schlick(vdh, spec) * G_Smith(1.0 - g, ndv, ndl) * vdh / (ndh * ndv), 1.0);
+            // PENDING
+            float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 2.0);
+            color.rgb += ndl * litTexel * fade * (
+                // Diffuse + Specular
+                diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+            );
         }
     }
-    color.rgb /= float(SAMPLE_PER_FRAME);
+    // color.rgb /= float(SAMPLE_PER_FRAME);
 #else
     // Ignore the pixel not face the ray
     // TODO fadeout ?

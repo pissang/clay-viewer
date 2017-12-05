@@ -207,4 +207,8 @@ SSAOPass.prototype.dispose = function (renderer) {
     this._ssaoTexture.dispose(renderer);
 };
 
+SSAOPass.prototype.isFinished = function (frame) {
+    return frame > 30;
+};
+
 export default SSAOPass;

@@ -30,6 +30,7 @@ function SSRPass(opt) {
 
     this._ssrPass.setUniform('gBufferTexture1', opt.normalTexture);
     this._ssrPass.setUniform('gBufferTexture2', opt.depthTexture);
+    this._ssrPass.setUniform('gBufferTexture3', opt.albedoTexture);
 
     this._blurPass1.setUniform('gBufferTexture1', opt.normalTexture);
     this._blurPass1.setUniform('gBufferTexture2', opt.depthTexture);
@@ -46,13 +47,16 @@ function SSRPass(opt) {
     this._texture2 = new Texture2D({
         type: Texture.HALF_FLOAT
     });
+    this._texture3 = new Texture2D({
+        type: Texture.HALF_FLOAT
+    });
 
     this._frameBuffer = new FrameBuffer();
 
     this._normalDistribution = null;
 
-    this._sampleSize = 1024;
-    this._samplePerFrame = 10;
+    this._totalSamples = 1024;
+    this._samplePerFrame = 5;
 
     this._ssrPass.material.shader.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
 }
@@ -62,8 +66,9 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     var height = renderer.getHeight();
     var texture1 = this._texture1;
     var texture2 = this._texture2;
-    texture1.width = texture2.width = width;
-    texture1.height = texture2.height = height;
+    var texture3 = this._texture3;
+    texture1.width = texture2.width = texture3.width;
+    texture1.height = texture2.height = texture3.height;
     var frameBuffer = this._frameBuffer;
 
     var ssrPass = this._ssrPass;
@@ -73,13 +78,13 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     var viewInverseTranspose = new Matrix4();
     Matrix4.transpose(viewInverseTranspose, camera.worldTransform);
 
-    ssrPass.setUniform('sourceTexture', sourceTexture);
+    ssrPass.setUniform('sourceTexture', frame > 2 ? texture3 : sourceTexture);
     ssrPass.setUniform('projection', camera.projectionMatrix._array);
     ssrPass.setUniform('projectionInv', camera.invProjectionMatrix._array);
     ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose._array);
     ssrPass.setUniform('nearZ', camera.near);
     ssrPass.setUniform('jitterOffset', frame / 30);
-    ssrPass.setUniform('normalJitter', frame / 30 / this._samplePerFrame);
+    ssrPass.setUniform('normalJitter', frame / this._totalSamples);
 
     var textureSize = [width, height];
 
@@ -90,22 +95,22 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     blurPass1.setUniform('projection', camera.projectionMatrix._array);
     blurPass2.setUniform('projection', camera.projectionMatrix._array);
 
-    frameBuffer.attach(texture2);
+    frameBuffer.attach(texture1);
     frameBuffer.bind(renderer);
     ssrPass.render(renderer);
 
-    frameBuffer.attach(texture1);
-    blurPass1.setUniform('texture', texture2);
+    frameBuffer.attach(texture2);
+    blurPass1.setUniform('texture', texture1);
     blurPass1.render(renderer);
 
-    frameBuffer.attach(texture2);
-    blurPass2.setUniform('texture', texture1);
+    frameBuffer.attach(texture3);
+    blurPass2.setUniform('texture', texture2);
     blurPass2.render(renderer);
     frameBuffer.unbind(renderer);
 };
 
 SSRPass.prototype.getTargetTexture = function () {
-    return this._texture2;
+    return this._texture3;
 };
 
 SSRPass.prototype.setParameter = function (name, val) {
@@ -120,7 +125,7 @@ SSRPass.prototype.setParameter = function (name, val) {
 SSRPass.prototype.setPhysicallyCorrect = function (isPhysicallyCorrect) {
     if (isPhysicallyCorrect) {
         if (!this._normalDistribution) {
-            this._normalDistribution = cubemapUtil.generateNormalDistribution(256, this._sampleSize);
+            this._normalDistribution = cubemapUtil.generateNormalDistribution(256, this._totalSamples);
         }
         this._ssrPass.material.shader.define('fragment', 'PHYSICALLY_CORRECT');
         this._ssrPass.material.set('normalDistribution', this._normalDistribution);
@@ -139,6 +144,10 @@ SSRPass.prototype.setSSAOTexture = function (texture) {
     else {
         blendPass.material.shader.disableTexture('ssaoTex');
     }
+};
+
+SSRPass.prototype.isFinished = function (frame) {
+    return frame > this._totalSamples / this._samplePerFrame;
 };
 
 SSRPass.prototype.dispose = function (renderer) {

@@ -68,7 +68,7 @@ function EffectCompositor() {
     this._framebuffer.attach(this._depthTexture, FrameBuffer.DEPTH_ATTACHMENT);
 
     this._gBufferPass = new GBuffer({
-        enableTargetTexture3: false
+        // enableTargetTexture3: false
     });
 
     var loader = new FXLoader();
@@ -96,7 +96,8 @@ function EffectCompositor() {
 
     var gBufferObj = {
         normalTexture: this._gBufferPass.getTargetTexture1(),
-        depthTexture: this._gBufferPass.getTargetTexture2()
+        depthTexture: this._gBufferPass.getTargetTexture2(),
+        albedoTexture: this._gBufferPass.getTargetTexture3()
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
@@ -392,9 +393,9 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
             })[value] || 20;
             var pixelStride = ({
                 low: 32,
-                medium: 16,
-                high: 8,
-                ultra: 4
+                medium: 32,
+                high: 16,
+                ultra: 16
             })[value] || 16;
             this._ssrPass.setParameter('maxIteration', maxIteration);
             this._ssrPass.setParameter('pixelStride', pixelStride);
@@ -475,6 +476,14 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
     this._cocNode.setParameter('zFar', camera.far);
 
     this._compositor.render(renderer, framebuffer);
+};
+
+EffectCompositor.prototype.isSSRFinished = function (frame) {
+    return this._ssrPass ? this._ssrPass.isFinished(frame) : true;
+};
+
+EffectCompositor.prototype.isSSAOFinished = function (frame) {
+    return this._ssaoPass ? this._ssaoPass.isFinished(frame) : true;
 };
 
 EffectCompositor.prototype.dispose = function (renderer) {
