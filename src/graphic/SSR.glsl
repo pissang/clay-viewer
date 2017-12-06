@@ -310,7 +310,7 @@ void main()
             // PENDING
             float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 4.0);
             color.rgb += ndl * litTexel * fade * (
-                F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+                F_Schlick(ndl, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
             );
             // color.rgb += ndl * litTexel * fade * diffuseColor;
         }

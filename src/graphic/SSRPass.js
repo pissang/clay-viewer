@@ -156,7 +156,7 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     blurPass1.setUniform('texture', this._currentTexture);
     blurPass1.render(renderer);
 
-    frameBuffer.attach(ssrTexture);
+    frameBuffer.attach(texture3);
     blurPass2.setUniform('texture', texture2);
     blurPass2.render(renderer);
     frameBuffer.unbind(renderer);
@@ -167,7 +167,7 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
 };
 
 SSRPass.prototype.getTargetTexture = function () {
-    return this._ssrTexture;
+    return this._texture3;
 };
 
 SSRPass.prototype.setParameter = function (name, val) {
@@ -182,7 +182,7 @@ SSRPass.prototype.setParameter = function (name, val) {
 SSRPass.prototype.setPhysicallyCorrect = function (isPhysicallyCorrect) {
     if (isPhysicallyCorrect) {
         if (!this._normalDistribution) {
-            this._normalDistribution = cubemapUtil.generateNormalDistribution(64, this._totalSamples);
+            this._normalDistribution = cubemapUtil.generateNormalDistribution(128, this._totalSamples);
         }
         this._ssrPass.material.shader.define('fragment', 'PHYSICALLY_CORRECT');
         this._ssrPass.material.set('normalDistribution', this._normalDistribution);
