@@ -556,7 +556,7 @@ export default {
             'defines': {
                 // Images are all premultiplied alpha before composite because of blending.
                 // 'PREMULTIPLY_ALPHA': null,
-                // 'DEBUG': 2
+                // 'DEBUG': 1
             }
         },
         {

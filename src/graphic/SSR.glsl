@@ -284,8 +284,8 @@ void main()
         vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
         // TODO Normal
         // vec3 H = transformNormal(lambertNormals[i], N);
-        // vec3 rayDir = normalize(reflect(-V, H));
-        vec3 rayDir = H;
+        // vec3 rayDir = H;
+        vec3 rayDir = normalize(reflect(-V, H));
 #else
         vec3 rayDir = normalize(reflect(-V, N));
 #endif
@@ -310,13 +310,12 @@ void main()
             // PENDING
             float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 4.0);
             color.rgb += ndl * litTexel * fade * (
-                // Diffuse + Specular
-                diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+                F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
             );
             // color.rgb += ndl * litTexel * fade * diffuseColor;
         }
     }
-    color.rgb /= 1024.0;
+    color.rgb /= 512.0;
 #else
     // Ignore the pixel not face the ray
     // TODO fadeout ?
