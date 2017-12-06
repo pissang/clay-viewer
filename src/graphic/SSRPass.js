@@ -84,17 +84,17 @@ function SSRPass(opt) {
 
     this._normalDistribution = null;
 
-    this._totalSamples = 2048;
-    this._samplePerFrame = 10;
+    this._totalSamples = 1024;
+    this._samplePerFrame = 5;
 
     this._ssrPass.material.shader.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
 
     this._downScale = 2;
 
-    this._diffuseSampleNormals = [];
-    for (var i = 0; i < this._totalSamples; i++) {
-        this._diffuseSampleNormals.push(generateNormals(this._samplePerFrame, i * this._samplePerFrame, true));
-    }
+    // this._diffuseSampleNormals = [];
+    // for (var i = 0; i < this._totalSamples; i++) {
+    //     this._diffuseSampleNormals.push(generateNormals(this._samplePerFrame, i * this._samplePerFrame, true));
+    // }
 }
 
 SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
@@ -119,7 +119,7 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     var viewInverseTranspose = new Matrix4();
     Matrix4.transpose(viewInverseTranspose, camera.worldTransform);
 
-    ssrPass.setUniform('sourceTexture', frame >= 1 ? texture3 : sourceTexture);
+    ssrPass.setUniform('sourceTexture', sourceTexture);
     ssrPass.setUniform('projection', camera.projectionMatrix._array);
     ssrPass.setUniform('projectionInv', camera.invProjectionMatrix._array);
     ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose._array);
@@ -127,8 +127,8 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
 
     var percent = frame / this._totalSamples * this._samplePerFrame;
     ssrPass.setUniform('jitterOffset', percent);
-    // ssrPass.setUniform('normalJitter', frame / this._totalSamples);
-    ssrPass.setUniform('lambertNormals', this._diffuseSampleNormals[frame % this._totalSamples]);
+    ssrPass.setUniform('normalJitter', frame / this._totalSamples);
+    // ssrPass.setUniform('lambertNormals', this._diffuseSampleNormals[frame % this._totalSamples]);
 
     var textureSize = [ssrTexture.width, ssrTexture.height];
 

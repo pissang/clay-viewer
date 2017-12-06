@@ -40,6 +40,7 @@ varying vec2 v_Texcoord;
 
 #ifdef PHYSICALLY_CORRECT
 uniform vec3 lambertNormals[SAMPLE_PER_FRAME];
+uniform sampler2D normalDistribution;
 uniform float normalJitter: 0;
 vec3 transformNormal(vec3 H, vec3 N) {
     vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
@@ -48,9 +49,10 @@ vec3 transformNormal(vec3 H, vec3 N) {
     // Tangent to world space
     return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 }
-// vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-//     vec3 H = texture2D(normalDistribution, vec2(roughness, i + normalJitter)).rgb;
-// }
+vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
+    vec3 H = texture2D(normalDistribution, vec2(roughness, i + normalJitter)).rgb;
+    return transformNormal(H, N);
+}
 float G_Smith(float g, float ndv, float ndl) {
     float roughness = 1.0 - g;
     float k = roughness * roughness / 2.0;
@@ -279,8 +281,9 @@ void main()
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
     for (int i = 0; i < SAMPLE_PER_FRAME; i++) {
-        // vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
-        vec3 H = transformNormal(lambertNormals[i], N);
+        vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
+        // TODO Normal
+        // vec3 H = transformNormal(lambertNormals[i], N);
         // vec3 rayDir = normalize(reflect(-V, H));
         vec3 rayDir = H;
 #else
@@ -301,16 +304,16 @@ void main()
 #ifdef PHYSICALLY_CORRECT
         if (dot(hitNormal, rayDir) < 0.0 && intersect) {
             float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
-            // float ndh = clamp(dot(N, H), 0.0, 1.0);
-            // float vdh = clamp(dot(V, H), 0.0, 1.0);
+            float ndh = clamp(dot(N, H), 0.0, 1.0);
+            float vdh = clamp(dot(V, H), 0.0, 1.0);
             vec3 litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
             // PENDING
             float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 4.0);
-            // color.rgb += ndl * litTexel * fade * (
-            //     // Diffuse + Specular
-            //     diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
-            // );
-            color.rgb += ndl * litTexel * fade * diffuseColor;
+            color.rgb += ndl * litTexel * fade * (
+                // Diffuse + Specular
+                diffuseColor + F_Schlick(vdh, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+            );
+            // color.rgb += ndl * litTexel * fade * diffuseColor;
         }
     }
     color.rgb /= 1024.0;
