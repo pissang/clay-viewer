@@ -140,9 +140,9 @@ https://github.com/pissang/qtek/blob/master/tools/fbx2gltf.py
 Needs [python3.3](https://www.python.org/download/releases/3.3.0/) and [FBX SDK 2018.1.1](http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=26416130)
 
 ```
-usage: fbx2gltf.py [-h] [-e EXCLUDE] [-t TIMERANGE] [-o OUTPUT] [-f FRAMERATE]
-                   [-p POSE]
-                   file
+usage: fbx2gltf.py [-h] [-e EXCLUDE] [-t TIMERANGE] [-o OUTPUT]
+                    [-f FRAMERATE] [-p POSE] [-q] [-b]
+                    file
 
 FBX to glTF converter
 
@@ -163,8 +163,9 @@ optional arguments:
   -p POSE, --pose POSE  Start pose time
   -q, --quantize        Quantize accessors with WEB3D_quantized_attributes
                         extension
-  -b, --beautify        Beautify json output.
-
+  -b, --binary          Export glTF-binary
+  --beautify            Beautify json output.
+  --noflipv             If not flip v in texcoord.
 ```
 
 
