@@ -1,23 +1,23 @@
-# qtek-model-viewer
+# Clay Viewer
 
-3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer with high quality rendering based on [QTEK](https://github.com/pissang/qtek)
+3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer with high quality rendering based on [ClayGL](https://github.com/pissang/claygl)
 
 ## Editor
 
-<a href="https://pissang.github.io/qtek-model-viewer/editor/">
+<a href="https://pissang.github.io/clay-viewer/editor/">
     <img src="./screenshots/editor.jpg" width="600px" />
 </a>
 
 ## App
 
-[Download App](https://github.com/pissang/qtek-model-viewer/releases/) on Windows and macOS with FBX/DAE/OBj import. Use it as a common model preview tool!
+[Download App](https://github.com/pissang/clay-viewer/releases/) on Windows and macOS with FBX/DAE/OBj import. Use it as a common model preview tool!
 
 ## Loader
 
 ```js
 var viewer = new QMV.Viewer(document.getElementById('main'), {
     // Full config at
-    // https://github.com/pissang/qtek-model-viewer/blob/master/src/defaultSceneConfig.js
+    // https://github.com/pissang/clay-viewer/blob/master/src/defaultSceneConfig.js
     devicePixelRatio: 1,
     // Enable shadow
     shadow: true,
@@ -129,13 +129,13 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf', {
 
 ```
 
-[Here](https://github.com/pissang/qtek-model-viewer/blob/master/src/defaultSceneConfig.js) is the full graphic configuration
+[Here](https://github.com/pissang/clay-viewer/blob/master/src/defaultSceneConfig.js) is the full graphic configuration
 
 ## Converter
 
 qtek provide a python tool for converting FBX to glTF 2.0.
 
-https://github.com/pissang/qtek/blob/master/tools/fbx2gltf.py
+https://github.com/pissang/claygl/blob/master/tools/fbx2gltf.py
 
 Needs [python3.3](https://www.python.org/download/releases/3.3.0/) and [FBX SDK 2018.1.1](http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=26416130)
 
