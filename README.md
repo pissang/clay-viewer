@@ -133,7 +133,7 @@ viewer.loadModel('asset/xiniu/xiniu_walk_as.gltf', {
 
 ## Converter
 
-qtek provide a python tool for converting FBX to glTF 2.0.
+ClayGL provide a python tool for converting FBX to glTF 2.0.
 
 https://github.com/pissang/claygl/blob/master/tools/fbx2gltf.py
 
