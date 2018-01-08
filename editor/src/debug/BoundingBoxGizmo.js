@@ -1,7 +1,7 @@
-import Mesh from 'qtek/src/Mesh';
-import BoundingBox from 'qtek/src/math/BoundingBox';
-import Material from 'qtek/src/Material';
-import Shader from 'qtek/src/Shader';
+import Mesh from 'claygl/src/Mesh';
+import BoundingBox from 'claygl/src/math/BoundingBox';
+import Material from 'claygl/src/Material';
+import Shader from 'claygl/src/Shader';
 
 import Lines3DGeometry from './Lines3DGeometry';
 import lines3DGLSL from './lines3d.glsl.js';

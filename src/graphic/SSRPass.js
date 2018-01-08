@@ -1,12 +1,12 @@
-import Matrix4 from 'qtek/src/math/Matrix4';
-import Vector3 from 'qtek/src/math/Vector3';
-import Texture2D from 'qtek/src/Texture2D';
-import Texture from 'qtek/src/Texture';
-import Pass from 'qtek/src/compositor/Pass';
-import Shader from 'qtek/src/Shader';
-import FrameBuffer from 'qtek/src/FrameBuffer';
+import Matrix4 from 'claygl/src/math/Matrix4';
+import Vector3 from 'claygl/src/math/Vector3';
+import Texture2D from 'claygl/src/Texture2D';
+import Texture from 'claygl/src/Texture';
+import Pass from 'claygl/src/compositor/Pass';
+import Shader from 'claygl/src/Shader';
+import FrameBuffer from 'claygl/src/FrameBuffer';
 import halton from './halton';
-import cubemapUtil from 'qtek/src/util/cubemap';
+import cubemapUtil from 'claygl/src/util/cubemap';
 
 import SSRGLSLCode from './SSR.glsl.js';
 
@@ -44,10 +44,10 @@ function SSRPass(opt) {
         clearColor: [0, 0, 0, 0]
     });
     this._blendPass = new Pass({
-        fragment: Shader.source('qtek.compositor.blend')
+        fragment: Shader.source('clay.compositor.blend')
     });
-    this._blendPass.material.shader.disableTexturesAll();
-    this._blendPass.material.shader.enableTexture(['texture1', 'texture2']);
+    this._blendPass.material.disableTexturesAll();
+    this._blendPass.material.enableTexture(['texture1', 'texture2']);
 
     this._ssrPass.setUniform('gBufferTexture1', opt.normalTexture);
     this._ssrPass.setUniform('gBufferTexture2', opt.depthTexture);
@@ -55,12 +55,12 @@ function SSRPass(opt) {
 
     this._blurPass1.setUniform('gBufferTexture1', opt.normalTexture);
     this._blurPass1.setUniform('gBufferTexture2', opt.depthTexture);
-    
+
     this._blurPass2.setUniform('gBufferTexture1', opt.normalTexture);
     this._blurPass2.setUniform('gBufferTexture2', opt.depthTexture);
 
-    this._blurPass2.material.shader.define('fragment', 'VERTICAL');
-    this._blurPass2.material.shader.define('fragment', 'BLEND');
+    this._blurPass2.material.define('fragment', 'VERTICAL');
+    this._blurPass2.material.define('fragment', 'BLEND');
 
     this._ssrTexture = new Texture2D({
         type: Texture.HALF_FLOAT
@@ -87,7 +87,7 @@ function SSRPass(opt) {
     this._totalSamples = 512;
     this._samplePerFrame = 5;
 
-    this._ssrPass.material.shader.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
+    this._ssrPass.material.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
 
     this._downScale = 2;
 
@@ -120,9 +120,9 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     Matrix4.transpose(viewInverseTranspose, camera.worldTransform);
 
     ssrPass.setUniform('sourceTexture', sourceTexture);
-    ssrPass.setUniform('projection', camera.projectionMatrix._array);
-    ssrPass.setUniform('projectionInv', camera.invProjectionMatrix._array);
-    ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose._array);
+    ssrPass.setUniform('projection', camera.projectionMatrix.array);
+    ssrPass.setUniform('projectionInv', camera.invProjectionMatrix.array);
+    ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose.array);
     ssrPass.setUniform('nearZ', camera.near);
 
     var percent = frame / this._totalSamples * this._samplePerFrame;
@@ -130,14 +130,12 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     ssrPass.setUniform('normalJitter', frame / this._totalSamples);
     // ssrPass.setUniform('lambertNormals', this._diffuseSampleNormals[frame % this._totalSamples]);
 
-    var textureSize = [ssrTexture.width, ssrTexture.height];
-
-    blurPass1.setUniform('textureSize', textureSize);
-    blurPass2.setUniform('textureSize', textureSize);
+    blurPass1.setUniform('textureSize', [ssrTexture.width, ssrTexture.height]);
+    blurPass2.setUniform('textureSize', [width, height]);
     blurPass2.setUniform('sourceTexture', sourceTexture);
 
-    blurPass1.setUniform('projection', camera.projectionMatrix._array);
-    blurPass2.setUniform('projection', camera.projectionMatrix._array);
+    blurPass1.setUniform('projection', camera.projectionMatrix.array);
+    blurPass2.setUniform('projection', camera.projectionMatrix.array);
 
     frameBuffer.attach(ssrTexture);
     frameBuffer.bind(renderer);
@@ -172,7 +170,7 @@ SSRPass.prototype.getTargetTexture = function () {
 
 SSRPass.prototype.setParameter = function (name, val) {
     if (name === 'maxIteration') {
-        this._ssrPass.material.shader.define('fragment', 'MAX_ITERATION', val);
+        this._ssrPass.material.define('fragment', 'MAX_ITERATION', val);
     }
     else {
         this._ssrPass.setUniform(name, val);
@@ -184,22 +182,22 @@ SSRPass.prototype.setPhysicallyCorrect = function (isPhysicallyCorrect) {
         if (!this._normalDistribution) {
             this._normalDistribution = cubemapUtil.generateNormalDistribution(128, this._totalSamples);
         }
-        this._ssrPass.material.shader.define('fragment', 'PHYSICALLY_CORRECT');
+        this._ssrPass.material.define('fragment', 'PHYSICALLY_CORRECT');
         this._ssrPass.material.set('normalDistribution', this._normalDistribution);
     }
     else {
-        this._ssrPass.material.shader.undefine('fragment', 'PHYSICALLY_CORRECT');
+        this._ssrPass.material.undefine('fragment', 'PHYSICALLY_CORRECT');
     }
 };
 
 SSRPass.prototype.setSSAOTexture = function (texture) {
     var blendPass = this._blurPass2;
     if (texture) {
-        blendPass.material.shader.enableTexture('ssaoTex');
+        blendPass.material.enableTexture('ssaoTex');
         blendPass.material.set('ssaoTex', texture);
     }
     else {
-        blendPass.material.shader.disableTexture('ssaoTex');
+        blendPass.material.disableTexture('ssaoTex');
     }
 };
 

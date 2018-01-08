@@ -1,12 +1,12 @@
-import Texture from 'qtek/src/Texture';
-import Material from 'qtek/src/Material';
+import Texture from 'claygl/src/Texture';
+import Material from 'claygl/src/Material';
 import LRUCache from 'zrender/src/core/LRU';
-import textureUtil from 'qtek/src/util/texture';
-import AmbientCubemapLight from 'qtek/src/light/AmbientCubemap';
-import AmbientSHLight from 'qtek/src/light/AmbientSH';
-import shUtil from 'qtek/src/util/sh';
+import textureUtil from 'claygl/src/util/texture';
+import AmbientCubemapLight from 'claygl/src/light/AmbientCubemap';
+import AmbientSHLight from 'claygl/src/light/AmbientSH';
+import shUtil from 'claygl/src/util/sh';
 import * as colorUtil from 'zrender/src/tool/color';
-import Texture2D from 'qtek/src/Texture2D';
+import Texture2D from 'claygl/src/Texture2D';
 
 function isValueNone(value) {
     return !value || value === 'none';
@@ -33,10 +33,10 @@ Material.prototype.setTextureImage = function (textureName, imgValue, app, textu
     var material = this;
     var texture;
     // disableTexture first
-    material.shader.disableTexture(textureName);
+    material.disableTexture(textureName);
     if (!isValueNone(imgValue)) {
         texture = helper.loadTexture(imgValue, app, textureOpts, function (texture) {
-            material.shader.enableTexture(textureName);
+            material.enableTexture(textureName);
             app.refresh();
         });
         // Set texture immediately for other code to verify if have this texture.
@@ -223,7 +223,7 @@ helper.createAmbientCubemap = function (opt, app, cb) {
             });
 
             setTimeout(function () {
-                cb && cb(); 
+                cb && cb();
             });
             // TODO Refresh ?
         });

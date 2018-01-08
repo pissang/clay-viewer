@@ -1,28 +1,28 @@
-import Shader from 'qtek/src/Shader';
-import Texture2D from 'qtek/src/Texture2D';
-import Texture from 'qtek/src/Texture';
-import FrameBuffer from 'qtek/src/FrameBuffer';
-import FXLoader from 'qtek/src/loader/FX';
+import Shader from 'claygl/src/Shader';
+import Texture2D from 'claygl/src/Texture2D';
+import Texture from 'claygl/src/Texture';
+import FrameBuffer from 'claygl/src/FrameBuffer';
+import createCompositor from 'claygl/src/compositor/createCompositor';
 import SSAOPass from './SSAOPass';
 import SSRPass from './SSRPass';
 import poissonKernel from './poissonKernel';
-import GBuffer from 'qtek/src/deferred/GBuffer';
+import GBuffer from 'claygl/src/deferred/GBuffer';
 // import EdgePass from './EdgePass';
-import Matrix4 from 'qtek/src/math/Matrix4';
+import Matrix4 from 'claygl/src/math/Matrix4';
 import graphicHelper from './helper';
 
 import effectJson from './composite.js';
 
-import blurGLSL from 'qtek/src/shader/source/compositor/blur.glsl.js';
-import outputGLSL from 'qtek/src/shader/source/compositor/output.glsl.js';
-import brightGLSL from 'qtek/src/shader/source/compositor/bright.glsl.js';
-import downsampleGLSL from 'qtek/src/shader/source/compositor/downsample.glsl.js';
-import upsampleGLSL from 'qtek/src/shader/source/compositor/upsample.glsl.js';
-import hdrGLSL from 'qtek/src/shader/source/compositor/hdr.glsl.js';
-import blendGLSL from 'qtek/src/shader/source/compositor/blend.glsl.js';
-import fxaaGLSL from 'qtek/src/shader/source/compositor/fxaa.glsl.js';
+import blurGLSL from 'claygl/src/shader/source/compositor/blur.glsl.js';
+import outputGLSL from 'claygl/src/shader/source/compositor/output.glsl.js';
+import brightGLSL from 'claygl/src/shader/source/compositor/bright.glsl.js';
+import downsampleGLSL from 'claygl/src/shader/source/compositor/downsample.glsl.js';
+import upsampleGLSL from 'claygl/src/shader/source/compositor/upsample.glsl.js';
+import hdrGLSL from 'claygl/src/shader/source/compositor/hdr.glsl.js';
+import blendGLSL from 'claygl/src/shader/source/compositor/blend.glsl.js';
+import fxaaGLSL from 'claygl/src/shader/source/compositor/fxaa.glsl.js';
 
-import gbufferGLSL from 'qtek/src/shader/source/deferred/gbuffer.glsl.js';
+import gbufferGLSL from 'claygl/src/shader/source/deferred/gbuffer.glsl.js';
 import dofGLSL from './DOF.glsl.js';
 import edgeGLSL from './edge.glsl.js';
 
@@ -71,8 +71,7 @@ function EffectCompositor() {
         // enableTargetTexture3: false
     });
 
-    var loader = new FXLoader();
-    this._compositor = loader.parse(effectJson);
+    this._compositor = createCompositor(effectJson);
 
     var sourceNode = this._compositor.getNodeByName('source');
     sourceNode.texture = this._sourceTexture;
@@ -227,14 +226,14 @@ EffectCompositor.prototype.getSSAOTexture = function (renderer, scene, camera, f
 };
 
 /**
- * @return {qtek.FrameBuffer}
+ * @return {clay.FrameBuffer}
  */
 EffectCompositor.prototype.getSourceFrameBuffer = function () {
     return this._framebuffer;
 };
 
 /**
- * @return {qtek.Texture2D}
+ * @return {clay.Texture2D}
  */
 EffectCompositor.prototype.getSourceTexture = function () {
     return this._sourceTexture;
@@ -289,14 +288,14 @@ EffectCompositor.prototype.disableDOF = function () {
  * Enable color correction
  */
 EffectCompositor.prototype.enableColorCorrection = function () {
-    this._compositeNode.shaderDefine('COLOR_CORRECTION');
+    this._compositeNode.define('COLOR_CORRECTION');
     this._enableColorCorrection = true;
 };
 /**
  * Disable color correction
  */
 EffectCompositor.prototype.disableColorCorrection = function () {
-    this._compositeNode.shaderUndefine('COLOR_CORRECTION');
+    this._compositeNode.undefine('COLOR_CORRECTION');
     this._enableColorCorrection = false;
 };
 
@@ -371,7 +370,7 @@ EffectCompositor.prototype.setDOFParameter = function (name, value) {
             })[value] || 8;
             this._dofBlurKernelSize = kernelSize;
             for (var i = 0; i < this._dofBlurNodes.length; i++) {
-                this._dofBlurNodes[i].shaderDefine('POISSON_KERNEL_SIZE', kernelSize);
+                this._dofBlurNodes[i].define('POISSON_KERNEL_SIZE', kernelSize);
             }
             this._dofBlurKernel = new Float32Array(kernelSize * 2);
             break;

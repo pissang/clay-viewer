@@ -3,7 +3,7 @@ import getDefaultSceneConfig from './getDefaultSceneConfig';
 import getDefaultMaterialConfig from './getDefaultMaterialConfig';
 import * as project from './project';
 import env from './env';
-import util from 'qtek/src/core/util';
+import util from 'claygl/src/core/util';
 import * as zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
@@ -92,7 +92,7 @@ function changeTexture(type, file, val) {
             if (type === item[0]) {
                 console.warn('Force %s to be %s after set %s', item[1], item[2], item[0]);
                 materialConfig[item[1]] = item[2];
-    
+
                 uiNeedUpdate = true;
             }
         }, this);
@@ -190,7 +190,7 @@ function hideBackgroundProgress () {
 function init() {
     hideLoading();
 
-    
+
     document.getElementById('toolbar').style.display = 'block';
     document.getElementById('reset').addEventListener('click', reset);
     document.getElementById('download').addEventListener('click', download);
@@ -210,7 +210,7 @@ function init() {
             var filesMap = res.filesMap;
             var buffers = res.buffers;
             var files = res.allFiles;
-            
+
             filesMapInverse = {};
             for (var name in filesMap) {
                 filesMapInverse[filesMap[name]] = name;
@@ -307,7 +307,7 @@ function initUI() {
             .addNumberInput(config.secondaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
             .addColor(config.secondaryLight, 'color', { label: 'Color', onChange: updateLight })
             .addPad(config.secondaryLight, '$padAngle', { label: 'Direction', onChange: updateLight })
-            
+
         .addSubGroup({ label: 'Tertiary', enable: false })
             .addNumberInput(config.tertiaryLight, 'intensity', { label: 'Intensity', step: 0.1, onChange: updateLight })
             .addColor(config.tertiaryLight, 'color', { label: 'Color', onChange: updateLight })
@@ -411,7 +411,7 @@ function reset() {
         selectedMesh = null;
         viewer.dispose();
         createViewer();
-        
+
         project.removeProject();
 
         showTip();

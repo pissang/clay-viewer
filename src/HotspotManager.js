@@ -1,6 +1,6 @@
-import Base from 'qtek/src/core/Base';
-import Vector4 from 'qtek/src/math/Vector4';
-import BoundingBox from 'qtek/src/math/BoundingBox';
+import Base from 'claygl/src/core/Base';
+import Vector4 from 'claygl/src/math/Vector4';
+import BoundingBox from 'claygl/src/math/BoundingBox';
 
 var DEFAULT_FAR_ALPHA = 0.1;
 var DEFAULT_NEAR_ALPHA = 1.0;
@@ -15,12 +15,12 @@ var HotspotManger = Base.extend(function () {
         dom: null,
 
         /**
-         * @type {qtek.Renderer}
+         * @type {clay.Renderer}
          */
         renderer: null,
 
         /**
-         * @type {qtek.camera.Perspective}
+         * @type {clay.camera.Perspective}
          */
         camera: null,
 

@@ -1,10 +1,10 @@
 // Temporal Super Sample for static Scene
 import halton from './halton';
-import Pass from 'qtek/src/compositor/Pass';
-import FrameBuffer from 'qtek/src/FrameBuffer';
-import Texture2D from 'qtek/src/Texture2D';
-import Shader from 'qtek/src/Shader';
-import Matrix4 from 'qtek/src/math/Matrix4';
+import Pass from 'claygl/src/compositor/Pass';
+import FrameBuffer from 'claygl/src/FrameBuffer';
+import Texture2D from 'claygl/src/Texture2D';
+import Shader from 'claygl/src/Shader';
+import Matrix4 from 'claygl/src/math/Matrix4';
 
 function TemporalSuperSampling () {
     var haltonSequence = [];
@@ -28,21 +28,21 @@ function TemporalSuperSampling () {
     this._outputTex = new Texture2D();
 
     var blendPass = this._blendPass = new Pass({
-        fragment: Shader.source('qtek.compositor.blend')
+        fragment: Shader.source('clay.compositor.blend')
     });
-    blendPass.material.shader.disableTexturesAll();
-    blendPass.material.shader.enableTexture(['texture1', 'texture2']);
+    blendPass.material.disableTexturesAll();
+    blendPass.material.enableTexture(['texture1', 'texture2']);
 
     this._blendFb = new FrameBuffer({
         depthBuffer: false
     });
 
     this._outputPass = new Pass({
-        fragment: Shader.source('qtek.compositor.output'),
+        fragment: Shader.source('clay.compositor.output'),
         // TODO, alpha is premultiplied?
         blendWithPrevious: true
     });
-    this._outputPass.material.shader.define('fragment', 'OUTPUT_ALPHA');
+    this._outputPass.material.define('fragment', 'OUTPUT_ALPHA');
     this._outputPass.material.blend = function (_gl) {
         // FIXME.
         // Output is premultiplied alpha when BLEND is enabled ?
@@ -58,8 +58,8 @@ TemporalSuperSampling.prototype = {
 
     /**
      * Jitter camera projectionMatrix
-     * @parma {qtek.Renderer} renderer
-     * @param {qtek.Camera} camera
+     * @parma {clay.Renderer} renderer
+     * @param {clay.Camera} camera
      */
     jitterProjection: function (renderer, camera) {
         var viewport = renderer.viewport;
@@ -70,11 +70,11 @@ TemporalSuperSampling.prototype = {
         var offset = this._haltonSequence[this._frame % this._haltonSequence.length];
 
         var translationMat = new Matrix4();
-        translationMat._array[12] = (offset[0] * 2.0 - 1.0) / width;
-        translationMat._array[13] = (offset[1] * 2.0 - 1.0) / height;
+        translationMat.array[12] = (offset[0] * 2.0 - 1.0) / width;
+        translationMat.array[13] = (offset[1] * 2.0 - 1.0) / height;
 
         Matrix4.mul(camera.projectionMatrix, translationMat, camera.projectionMatrix);
-        
+
         Matrix4.invert(camera.invProjectionMatrix, camera.projectionMatrix);
     },
 

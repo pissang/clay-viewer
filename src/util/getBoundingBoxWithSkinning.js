@@ -1,5 +1,5 @@
-import BoundingBox from 'qtek/src/math/BoundingBox';
-import glmatrix from 'qtek/src/dep/glmatrix';
+import BoundingBox from 'claygl/src/math/BoundingBox';
+import glmatrix from 'claygl/src/dep/glmatrix';
 var vec3 = glmatrix.vec3;
 
 function getBoundingBoxOfSkinningMesh(mesh, out) {
@@ -18,7 +18,7 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
             skinMatrices[i][k] = skinMatricesArray[i * 16 + k];
         }
     }
-    
+
     var positionAttr = geometry.attributes.position;
     var weightAttr = geometry.attributes.weight;
     var jointAttr = geometry.attributes.joint;
@@ -37,7 +37,7 @@ function getBoundingBoxOfSkinningMesh(mesh, out) {
             if (joint[k] >= 0 && weight[k] > 1e-6) {
                 vec3.transformMat4(tmp, pos, skinMatrices[joint[k]]);
                 vec3.scaleAndAdd(skinnedPos, skinnedPos, tmp, weight[k]);
-            }   
+            }
         }
 
         vec3.min(min, min, skinnedPos);

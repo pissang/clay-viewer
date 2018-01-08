@@ -160,7 +160,7 @@ float getLinearDepth(vec2 coord)
 
 void main()
 {
-    @import qtek.compositor.kernel.gaussian_9
+    @import clay.compositor.kernel.gaussian_9
 
     vec2 off = vec2(0.0);
     if (direction == 0) {

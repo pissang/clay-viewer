@@ -1,5 +1,5 @@
-import StaticGeometry from 'qtek/src/StaticGeometry';
-import glmatrix from 'qtek/src/dep/glmatrix';
+import StaticGeometry from 'claygl/src/StaticGeometry';
+import glmatrix from 'claygl/src/dep/glmatrix';
 
 var vec3 = glmatrix.vec3;
 
@@ -390,7 +390,7 @@ var LinesGeometry = StaticGeometry.extend(function () {
     setItemColor: function (idx, color) {
         var startOffset = this._itemVertexOffsets[idx];
         var endOffset = idx < this._itemVertexOffsets.length - 1 ? this._itemVertexOffsets[idx + 1] : this._vertexOffset;
-        
+
         for (var i = startOffset; i < endOffset; i++) {
             this.attributes.color.set(i, color);
         }

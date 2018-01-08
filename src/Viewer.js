@@ -1,20 +1,20 @@
-import Renderer from 'qtek/src/Renderer';
-import GLTFLoader from 'qtek/src/loader/GLTF';
-import Vector3 from 'qtek/src/math/Vector3';
-import Animation from 'qtek/src/animation/Animation';
-import meshUtil from 'qtek/src/util/mesh';
-import Task from 'qtek/src/async/Task';
-import TaskGroup from 'qtek/src/async/TaskGroup';
-import util from 'qtek/src/core/util';
-import Node from 'qtek/src/Node';
-import Mesh from 'qtek/src/Mesh';
-import Material from 'qtek/src/Material';
-import PlaneGeometry from 'qtek/src/geometry/Plane';
-import Shader from 'qtek/src/Shader';
-import RayPicking from 'qtek/src/picking/RayPicking';
-import notifier from 'qtek/src/core/mixin/notifier';
-import shaderLibrary from 'qtek/src/shader/library';
-import textureUtil from 'qtek/src/util/texture';
+import Renderer from 'claygl/src/Renderer';
+import GLTFLoader from 'claygl/src/loader/GLTF';
+import Vector3 from 'claygl/src/math/Vector3';
+import Timeline from 'claygl/src/animation/Timeline';
+import meshUtil from 'claygl/src/util/mesh';
+import Task from 'claygl/src/async/Task';
+import TaskGroup from 'claygl/src/async/TaskGroup';
+import util from 'claygl/src/core/util';
+import Node from 'claygl/src/Node';
+import Mesh from 'claygl/src/Mesh';
+import Material from 'claygl/src/Material';
+import PlaneGeometry from 'claygl/src/geometry/Plane';
+import Shader from 'claygl/src/Shader';
+import RayPicking from 'claygl/src/picking/RayPicking';
+import notifier from 'claygl/src/core/mixin/notifier';
+import shaderLibrary from 'claygl/src/shader/library';
+import textureUtil from 'claygl/src/util/texture';
 
 import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
@@ -23,7 +23,7 @@ import defaultSceneConfig from './defaultSceneConfig';
 import * as zrUtil from 'zrender/src/core/util';
 
 import getBoundingBoxWithSkinning from './util/getBoundingBoxWithSkinning';
-import OrbitControl from 'qtek/src/plugin/OrbitControl';
+import OrbitControl from 'claygl/src/plugin/OrbitControl';
 import HotspotManager from './HotspotManager';
 
 import groundGLSLCode from './graphic/ground.glsl.js';
@@ -53,7 +53,7 @@ function Viewer(dom, sceneConfig) {
 
 Viewer.prototype.init = function (dom, opts) {
     opts = opts || {};
-    
+
     /**
      * @type {HTMLDivElement}
      */
@@ -62,7 +62,7 @@ Viewer.prototype.init = function (dom, opts) {
     /**
      * @private
      */
-    this._animation = new Animation();
+    this._timeline = new Timeline();
 
     var renderer = new Renderer({
         devicePixelRatio: opts.devicePixelRatio || window.devicePixelRatio
@@ -86,7 +86,7 @@ Viewer.prototype.init = function (dom, opts) {
 
     var cameraControl = this._cameraControl = new OrbitControl({
         renderer: renderer,
-        animation: this._animation,
+        timeline: this._timeline,
         domElement: dom
     });
     cameraControl.target = this._renderMain.camera;
@@ -223,13 +223,13 @@ Viewer.prototype._addModel = function (modelNode, nodes, skeletons, clips) {
     this._materialsMap = materialsMap;
 
     this._updateMaterialsSRGB();
-    
+
     this._stopAccumulating();
 };
 
 Viewer.prototype._removeAnimationClips = function () {
     this._clips.forEach(function (clip) {
-        this._animation.removeClip(clip);
+        this._timeline.removeClip(clip);
     }, this);
     this._clips = [];
     this._takes = [];
@@ -248,7 +248,7 @@ Viewer.prototype._setAnimationClips = function (clips) {
         }, this);
         clip.onframe = refresh;
 
-        this._animation.addClip(clip);
+        this._timeline.addClip(clip);
 
         this._takes.push({
             name: clip.name,
@@ -390,7 +390,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
         this._modelNode.position.copy(center).scale(-scale);
         this._modelNode.update();
 
-        this._hotspotManager.setBoundingBox(bbox.min._array, bbox.max._array);
+        this._hotspotManager.setBoundingBox(bbox.min.array, bbox.max.array);
 
         // FIXME, Do it in the renderer?
         this._modelNode.traverse(function (mesh) {
@@ -442,7 +442,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     }
     var loaderOpts = {
         rootNode: new Node(),
-        shaderName: 'qtek.' + shaderName,
+        shaderName: 'clay.' + shaderName,
         textureRootPath: opts.textureRootPath,
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
@@ -500,7 +500,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         };
 
         task.trigger('loadmodel', stat);
-        
+
         var loadingTextures = [];
         util.each(res.textures, function (texture) {
             if (!texture.isRenderable()) {
@@ -539,7 +539,7 @@ Viewer.prototype._convertBumpToNormal = function () {
                 normalTexture.dirty();
             }
         }
-    } 
+    }
 };
 
 Viewer.prototype._convertToPOT = function () {
@@ -595,14 +595,14 @@ Viewer.prototype.removeModel = function () {
 
 /**
  * Return scene.
- * @return {qtek.Scene}
+ * @return {clay.Scene}
  */
 Viewer.prototype.getScene = function () {
     return this._renderMain.scene;
 };
 
 /**
- * @return {qtek.Node}
+ * @return {clay.Node}
  */
 Viewer.prototype.getModelRoot = function () {
     return this._modelNode;
@@ -622,7 +622,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         }
     });
     meshNeedsSplit.forEach(function (mesh) {
-        var newNode = meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'qtek.' + shaderName);
+        var newNode = meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'clay.' + shaderName);
         if (newNode !== mesh) {
             newNode.eachChild(function (mesh) {
                 mesh.originalMeshName = newNode.name;
@@ -637,12 +637,12 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
             }
         }
         if (mesh.material) {
-            mesh.material.shader.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
-            mesh.material.shader.define('fragment', 'ALPHA_TEST');
+            mesh.material.define('fragment', 'DIFFUSEMAP_ALPHA_ALPHA');
+            mesh.material.define('fragment', 'ALPHA_TEST');
             if (doubleSided != null) {
-                mesh.material.shader[doubleSided ? 'define' : 'undefine']('fragment', 'DOUBLE_SIDED');
+                mesh.material[doubleSided ? 'define' : 'undefine']('fragment', 'DOUBLE_SIDED');
             }
-            mesh.material.shader.precision = 'mediump';
+            mesh.material.precision = 'mediump';
 
             if (alphaCutoff != null) {
                 mesh.material.set('alphaCutoff', alphaCutoff);
@@ -686,7 +686,7 @@ Viewer.prototype.pauseAnimation = function () {
 
 Viewer.prototype.stopAnimation = function () {
     this._clips.forEach(function (clip) {
-        this._animation.removeClip(clip);
+        this._timeline.removeClip(clip);
     }, this);
 };
 
@@ -807,8 +807,6 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         return;
     }
 
-    var enabledTextures = materials[0].shader.getEnabledTextures();
-
     function haveTexture(val) {
         return val && val !== 'none';
     }
@@ -816,7 +814,6 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
     function addTexture(propName) {
         // Not change if texture name is not in the config.
         if (propName in materialCfg) {
-            var idx = enabledTextures.indexOf(propName);
             if (haveTexture(materialCfg[propName])) {
                 var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
                     flipY: textureFlipY,
@@ -829,17 +826,9 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                     }
                     app.refresh();
                 });
-                // Enable texture.
-                if (idx < 0) {
-                    enabledTextures.push(propName);
-                }
                 textures[propName] = texture;
             }
             else {
-                // Disable texture.
-                if (idx >= 0) {
-                    enabledTextures.splice(idx, 1);
-                }
                 textures[propName] = null;
             }
         }
@@ -848,7 +837,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
     ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
         addTexture(propName);
     }, this);
-    if (materials[0].shader.isDefined('fragment', 'USE_METALNESS')) {
+    if (materials[0].isDefined('fragment', 'USE_METALNESS')) {
         ['metalnessMap', 'roughnessMap'].forEach(function (propName) {
             addTexture(propName);
         }, this);
@@ -883,15 +872,11 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
+        mat.disableTexturesAll();
+
         for (var texName in textures) {
             mat.set(texName, textures[texName]);
         }
-        mat.attachShader(this.shaderLibrary.get('qtek.' + (this._shaderName || 'standard'), {
-            fragmentDefines: mat.shader.fragmentDefines,
-            textures: enabledTextures,
-            vertexDefines: mat.shader.vertexDefines,
-            precision: mat.shader.precision
-        }), true);
     }, this);
     this.refresh();
 };
@@ -929,7 +914,7 @@ Viewer.prototype.getMaterial = function (name) {
     ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
         materialCfg[propName] = getTextureUri(propName);
     });
-    if (mat.shader.isDefined('fragment', 'USE_METALNESS')) {
+    if (mat.isDefined('fragment', 'USE_METALNESS')) {
         ['metalness', 'roughness'].forEach(function (propName) {
             materialCfg[propName] = mat.get(propName);
         });
@@ -985,16 +970,16 @@ Viewer.prototype.start = function () {
         return;
     }
 
-    this._animation.start();
-    this._animation.on('frame', this._loop, this);
+    this._timeline.start();
+    this._timeline.on('frame', this._loop, this);
 };
 
 /**
  * Stop loop.
  */
 Viewer.prototype.stop = function () {
-    this._animation.stop();
-    this._animation.off('frame', this._loop);
+    this._timeline.stop();
+    this._timeline.off('frame', this._loop);
 };
 
 /**
@@ -1040,7 +1025,7 @@ Viewer.prototype._updateMaterialsSRGB = function () {
     for (var name in this._materialsMap) {
         var materials = this._materialsMap[name];
         for (var i = 0; i < materials.length; i++) {
-            materials[i].shader[isLinearSpace ? 'define' : 'undefine']('fragment', 'SRGB_DECODE');
+            materials[i][isLinearSpace ? 'define' : 'undefine']('fragment', 'SRGB_DECODE');
         }
     }
 };
@@ -1117,7 +1102,7 @@ Viewer.prototype._startAccumulating = function (immediate) {
  */
 Viewer.prototype.dispose = function () {
     this._disposed = true;
-    
+
     this._renderer.disposeScene(this._renderMain.scene);
     this._renderMain.dispose(this._renderer);
     this._sceneHelper.dispose(this._renderer);

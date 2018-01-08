@@ -1,9 +1,9 @@
 import helper from './helper';
-import Skybox from 'qtek/src/plugin/Skybox';
-import Skydome from 'qtek/src/plugin/Skydome';
-import Vector3 from 'qtek/src/math/Vector3';
-import DirectionalLight from 'qtek/src/light/Directional';
-import AmbientLight from 'qtek/src/light/Ambient';
+import Skybox from 'claygl/src/plugin/Skybox';
+import Skydome from 'claygl/src/plugin/Skydome';
+import Vector3 from 'claygl/src/math/Vector3';
+import DirectionalLight from 'claygl/src/light/Directional';
+import AmbientLight from 'claygl/src/light/Ambient';
 
 function SceneHelper(scene) {
     this.setScene(scene);
@@ -24,26 +24,26 @@ SceneHelper.prototype = {
     initLight: function (rootNode) {
         this._lightRoot = rootNode;
         /**
-         * @type {qtek.light.Directional}
+         * @type {clay.light.Directional}
          */
         this.mainLight = new DirectionalLight({
             shadowBias: 0.005
         });
         /**
-         * @type {qtek.light.Directional}
+         * @type {clay.light.Directional}
          */
         this.secondaryLight = new DirectionalLight({
             shadowBias: 0.005
         });
         /**
-         * @type {qtek.light.Directional}
+         * @type {clay.light.Directional}
          */
         this.tertiaryLight = new DirectionalLight({
             shadowBias: 0.005
         });
 
         /**
-         * @type {qtek.light.Ambient}
+         * @type {clay.light.Ambient}
          */
         this.ambientLight = new AmbientLight();
     },
@@ -141,7 +141,7 @@ SceneHelper.prototype = {
                     if (lights.specular) {
                         this._lightRoot.add(lights.specular);
                     }
-        
+
                     this._currentCubemapLights = lights;
                     this._currentCubemapLights.textureUrl = textureUrl;
                 }
@@ -152,7 +152,7 @@ SceneHelper.prototype = {
                 }
             }
         }
-        
+
         if (this._currentCubemapLights) {
             if (opts.specularIntensity != null && this._currentCubemapLights.specular) {
                 this._currentCubemapLights.specular.intensity = opts.specularIntensity;
@@ -161,7 +161,7 @@ SceneHelper.prototype = {
                 this._currentCubemapLights.diffuse.intensity = opts.diffuseIntensity;
             }
         }
-        
+
     },
 
     updateSkybox: function (environmentUrl, isLinearSpace, app) {
@@ -229,10 +229,10 @@ SceneHelper.prototype = {
                 && !(environmentUrl.match && environmentUrl.match(/.hdr$/))
             ) {
                 var srgbDefineMethod = isLinearSpace ? 'define' : 'undefine';
-                this._skybox.material.shader[srgbDefineMethod]('fragment', 'SRGB_DECODE');
+                this._skybox.material[srgbDefineMethod]('fragment', 'SRGB_DECODE');
             }
             else {
-                this._skybox.material.shader.undefine('fragment', 'SRGB_DECODE');
+                this._skybox.material.undefine('fragment', 'SRGB_DECODE');
             }
         }
     }

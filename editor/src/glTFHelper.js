@@ -1,6 +1,6 @@
 import graphicHelper from '../../src/graphic/helper';
-import GLTFLoader from 'qtek/src/loader/GLTF';
-import Texture from 'qtek/src/Texture';
+import GLTFLoader from 'claygl/src/loader/GLTF';
+import Texture from 'claygl/src/Texture';
 
 var TEXTURES = ['diffuseMap', 'normalMap', 'emissiveMap', 'metalnessMap', 'roughnessMap', 'specularMap', 'glossinessMap']
 
@@ -75,7 +75,7 @@ function mergeMetallicRoughness(metallicFile, roughnessFile, metallicFactor, rou
                     finalImgData.data[i + 2] = Math.round(m * 255);
                 }
                 ctx.putImageData(finalImgData, 0, 0);
-    
+
                 resolve(canvas);
             });
     });
@@ -111,7 +111,7 @@ function mergeSpecularGlossiness(specularFile, glossinessFile, specularFactor, g
                     finalImgData.data[i + 3] = Math.round(g * 255);
                 }
                 ctx.putImageData(finalImgData, 0, 0);
-    
+
                 resolve(canvas);
             });
     });
@@ -346,7 +346,7 @@ function convertToBinary(glTF, binaryBuffers, imageBuffersMap) {
     if (padding != null) {
         for (var j = 0; j< padding;j++) {
             dataView.setUint8(bufIndex++, 0x20);
-        }   
+        }
     }
     // BIN
     dataView.setUint32(bufIndex, binBufferSize, true);
@@ -384,7 +384,7 @@ var MILE_TYPES = {
     'image/vnd-ms.dds': ['dds']
 };
 
-export { 
+export {
     updateGLTFMaterials,
     mergeMetallicRoughness,
     mergeSpecularGlossiness,

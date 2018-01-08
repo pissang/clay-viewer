@@ -1,14 +1,14 @@
 // TODO Default parameter of postEffect
 
-import Scene from 'qtek/src/Scene';
-import ShadowMapPass from 'qtek/src/prePass/ShadowMap';
-import PerspectiveCamera from 'qtek/src/camera/Perspective';
-import OrthographicCamera from 'qtek/src/camera/Orthographic';
-import Matrix4 from 'qtek/src/math/Matrix4';
-import Vector3 from 'qtek/src/math/Vector3';
-import Vector2 from 'qtek/src/math/Vector2';
+import Scene from 'claygl/src/Scene';
+import ShadowMapPass from 'claygl/src/prePass/ShadowMap';
+import PerspectiveCamera from 'claygl/src/camera/Perspective';
+import OrthographicCamera from 'claygl/src/camera/Orthographic';
+import Matrix4 from 'claygl/src/math/Matrix4';
+import Vector3 from 'claygl/src/math/Vector3';
+import Vector2 from 'claygl/src/math/Vector2';
 
-import notifier from 'qtek/src/core/mixin/notifier';
+import notifier from 'claygl/src/core/mixin/notifier';
 
 import EffectCompositor from './EffectCompositor';
 import TemporalSuperSampling from './TemporalSuperSampling';
@@ -17,16 +17,16 @@ import halton from './halton';
 function RenderMain(renderer, enableShadow, projection) {
 
     this.renderer = renderer;
-    
+
     projection = projection || 'perspective';
 
     /**
-     * @type {qtek.Scene}
+     * @type {clay.Scene}
      */
     this.scene = new Scene();
 
     /**
-     * @type {qtek.Node}
+     * @type {clay.Node}
      */
     this.rootNode = this.scene;
 
@@ -142,8 +142,8 @@ RenderMain.prototype.containPoint = function (x, y) {
  * Cast a ray
  * @param {number} x offsetX
  * @param {number} y offsetY
- * @param {qtek.math.Ray} out
- * @return {qtek.math.Ray}
+ * @param {clay.math.Ray} out
+ * @return {clay.math.Ray}
  */
 var ndc = new Vector2();
 RenderMain.prototype.castRay = function (x, y, out) {
@@ -287,14 +287,14 @@ RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {
     function updateQueue(queue) {
         for (var i = 0; i < queue.length; i++) {
             var renderable = queue[i];
-            renderable.material.shader[ifEnableSSAO ? 'enableTexture' : 'disableTexture']('ssaoMap');
+            renderable.material[ifEnableSSAO ? 'enableTexture' : 'disableTexture']('ssaoMap');
             if (ifEnableSSAO) {
                 renderable.material.set('ssaoMap', compositor.getSSAOTexture());
             }
         }
     }
-    updateQueue(scene.opaqueQueue);
-    updateQueue(scene.transparentQueue);
+    updateQueue(scene.opaqueList);
+    updateQueue(scene.transparentList);
 };
 
 RenderMain.prototype._updateShadowPCFKernel = function (frame) {
@@ -303,21 +303,21 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
         for (var i = 0; i < queue.length; i++) {
             if (queue[i].receiveShadow) {
                 queue[i].material.set('pcfKernel', pcfKernel);
-                if (queue[i].material.shader) {
-                    queue[i].material.shader.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
+                if (queue[i].material) {
+                    queue[i].material.define('fragment', 'PCF_KERNEL_SIZE', pcfKernel.length / 2);
                 }
             }
         }
     }
-    updateQueue(this.scene.opaqueQueue);
-    updateQueue(this.scene.transparentQueue);
+    updateQueue(this.scene.opaqueList);
+    updateQueue(this.scene.transparentList);
 };
 
 RenderMain.prototype.dispose = function (renderer) {
     this._compositor.dispose(renderer);
     this._temporalSS.dispose(renderer);
     if (this._shadowMapPass) {
-        this._shadowMapPass.dispose(renderer);   
+        this._shadowMapPass.dispose(renderer);
     }
 };
 
