@@ -445,7 +445,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
     }
     var loaderOpts = {
         rootNode: new Node(),
-        shaderName: 'clay.' + shaderName,
+        shader: 'clay.' + shaderName,
         textureRootPath: opts.textureRootPath,
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
@@ -815,9 +815,12 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         return val && val !== 'none';
     }
 
+    var enabledTextures = materials[0].getEnabledTextures();
+
     function addTexture(propName) {
         // Not change if texture name is not in the config.
         if (propName in materialCfg) {
+            var idx = enabledTextures.indexOf(propName);
             if (haveTexture(materialCfg[propName])) {
                 var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
                     flipY: textureFlipY,
@@ -830,9 +833,18 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                     }
                     app.refresh();
                 });
+                // Enable texture.
+                if (idx < 0) {
+                    enabledTextures.push(propName);
+                }
                 textures[propName] = texture;
             }
             else {
+                // Disable texture.
+                if (idx >= 0) {
+                    enabledTextures.splice(idx, 1);
+                }
+
                 textures[propName] = null;
             }
         }
@@ -881,6 +893,8 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         for (var texName in textures) {
             mat.set(texName, textures[texName]);
         }
+
+        mat.enableTexture(enabledTextures);
     }, this);
     this.refresh();
 };
