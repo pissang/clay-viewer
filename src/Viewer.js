@@ -13,7 +13,6 @@ import PlaneGeometry from 'claygl/src/geometry/Plane';
 import Shader from 'claygl/src/Shader';
 import RayPicking from 'claygl/src/picking/RayPicking';
 import notifier from 'claygl/src/core/mixin/notifier';
-import shaderLibrary from 'claygl/src/shader/library';
 import textureUtil from 'claygl/src/util/texture';
 
 import RenderMain from './graphic/RenderMain';
@@ -171,7 +170,6 @@ Viewer.prototype.init = function (dom, opts) {
         this.refresh();
     }, this);
 
-    this.shaderLibrary = shaderLibrary.createLibrary();
 };
 
 Viewer.prototype._createGround = function () {
@@ -416,6 +414,7 @@ Viewer.prototype.autoFitModel = function (fitSize) {
  * @param {Array.<ArrayBuffer>} [opts.buffers]
  * @param {boolean} [opts.upAxis='y'] Change model to y up if upAxis is 'z'
  * @param {boolean} [opts.textureFlipY=false]
+ * @param {boolean} [opts.regenerateNormal=false] If regenerate per vertex normal.
  */
 Viewer.prototype.loadModel = function (gltfFile, opts) {
     opts = opts || {};
@@ -447,8 +446,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: opts.textureFlipY,
-        shaderLibrary: this.shaderLibrary
+        textureFlipY: opts.textureFlipY
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -612,8 +610,6 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
 
     var alphaCutoff = opts.alphaCutoff;
     var doubleSided = opts.doubleSided;
-    var shaderName = opts.shader || 'standard';
-    var shaderLibrary = this.shaderLibrary;
 
     var meshNeedsSplit = [];
     rootNode.traverse(function (mesh) {
@@ -622,7 +618,7 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
         }
     });
     meshNeedsSplit.forEach(function (mesh) {
-        var newNode = meshUtil.splitByJoints(mesh, 15, true, shaderLibrary, 'clay.' + shaderName);
+        var newNode = meshUtil.splitByJoints(mesh, 15, true);
         if (newNode !== mesh) {
             newNode.eachChild(function (mesh) {
                 mesh.originalMeshName = newNode.name;
@@ -631,6 +627,10 @@ Viewer.prototype._preprocessModel = function (rootNode, opts) {
     }, this);
     rootNode.traverse(function (mesh) {
         if (mesh.geometry) {
+            // TODO Shared geometry? face normal?
+            if (opts.regenerateNormal) {
+                mesh.geometry.generateVertexNormals();
+            }
             mesh.geometry.updateBoundingBox();
             if (doubleSided != null) {
                 mesh.culling = !doubleSided;
