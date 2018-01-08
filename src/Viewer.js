@@ -373,6 +373,10 @@ Viewer.prototype.autoFitModel = function (fitSize) {
     if (this._modelNode) {
         this.setPose(10);
         this._modelNode.update();
+        // Update skeleton after model node transform updated.
+        this._skeletons.forEach(function (skeleton) {
+            skeleton.update();
+        });
         var bbox = getBoundingBoxWithSkinning(this._modelNode);
 
         var size = new Vector3();
@@ -993,10 +997,6 @@ Viewer.prototype.setPose = function (time) {
     this._clips.forEach(function (clip) {
         clip.setTime(time);
     });
-    this._skeletons.forEach(function (skeleton) {
-        skeleton.update();
-    });
-
     this.refresh();
 };
 
