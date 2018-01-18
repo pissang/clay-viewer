@@ -1,10 +1,10 @@
 {
-  "name": "qtek-model-viewer",
-  "version": "0.1.1",
-  "description": "QTEK Model Viewer built on top of WebGL, Supported FBX, DAE, OBJ, glTF2.0 model formats.",
-  "main": "dist/QMV.js",
+  "name": "clay-viewer",
+  "version": "0.1.2",
+  "description": "Clay Viewer is built on top of WebGL, Supported FBX, DAE, OBJ, glTF2.0 model formats.",
+  "main": "dist/clay-viewer.js",
   "dependencies": {
-    "qtek": "^0.6.0",
+    "claygl": "^1.0.0",
     "zrender": "^3.7.2"
   },
   "devDependencies": {
@@ -23,7 +23,7 @@
   "scripts": {
     "dev": "rollup -c -w",
     "glsl2js": "node build/glsl2js.js",
-    "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/QMV.js > dist/QMV.min.js",
+    "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/clay-viewer.js > dist/clay-viewer.min.js",
     "build:editor": "cd ./editor && npm run build",
     "build:electron": "cd ./editor && npm run build:electron",
     "build:fbx2gltf": "cd ./editor && npm run build:fbx2gltf",

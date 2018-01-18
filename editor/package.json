@@ -1,12 +1,12 @@
 {
-  "name": "qtek-model-viewer",
-  "version": "0.1.1",
+  "name": "clay-viewer",
+  "version": "0.2.0",
   "description": "",
   "main": "electron.js",
   "author": "Yi Shen",
   "license": "BSD-3-Clause",
   "build": {
-    "appId": "ECOMFE.QTEKModelViewer",
+    "appId": "ECOMFE.ClayViewer",
     "mac": {
       "category": "public.app-category.graphics-design",
       "target": "zip",

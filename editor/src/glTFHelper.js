@@ -261,7 +261,7 @@ function updateGLTFMaterials(glTF, sceneConfig) {
     });
 
     glTF.extras = glTF.extras || {};
-    glTF.extras.qtekModelViewerConfig = sceneConfig;
+    glTF.extras.clayViewerConfig = sceneConfig;
     return glTF;
 }
 

@@ -8,7 +8,7 @@ const os = require('os');
 // Modules for model converting
 module.exports = function (files) {
     let appDataPath = electron.remote.app.getPath('documents');
-    let QMVPath = `${appDataPath}/QTEK Model Viewer`;
+    let QMVPath = `${appDataPath}/Clay Viewer`;
     let modelTmpPath = `${QMVPath}/tmp/`;
     if (!fs.existsSync(QMVPath)) {
         fs.mkdirSync(QMVPath);

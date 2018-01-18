@@ -215,9 +215,9 @@ function init() {
             for (var name in filesMap) {
                 filesMapInverse[filesMap[name]] = name;
             }
-            var haveQMVConfig = !!(glTF.extras && glTF.extras.qtekModelViewerConfig);
-            if (haveQMVConfig) {
-                zrUtil.merge(config, glTF.extras.qtekModelViewerConfig, true);
+            var haveViewerConfig = !!(glTF.extras && glTF.extras.clayViewerConfig);
+            if (haveViewerConfig) {
+                zrUtil.merge(config, glTF.extras.clayViewerConfig, true);
                 viewer.setCameraControl(config.viewControl);
                 updateAll();
                 controlKit.update();
@@ -228,14 +228,14 @@ function init() {
                 textureFlipY: config.textureFlipY,
                 doubleSided: true,
                 upAxis: config.zUpToYUp ? 'z' : 'y',
-                includeTexture: !haveQMVConfig
+                includeTexture: !haveViewerConfig
             }).on('ready', function () {
 
                 hideTip();
                 hideLoading();
 
-                if (haveQMVConfig) {
-                    (glTF.extras.qtekModelViewerConfig.materials || []).forEach(function (matConfig) {
+                if (haveViewerConfig) {
+                    (glTF.extras.clayViewerConfig.materials || []).forEach(function (matConfig) {
                         for (var key in matConfig) {
                             if (filesMap[matConfig[key]]) {
                                 matConfig[key] = filesMap[matConfig[key]];
