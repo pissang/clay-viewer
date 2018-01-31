@@ -228,8 +228,8 @@ function updateGLTFMaterials(glTF, sceneConfig) {
             name: matConfig.name,
             emissiveFactor: graphicHelper.parseColor(matConfig.emission).slice(0, 3).map(function (channel) {
                 return channel * matConfig.emissionIntensity;
-            })
-            // TODO Alpha mode
+            }),
+            alphaMode: matConfig.transparent ? 'BLEND' : 'OPAQUE'
             // TODO texture tiling.
         };
         if (matConfig.normalMap) {

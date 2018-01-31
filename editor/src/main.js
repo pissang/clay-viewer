@@ -54,6 +54,7 @@ function updateAll() {
 function updateMaterial() {
     var $textureTiling = Math.max(materialConfig.$textureTiling, 0.01);
     materialConfig.uvRepeat = [$textureTiling, $textureTiling];
+    // TODO configuration
     materialConfig.transparent = materialConfig.alpha < 1;
     viewer.setMaterial(materialConfig.name, materialConfig);
 }

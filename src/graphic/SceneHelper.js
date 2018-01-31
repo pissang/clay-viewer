@@ -51,6 +51,8 @@ SceneHelper.prototype = {
     dispose: function (renderer) {
         if (this._lightRoot) {
             this._lightRoot.remove(this.mainLight);
+            this._lightRoot.remove(this.secondaryLight);
+            this._lightRoot.remove(this.tertiaryLight);
             this._lightRoot.remove(this.ambientLight);
         }
         if (this._currentCubemapLights) {

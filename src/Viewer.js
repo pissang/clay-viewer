@@ -910,7 +910,8 @@ Viewer.prototype.getMaterial = function (name) {
     }
     var mat = materials[0];
     var materialCfg = {
-        name: name
+        name: name,
+        transparent: mat.transparent
     };
     ['color', 'emission'].forEach(function (propName) {
         materialCfg[propName] = graphicHelper.stringifyColor(mat.get(propName), 'hex');
