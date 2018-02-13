@@ -122,7 +122,9 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
             imgValue.__textureid__ = id;
             textureCache.put(prefix + id, textureObj);
 
-            convertTextureToPowerOfTwo(textureObj.texture);
+            if (!(imgValue instanceof HTMLVideoElement)) {
+                convertTextureToPowerOfTwo(textureObj.texture);
+            }
             // TODO Next tick?
             cb && cb(textureObj.texture);
         }
