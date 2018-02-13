@@ -19,6 +19,7 @@
     "asarUnpack": "electron/convert/**/*"
   },
   "scripts": {
+    "dev": "webpack -w --devtool eval-cheap-module-source-map",
     "build": "webpack -p",
     "build:electron": "cross-env TARGET=electron webpack",
     "build:fbx2gltf": "cd electron/convert && pyinstaller fbx2gltf.py && rm -rf build && cp lib/fbxsip.so dist/fbx2gltf",

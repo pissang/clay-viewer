@@ -15,6 +15,7 @@ function isValueNone(value) {
 function isValueImage(value) {
     return value instanceof HTMLCanvasElement
         || value instanceof HTMLImageElement
+        || value instanceof HTMLVideoElement
         || value instanceof Image;
 }
 
@@ -110,7 +111,8 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
         if (!textureObj) {
             textureObj = {
                 texture: new Texture2D({
-                    image: imgValue
+                    image: imgValue,
+                    dynamic: imgValue instanceof HTMLVideoElement
                 })
             };
             for (var i = 0; i < keys.length; i++) {

@@ -24,6 +24,7 @@
     "dev": "rollup -c -w",
     "glsl2js": "node build/glsl2js.js",
     "build": "npm run glsl2js && rollup -c && uglifyjs -c -m -- dist/clay-viewer.js > dist/clay-viewer.min.js",
+    "dev:editor": "cd ./editor && npm run dev",
     "build:editor": "cd ./editor && npm run build",
     "build:electron": "cd ./editor && npm run build:electron",
     "build:fbx2gltf": "cd ./editor && npm run build:fbx2gltf",
