@@ -164,7 +164,7 @@ RenderMain.prototype.castRay = function (x, y, out) {
 RenderMain.prototype.prepareRender = function () {
     this.scene.update();
     this.scene.updateLights();
-    this.scene.updateRenderList(this.renderer, this.camera);
+    this.scene.updateRenderList(this.camera);
 
     this.camera.update();
 
@@ -243,13 +243,13 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         frameBuffer.unbind(renderer);
 
         if (this.needsTemporalSS() && accumulating) {
-            this._compositor.composite(renderer, camera, this._temporalSS.getSourceFrameBuffer(), this._temporalSS.getFrame());
+            this._compositor.composite(renderer, scene, camera, this._temporalSS.getSourceFrameBuffer(), this._temporalSS.getFrame());
             renderer.setViewport(this.viewport);
             this._temporalSS.render(renderer);
         }
         else {
             renderer.setViewport(this.viewport);
-            this._compositor.composite(renderer, camera, null, 0);
+            this._compositor.composite(renderer, scene, camera, null, 0);
         }
     }
     else {

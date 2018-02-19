@@ -38,14 +38,15 @@ Shader['import'](gbufferGLSL);
 Shader['import'](dofGLSL);
 Shader['import'](edgeGLSL);
 
+var PHYSICALLY_CORRECTED_SSR = true;
 
 var commonOutputs = {
-    color : {
-        parameters : {
-            width : function (renderer) {
+    color: {
+        parameters: {
+            width: function (renderer) {
                 return renderer.getWidth();
             },
-            height : function (renderer) {
+            height: function (renderer) {
                 return renderer.getHeight();
             }
         }
@@ -68,7 +69,7 @@ function EffectCompositor() {
     this._framebuffer.attach(this._depthTexture, FrameBuffer.DEPTH_ATTACHMENT);
 
     this._gBufferPass = new GBuffer({
-        // enableTargetTexture3: false
+        enableTargetTexture3: PHYSICALLY_CORRECTED_SSR
     });
 
     this._compositor = createCompositor(effectJson);
@@ -96,12 +97,11 @@ function EffectCompositor() {
     var gBufferObj = {
         normalTexture: this._gBufferPass.getTargetTexture1(),
         depthTexture: this._gBufferPass.getTargetTexture2(),
-        albedoTexture: this._gBufferPass.getTargetTexture3()
+        albedoTexture: PHYSICALLY_CORRECTED_SSR ? this._gBufferPass.getTargetTexture3() : null
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
-    this._ssrPass.setPhysicallyCorrect(true);
-    // this._edgePass = new EdgePass(gBufferObj);
+    this._ssrPass.setPhysicallyCorrect(PHYSICALLY_CORRECTED_SSR);
 }
 
 EffectCompositor.prototype.resize = function (width, height, dpr) {
@@ -403,9 +403,7 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
             this._ssrPass.setParameter('minGlossiness', Math.max(Math.min(1.0 - value, 1.0), 0.0));
             break;
         default:
-            if (__DEV__) {
-                console.warn('Unkown SSR parameter ' + name);
-            }
+            console.warn('Unkown SSR parameter ' + name);
     }
 }
 ;
@@ -437,14 +435,11 @@ EffectCompositor.prototype.setColorCorrection = function (type, value) {
     this._compositeNode.setParameter(type, value);
 };
 
-EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, frame) {
+EffectCompositor.prototype.composite = function (renderer, scene, camera, framebuffer, frame) {
 
     var sourceTexture = this._sourceTexture;
     var targetTexture = sourceTexture;
-    // if (this._enableEdge) {
-    //     this._edgePass.update(renderer, camera, sourceTexture, frame);
-    //     sourceTexture = targetTexture = this._edgePass.getTargetTexture();
-    // }
+
     if (this._enableSSR) {
         this._ssrPass.update(renderer, camera, sourceTexture, frame);
         targetTexture = this._ssrPass.getTargetTexture();
@@ -452,6 +447,12 @@ EffectCompositor.prototype.composite = function (renderer, camera, framebuffer, 
         this._ssrPass.setSSAOTexture(
             this._enableSSAO ? this._ssaoPass.getTargetTexture() : null
         );
+        var lights = scene.getLights();
+        for (var i = 0; i < lights.length; i++) {
+            if (lights[i].cubemap) {
+                this._ssrPass.setAmbientCubemap(lights[i].cubemap, lights[i].intensity);
+            }
+        }
     }
     this._sourceNode.texture = targetTexture;
 

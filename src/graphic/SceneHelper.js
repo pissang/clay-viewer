@@ -141,6 +141,7 @@ SceneHelper.prototype = {
                         this._lightRoot.add(lights.diffuse);
                     }
                     if (lights.specular) {
+                        lights.specular.invisible = true;
                         this._lightRoot.add(lights.specular);
                     }
 
@@ -163,12 +164,12 @@ SceneHelper.prototype = {
                 this._currentCubemapLights.diffuse.intensity = opts.diffuseIntensity;
             }
         }
-
     },
 
     updateSkybox: function (environmentUrl, isLinearSpace, app) {
         var renderer = app.getRenderer();
         var self = this;
+
         function getSkybox() {
             if (!(self._skybox instanceof Skybox)) {
                 if (self._skybox) {

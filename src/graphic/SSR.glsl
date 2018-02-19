@@ -2,13 +2,17 @@
 // http://casual-effects.blogspot.jp/2014/08/screen-space-ray-tracing.html
 @export ecgl.ssr.main
 
+#define SHADER_NAME SSR
 #define MAX_ITERATION 20;
 #define SAMPLE_PER_FRAME 5;
+#define TOTAL_SAMPLES 128;
 
 uniform sampler2D sourceTexture;
 uniform sampler2D gBufferTexture1;
 uniform sampler2D gBufferTexture2;
 uniform sampler2D gBufferTexture3;
+uniform samplerCube specularCubemap;
+uniform float specularIntensity: 1;
 
 uniform mat4 projection;
 uniform mat4 projectionInv;
@@ -39,18 +43,22 @@ varying vec2 v_Texcoord;
 #endif
 
 #ifdef PHYSICALLY_CORRECT
-uniform vec3 lambertNormals[SAMPLE_PER_FRAME];
+// uniform vec3 lambertNormals[SAMPLE_PER_FRAME];
 uniform sampler2D normalDistribution;
 uniform float normalJitter: 0;
+uniform vec2 normalDistributionSize;
 vec3 transformNormal(vec3 H, vec3 N) {
-    vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0,1.0) : vec3(1.0, 0.0, 0.0);
     vec3 tangentX = normalize(cross(upVector, N));
     vec3 tangentY = cross(N, tangentX);
     // Tangent to world space
     return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 }
 vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-    vec3 H = texture2D(normalDistribution, vec2(roughness, i + normalJitter)).rgb;
+    vec3 H = texture2D(normalDistribution, vec2(
+            roughness, fract(i + normalJitter)
+        )
+    ).rgb;
     return transformNormal(H, N);
 }
 float G_Smith(float g, float ndv, float ndl) {
@@ -302,20 +310,28 @@ void main()
         vec3 hitNormal = texture2D(gBufferTexture1, hitPixel).rgb * 2.0 - 1.0;
         hitNormal = normalize((viewInverseTranspose * vec4(hitNormal, 0.0)).xyz);
 #ifdef PHYSICALLY_CORRECT
+        float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
+        float vdh = clamp(dot(V, H), 0.0, 1.0);
+        float ndh = clamp(dot(N, H), 0.0, 1.0);
+        vec3 litTexel = vec3(0.0);
         if (dot(hitNormal, rayDir) < 0.0 && intersect) {
-            float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
-            float ndh = clamp(dot(N, H), 0.0, 1.0);
-            float vdh = clamp(dot(V, H), 0.0, 1.0);
-            vec3 litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
+            litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
             // PENDING
-            float fade = pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 4.0);
-            color.rgb += ndl * litTexel * fade * (
-                F_Schlick(ndl, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
-            );
+            litTexel *= pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 3.0);
+
             // color.rgb += ndl * litTexel * fade * diffuseColor;
         }
+        else {
+            // Fetch from environment
+#ifdef SPECULARCUBEMAP_ENABLED
+            litTexel = RGBMDecode(textureCubeLodEXT(specularCubemap, rayDir, 0.0), 51.5).rgb * specularIntensity;
+#endif
+        }
+        color.rgb += ndl * litTexel * (
+                F_Schlick(ndl, spec) * G_Smith(g, ndv, ndl) * vdh / (ndh * ndv + 0.001)
+            );
     }
-    color.rgb /= 512.0;
+    color.rgb /= float(SAMPLE_PER_FRAME);
 #else
     // Ignore the pixel not face the ray
     // TODO fadeout ?
@@ -373,9 +389,9 @@ void main()
     float g = centerNTexel.a;
     float maxBlurSize = clamp(1.0 - g + 0.1, 0.0, 1.0) * blurSize;
 #ifdef VERTICAL
-    vec2 off = vec2(0.0, blurSize / textureSize.y);
+    vec2 off = vec2(0.0, maxBlurSize / textureSize.y);
 #else
-    vec2 off = vec2(blurSize / textureSize.x, 0.0);
+    vec2 off = vec2(maxBlurSize / textureSize.x, 0.0);
 #endif
 
     vec2 coord = v_Texcoord;

@@ -12,21 +12,21 @@ import SSRGLSLCode from './SSR.glsl.js';
 
 Shader.import(SSRGLSLCode);
 
-function generateNormals(size, offset, hemisphere) {
-    var kernel = new Float32Array(size * 3);
-    offset = offset || 0;
-    for (var i = 0; i < size; i++) {
-        var phi = halton(i + offset, 2) * (hemisphere ? 1 : 2) * Math.PI / 2;
-        var theta = halton(i + offset, 3) * 2 * Math.PI;
-        var x = Math.cos(theta) * Math.sin(phi);
-        var y = Math.sin(theta) * Math.sin(phi);
-        var z = Math.cos(phi);
-        kernel[i * 3] = x;
-        kernel[i * 3 + 1] = y;
-        kernel[i * 3 + 2] = z;
-    }
-    return kernel;
-}
+// function generateNormals(size, offset, hemisphere) {
+//     var kernel = new Float32Array(size * 3);
+//     offset = offset || 0;
+//     for (var i = 0; i < size; i++) {
+//         var phi = halton(i + offset, 2) * (hemisphere ? 1 : 2) * Math.PI / 2;
+//         var theta = halton(i + offset, 3) * 2 * Math.PI;
+//         var x = Math.cos(theta) * Math.sin(phi);
+//         var y = Math.sin(theta) * Math.sin(phi);
+//         var z = Math.cos(phi);
+//         kernel[i * 3] = x;
+//         kernel[i * 3 + 1] = y;
+//         kernel[i * 3 + 2] = z;
+//     }
+//     return kernel;
+// }
 
 function SSRPass(opt) {
     opt = opt || {};
@@ -84,18 +84,27 @@ function SSRPass(opt) {
 
     this._normalDistribution = null;
 
-    this._totalSamples = 512;
-    this._samplePerFrame = 5;
+    this._totalSamples = 256;
+    this._samplePerFrame = 2;
 
     this._ssrPass.material.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
+    this._ssrPass.material.define('fragment', 'TOTAL_SAMPLES', this._totalSamples);
 
-    this._downScale = 2;
+    this._downScale = 1;
 
     // this._diffuseSampleNormals = [];
     // for (var i = 0; i < this._totalSamples; i++) {
     //     this._diffuseSampleNormals.push(generateNormals(this._samplePerFrame, i * this._samplePerFrame, true));
     // }
 }
+
+SSRPass.prototype.setAmbientCubemap = function (specularCubemap, specularIntensity) {
+    this._ssrPass.material.set('specularCubemap', specularCubemap);
+    this._ssrPass.material.set('specularIntensity', specularIntensity);
+
+    var enableSpecularMap = specularCubemap && specularIntensity;
+    this._ssrPass.material[enableSpecularMap ? 'enableTexture' : 'disableTexture']('specularCubemap');
+};
 
 SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     var width = renderer.getWidth();
@@ -141,17 +150,19 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     frameBuffer.bind(renderer);
     ssrPass.render(renderer);
 
-    frameBuffer.attach(this._currentTexture);
-    blendPass.setUniform('texture1', ssrTexture);
-    blendPass.setUniform('texture2', this._prevTexture);
-    blendPass.material.set({
-        'weight1': 1,
-        'weight2': frame >= 1 ? 1 : 0
-    });
-    blendPass.render(renderer);
+    if (this._physicallyCorrect) {
+        frameBuffer.attach(this._currentTexture);
+        blendPass.setUniform('texture1', this._prevTexture);
+        blendPass.setUniform('texture2', ssrTexture);
+        blendPass.material.set({
+            'weight1': frame >= 1 ? 0.9 : 0,
+            'weight2': frame >= 1 ? 0.1 : 0.1
+        });
+        blendPass.render(renderer);
+    }
 
     frameBuffer.attach(texture2);
-    blurPass1.setUniform('texture', this._currentTexture);
+    blurPass1.setUniform('texture', this._physicallyCorrect ? this._currentTexture : ssrTexture);
     blurPass1.render(renderer);
 
     frameBuffer.attach(texture3);
@@ -159,9 +170,11 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     blurPass2.render(renderer);
     frameBuffer.unbind(renderer);
 
-    var tmp = this._prevTexture;
-    this._prevTexture = this._currentTexture;
-    this._currentTexture = tmp;
+    if (this._physicallyCorrect) {
+        var tmp = this._prevTexture;
+        this._prevTexture = this._currentTexture;
+        this._currentTexture = tmp;
+    }
 };
 
 SSRPass.prototype.getTargetTexture = function () {
@@ -180,14 +193,17 @@ SSRPass.prototype.setParameter = function (name, val) {
 SSRPass.prototype.setPhysicallyCorrect = function (isPhysicallyCorrect) {
     if (isPhysicallyCorrect) {
         if (!this._normalDistribution) {
-            this._normalDistribution = cubemapUtil.generateNormalDistribution(128, this._totalSamples);
+            this._normalDistribution = cubemapUtil.generateNormalDistribution(64, this._totalSamples);
         }
         this._ssrPass.material.define('fragment', 'PHYSICALLY_CORRECT');
         this._ssrPass.material.set('normalDistribution', this._normalDistribution);
+        this._ssrPass.material.set('normalDistributionSize', [64, this._totalSamples]);
     }
     else {
         this._ssrPass.material.undefine('fragment', 'PHYSICALLY_CORRECT');
     }
+
+    this._physicallyCorrect = isPhysicallyCorrect;
 };
 
 SSRPass.prototype.setSSAOTexture = function (texture) {
@@ -202,7 +218,12 @@ SSRPass.prototype.setSSAOTexture = function (texture) {
 };
 
 SSRPass.prototype.isFinished = function (frame) {
-    return frame > (this._totalSamples / this._samplePerFrame);
+    if (this._physicallyCorrect) {
+        return frame > (this._totalSamples / this._samplePerFrame);
+    }
+    else {
+        return true;
+    }
 };
 
 SSRPass.prototype.dispose = function (renderer) {
