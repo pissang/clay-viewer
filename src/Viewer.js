@@ -183,7 +183,8 @@ Viewer.prototype._createGround = function () {
             transparent: true
         }),
         castShadow: false,
-        geometry: new PlaneGeometry()
+        geometry: new PlaneGeometry(),
+        renderOrder: -10
     });
     groundMesh.material.set('color', [1, 1, 1, 1]);
     groundMesh.scale.set(40, 40, 1);

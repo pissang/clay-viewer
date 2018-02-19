@@ -58,8 +58,7 @@ function nearestPowerOfTwo(val) {
 }
 function convertTextureToPowerOfTwo(texture) {
     if ((texture.wrapS === Texture.REPEAT || texture.wrapT === Texture.REPEAT)
-     && texture.image
-     ) {
+     && texture.image) {
         // var canvas = document.createElement('canvas');
         var width = nearestPowerOfTwo(texture.width);
         var height = nearestPowerOfTwo(texture.height);

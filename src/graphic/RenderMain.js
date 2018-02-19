@@ -163,6 +163,9 @@ RenderMain.prototype.castRay = function (x, y, out) {
  */
 RenderMain.prototype.prepareRender = function () {
     this.scene.update();
+    this.scene.updateLights();
+    this.scene.updateRenderList(this.renderer, this.camera);
+
     this.camera.update();
 
     this._frame = 0;
@@ -180,7 +183,7 @@ RenderMain.prototype.needsAccumulate = function () {
 
 RenderMain.prototype.needsTemporalSS = function () {
     var enableTemporalSS = this._enableTemporalSS;
-    if (enableTemporalSS == 'auto') {
+    if (enableTemporalSS === 'auto') {
         enableTemporalSS = this._enablePostEffect;
     }
     return enableTemporalSS;
@@ -228,9 +231,10 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     // Always update SSAO to make sure have correct ssaoMap status
     this._updateSSAO(renderer, scene, camera, this._temporalSS.getFrame());
 
+    var frameBuffer;
     if (this._enablePostEffect) {
 
-        var frameBuffer = this._compositor.getSourceFrameBuffer();
+        frameBuffer = this._compositor.getSourceFrameBuffer();
         frameBuffer.bind(renderer);
         renderer.gl.clear(renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT);
         // FIXME Enable pre z will make alpha test failed
@@ -250,7 +254,7 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
     }
     else {
         if (this.needsTemporalSS() && accumulating) {
-            var frameBuffer = this._temporalSS.getSourceFrameBuffer();
+            frameBuffer = this._temporalSS.getSourceFrameBuffer();
             frameBuffer.bind(renderer);
             renderer.saveClear();
             renderer.clearBit = renderer.gl.DEPTH_BUFFER_BIT | renderer.gl.COLOR_BUFFER_BIT;
@@ -293,8 +297,8 @@ RenderMain.prototype._updateSSAO = function (renderer, scene, camera, frame) {
             }
         }
     }
-    updateQueue(scene.opaqueList);
-    updateQueue(scene.transparentList);
+    updateQueue(scene.getRenderList(camera).opaque);
+    updateQueue(scene.getRenderList(camera).transparent);
 };
 
 RenderMain.prototype._updateShadowPCFKernel = function (frame) {
@@ -309,8 +313,8 @@ RenderMain.prototype._updateShadowPCFKernel = function (frame) {
             }
         }
     }
-    updateQueue(this.scene.opaqueList);
-    updateQueue(this.scene.transparentList);
+    updateQueue(this.scene.getRenderList(this.camera).opaque);
+    updateQueue(this.scene.getRenderList(this.camera).transparent);
 };
 
 RenderMain.prototype.dispose = function (renderer) {

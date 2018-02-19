@@ -5,7 +5,7 @@ export default function () {
         name: '',
 
         type: 'pbrMetallicRoughness',
-        
+
         color: '#fff',
 
         transparent: false,
@@ -22,7 +22,7 @@ export default function () {
         emissiveMap: '',
 
         uvRepeat: [1, 1],
-        
+
         // Metallic and roughness
         metalness: 0,
         roughness: 0.5,
