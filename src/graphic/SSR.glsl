@@ -45,7 +45,7 @@ varying vec2 v_Texcoord;
 #ifdef PHYSICALLY_CORRECT
 // uniform vec3 lambertNormals[SAMPLE_PER_FRAME];
 uniform sampler2D normalDistribution;
-uniform float normalJitter: 0;
+uniform float sampleOffset: 0;
 uniform vec2 normalDistributionSize;
 vec3 transformNormal(vec3 H, vec3 N) {
     vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0,1.0) : vec3(1.0, 0.0, 0.0);
@@ -55,9 +55,7 @@ vec3 transformNormal(vec3 H, vec3 N) {
     return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 }
 vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-    vec3 H = texture2D(normalDistribution, vec2(
-            roughness, fract(i + normalJitter)
-        )
+    vec3 H = texture2D(normalDistribution, vec2(roughness, fract((i + sampleOffset) / float(TOTAL_SAMPLES)))
     ).rgb;
     return transformNormal(H, N);
 }
@@ -289,7 +287,7 @@ void main()
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
     for (int i = 0; i < SAMPLE_PER_FRAME; i++) {
-        vec3 H = importanceSampleNormalGGX(float(i) / float(SAMPLE_PER_FRAME), 1.0 - g, N);
+        vec3 H = importanceSampleNormalGGX(float(i), 1.0 - g, N);
         // TODO Normal
         // vec3 H = transformNormal(lambertNormals[i], N);
         // vec3 rayDir = H;

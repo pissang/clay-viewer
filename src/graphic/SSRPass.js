@@ -136,7 +136,7 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
 
     var percent = frame / this._totalSamples * this._samplePerFrame;
     ssrPass.setUniform('jitterOffset', percent);
-    ssrPass.setUniform('normalJitter', frame / this._totalSamples);
+    ssrPass.setUniform('sampleOffset', frame * this._samplePerFrame);
     // ssrPass.setUniform('lambertNormals', this._diffuseSampleNormals[frame % this._totalSamples]);
 
     blurPass1.setUniform('textureSize', [ssrTexture.width, ssrTexture.height]);
@@ -156,7 +156,7 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
         blendPass.setUniform('texture2', ssrTexture);
         blendPass.material.set({
             'weight1': frame >= 1 ? 0.9 : 0,
-            'weight2': frame >= 1 ? 0.1 : 0.1
+            'weight2': frame >= 1 ? 0.1 : 1
         });
         blendPass.render(renderer);
     }
