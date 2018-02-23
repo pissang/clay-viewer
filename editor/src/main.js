@@ -17,7 +17,7 @@ var materialConfig = getDefaultMaterialConfig();
 var viewer;
 
 var controlKit = new ControlKit({
-    loadAndSave: true,
+    loadAndSave: false,
     useExternalStyle: true
 });
 
