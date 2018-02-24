@@ -155,8 +155,8 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
         blendPass.setUniform('texture1', this._prevTexture);
         blendPass.setUniform('texture2', ssrTexture);
         blendPass.material.set({
-            'weight1': frame >= 1 ? 0.9 : 0,
-            'weight2': frame >= 1 ? 0.1 : 1
+            'weight1': frame >= 1 ? 0.95 : 0,
+            'weight2': frame >= 1 ? 0.05 : 1
         });
         blendPass.render(renderer);
     }

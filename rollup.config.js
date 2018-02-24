@@ -11,8 +11,7 @@ export default {
     output: [
         {
             format: 'umd',
-            // Old name
-            name: 'QMV',
+            name: 'ClayViewer',
             file: 'dist/clay-viewer.js'
         }
     ]

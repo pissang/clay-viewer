@@ -52,29 +52,6 @@ var helper = {};
 // Texture utilities
 var blankImage = textureUtil.createBlank('rgba(255,255,255,0)').image;
 
-
-function nearestPowerOfTwo(val) {
-    return Math.pow(2, Math.round(Math.log(val) / Math.LN2));
-}
-function convertTextureToPowerOfTwo(texture) {
-    if ((texture.wrapS === Texture.REPEAT || texture.wrapT === Texture.REPEAT)
-     && texture.image) {
-        // var canvas = document.createElement('canvas');
-        var width = nearestPowerOfTwo(texture.width);
-        var height = nearestPowerOfTwo(texture.height);
-        if (width !== texture.width || height !== texture.height) {
-            var canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(texture.image, 0, 0, width, height);
-            canvas.srcImage = texture.image;
-            texture.image = canvas;
-            texture.dirty();
-        }
-    }
-}
-
 helper.firstNotNull = function () {
     for (var i = 0, len = arguments.length; i < len; i++) {
         if (arguments[i] != null) {
@@ -111,6 +88,7 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
             textureObj = {
                 texture: new Texture2D({
                     image: imgValue,
+                    convertToPOT: true,
                     dynamic: imgValue instanceof HTMLVideoElement
                 })
             };
@@ -121,9 +99,6 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
             imgValue.__textureid__ = id;
             textureCache.put(prefix + id, textureObj);
 
-            if (!(imgValue instanceof HTMLVideoElement)) {
-                convertTextureToPowerOfTwo(textureObj.texture);
-            }
             // TODO Next tick?
             cb && cb(textureObj.texture);
         }
@@ -161,9 +136,16 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
                 textureCache.put(prefix + imgValue, textureObj);
             }
             else {
+                var fileType = imgValue.split('.').pop();
+                var isVideo = fileType === 'mp4'
+                    || fileType === 'webm'
+                    || fileType === 'ogg';
                 var texture = new Texture2D({
-                    image: new Image()
+                    convertToPOT: true,
+                    image: isVideo ? document.createElement('video') : new Image(),
+                    dynamic: isVideo
                 });
+
                 for (var i = 0; i < keys.length; i++) {
                     texture[keys[i]] = textureOpts[keys[i]];
                 }
@@ -173,9 +155,8 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
                     callbacks: [cb]
                 };
                 var originalImage = texture.image;
-                originalImage.onload = function () {
+                var onload = function () {
                     texture.image = originalImage;
-                    convertTextureToPowerOfTwo(texture);
 
                     texture.dirty();
                     textureObj.callbacks.forEach(function (cb) {
@@ -183,6 +164,19 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
                     });
                     textureObj.callbacks = null;
                 };
+                if (isVideo) {
+                    originalImage.oncanplay = function () {
+                        originalImage.width = originalImage.videoWidth;
+                        originalImage.height = originalImage.videoHeight;
+                        originalImage.oncanplay = null;
+                        originalImage.loop = true;
+                        originalImage.play();
+                        onload();
+                    };
+                }
+                else {
+                    originalImage.onload = onload;
+                }
                 originalImage.src = imgValue;
                 // Use blank image as place holder.
                 texture.image = blankImage;
@@ -322,7 +316,5 @@ helper.directionFromAlphaBeta = function (alpha, beta) {
 
     return dir;
 };
-
-helper.convertTextureToPowerOfTwo = convertTextureToPowerOfTwo;
 
 export default helper;

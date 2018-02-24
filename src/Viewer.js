@@ -451,7 +451,8 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         bufferRootPath: opts.bufferRootPath,
         crossOrigin: 'Anonymous',
         includeTexture: opts.includeTexture == null ? true : opts.includeTexture,
-        textureFlipY: opts.textureFlipY
+        textureFlipY: opts.textureFlipY,
+        textureConvertToPOT: true
     };
     if (pathResolver) {
         loaderOpts.resolveTexturePath =
@@ -512,7 +513,7 @@ Viewer.prototype.loadModel = function (gltfFile, opts) {
         });
         var taskGroup = new TaskGroup();
         taskGroup.allSettled(loadingTextures).success(function () {
-            this._convertToPOT();
+
             this._convertBumpToNormal();
             task.trigger('ready');
             this.refresh();
@@ -543,40 +544,6 @@ Viewer.prototype._convertBumpToNormal = function () {
             }
         }
     }
-};
-
-Viewer.prototype._convertToPOT = function () {
-    this._modelNode.traverse(function (mesh) {
-        if (mesh.material) {
-            var hasNPOT = false;
-            var needsConvert = false;
-            for (var i = 0; i < TEXTURES.length; i++) {
-                var tex = mesh.material.get(TEXTURES[i]);
-                if (tex && !tex.isPowerOfTwo()) {
-                    hasNPOT = true;
-                    break;
-                }
-            }
-            if (hasNPOT) {
-                var texcoordVal = mesh.geometry.attributes.texcoord0.value || [];
-                for (var i = 0; i < texcoordVal.length; i++) {
-                    var st = texcoordVal[i];
-                    if (st > 1 || st < 0) {
-                        needsConvert = true;
-                        break;
-                    }
-                }
-            }
-            if (needsConvert) {
-                for (var i = 0; i < TEXTURES.length; i++) {
-                    var tex = mesh.material.get(TEXTURES[i]);
-                    if (tex) {
-                        graphicHelper.convertTextureToPowerOfTwo(tex);
-                    }
-                }
-            }
-        }
-    });
 };
 
 /**
@@ -838,6 +805,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 if (idx < 0) {
                     enabledTextures.push(propName);
                 }
+
                 textures[propName] = texture;
             }
             else {
@@ -851,6 +819,9 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         }
     }
     var textures = {};
+    materials.forEach(function (mat) {
+        mat.disableTexturesAll();
+    });
     ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
         addTexture(propName);
     }, this);
@@ -894,7 +865,6 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         for (var texName in textures) {
             mat.set(texName, textures[texName]);
         }
-
         mat.enableTexture(enabledTextures);
     }, this);
     this.refresh();
@@ -1139,6 +1109,8 @@ Viewer.prototype.dispose = function () {
 };
 
 util.extend(Viewer.prototype, notifier);
+
+Viewer.version = '0.2.0';
 
 export default Viewer;
 
