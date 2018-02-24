@@ -141,7 +141,6 @@ SceneHelper.prototype = {
                         this._lightRoot.add(lights.diffuse);
                     }
                     if (lights.specular) {
-                        lights.specular.invisible = true;
                         this._lightRoot.add(lights.specular);
                     }
 

@@ -170,6 +170,18 @@ RenderMain.prototype.prepareRender = function () {
 
     this._frame = 0;
     this._temporalSS.resetFrame();
+
+    var lights = this.scene.getLights();
+    for (var i = 0; i < lights.length; i++) {
+        if (lights[i].cubemap) {
+            if (this._compositor && this._compositor.isSSREnabled()) {
+                lights[i].invisible = true;
+            }
+            else {
+                lights[i].invisible = false;
+            }
+        }
+    }
 };
 
 RenderMain.prototype.render = function (accumulating) {

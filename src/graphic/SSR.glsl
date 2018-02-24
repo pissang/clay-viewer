@@ -29,7 +29,7 @@ uniform float eyeFadeStart : 0.2; // ray direction's Z that ray hits will start 
 uniform float eyeFadeEnd: 0.8; // ray direction's Z that ray hits will be cut (0.0 -> 1.0)
 
 uniform float minGlossiness: 0.2; // Object larger than minGlossiness will have ssr effect
-uniform float zThicknessThreshold: 1;
+uniform float zThicknessThreshold: 10;
 
 uniform float nearZ;
 uniform vec2 viewportSize : VIEWPORT_SIZE;
@@ -56,7 +56,8 @@ vec3 transformNormal(vec3 H, vec3 N) {
     return normalize(tangentX * H.x + N * H.y + tangentZ * H.z);
 }
 vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-    vec3 H = texture2D(normalDistribution, vec2(roughness, fract((i + sampleOffset) / float(TOTAL_SAMPLES)))).rgb;
+    float p = fract((i + sampleOffset) / float(TOTAL_SAMPLES));
+    vec3 H = texture2D(normalDistribution,vec2(roughness, p)).rgb;
     return transformNormal(H, N);
 }
 float G_Smith(float g, float ndv, float ndl) {
@@ -202,8 +203,10 @@ bool traceScreenSpaceRay(
 
         iterationCount += 1.0;
 
+        dPQK *= 1.2;
+
         // PENDING Right on all platforms?
-        if (intersect && iterationCount > 1.0) {
+        if (intersect) {
             break;
         }
     }
@@ -286,8 +289,13 @@ void main()
     float m = albedoMetalness.a;
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
+
+    float jitter = rand(fract(v_Texcoord + jitterOffset));
+    // PENDING Add noise?
+    float jitter2 = rand(fract(v_Texcoord)) * float(TOTAL_SAMPLES);
+
     for (int i = 0; i < SAMPLE_PER_FRAME; i++) {
-        vec3 H = importanceSampleNormalGGX(float(i), 1.0 - g, N);
+        vec3 H = importanceSampleNormalGGX(float(i) + jitter2, 1.0 - g, N);
         // TODO Normal
         // vec3 H = transformNormal(lambertNormals[i], N);
         // vec3 rayDir = H;
@@ -297,9 +305,6 @@ void main()
 #endif
         vec2 hitPixel;
         vec3 hitPoint;
-
-        vec2 uv2 = v_Texcoord * viewportSize;
-        float jitter = rand(fract(v_Texcoord + jitterOffset));
 
         bool intersect = traceScreenSpaceRay(rayOrigin, rayDir, jitter, hitPixel, hitPoint, iterationCount);
 
@@ -381,20 +386,15 @@ float getLinearDepth(vec2 coord)
 
 void main()
 {
-    float kernel[5];
-    kernel[0] = 0.122581;
-    kernel[1] = 0.233062;
-    kernel[2] = 0.288713;
-    kernel[3] = 0.233062;
-    kernel[4] = 0.122581;
+    @import clay.compositor.kernel.gaussian_9
 
     vec4 centerNTexel = texture2D(gBufferTexture1, v_Texcoord);
     float g = centerNTexel.a;
-    float maxBlurSize = clamp(1.0 - g + 0.1, 0.0, 1.0) * blurSize;
+    float maxBlurSize = clamp(1.0 - g, 0.0, 1.0) * blurSize;
 #ifdef VERTICAL
-    vec2 off = vec2(0.0, blurSize / textureSize.y);
+    vec2 off = vec2(0.0, maxBlurSize / textureSize.y);
 #else
-    vec2 off = vec2(blurSize / textureSize.x, 0.0);
+    vec2 off = vec2(maxBlurSize / textureSize.x, 0.0);
 #endif
 
     vec2 coord = v_Texcoord;
@@ -404,9 +404,9 @@ void main()
 
     vec3 cN = centerNTexel.rgb * 2.0 - 1.0;
     float cD = getLinearDepth(v_Texcoord);
-    for (int i = 0; i < 5; i++) {
-        vec2 coord = clamp((float(i) - 2.0) * off + v_Texcoord, vec2(0.0), vec2(1.0));
-        float w = kernel[i]
+    for (int i = 0; i < 9; i++) {
+        vec2 coord = clamp((float(i) - 4.0) * off + v_Texcoord, vec2(0.0), vec2(1.0));
+        float w = gaussianKernel[i]
             * clamp(dot(cN, texture2D(gBufferTexture1, coord).rgb * 2.0 - 1.0), 0.0, 1.0);
         float d = getLinearDepth(coord);
         w *= (1.0 - smoothstep(abs(cD - d) / depthRange, 0.0, 1.0));

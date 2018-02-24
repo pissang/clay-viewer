@@ -392,7 +392,7 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
             })[value] || 20;
             var pixelStride = ({
                 low: 32,
-                medium: 10,
+                medium: 16,
                 high: 8,
                 ultra: 4
             })[value] || 16;
@@ -484,6 +484,10 @@ EffectCompositor.prototype.isSSRFinished = function (frame) {
 
 EffectCompositor.prototype.isSSAOFinished = function (frame) {
     return this._ssaoPass ? this._ssaoPass.isFinished(frame) : true;
+};
+
+EffectCompositor.prototype.isSSREnabled = function () {
+    return this._enableSSR;
 };
 
 EffectCompositor.prototype.dispose = function (renderer) {
