@@ -386,13 +386,13 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
             // PENDING
             var maxIteration = ({
                 low: 10,
-                medium: 20,
-                high: 40,
+                medium: 15,
+                high: 30,
                 ultra: 80
             })[value] || 20;
             var pixelStride = ({
                 low: 32,
-                medium: 16,
+                medium: 10,
                 high: 8,
                 ultra: 4
             })[value] || 16;

@@ -85,17 +85,12 @@ function SSRPass(opt) {
     this._normalDistribution = null;
 
     this._totalSamples = 256;
-    this._samplePerFrame = 2;
+    this._samplePerFrame = 4;
 
     this._ssrPass.material.define('fragment', 'SAMPLE_PER_FRAME', this._samplePerFrame);
     this._ssrPass.material.define('fragment', 'TOTAL_SAMPLES', this._totalSamples);
 
     this._downScale = 1;
-
-    // this._diffuseSampleNormals = [];
-    // for (var i = 0; i < this._totalSamples; i++) {
-    //     this._diffuseSampleNormals.push(generateNormals(this._samplePerFrame, i * this._samplePerFrame, true));
-    // }
 }
 
 SSRPass.prototype.setAmbientCubemap = function (specularCubemap, specularIntensity) {
@@ -157,6 +152,8 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
         blendPass.material.set({
             'weight1': frame >= 1 ? 0.95 : 0,
             'weight2': frame >= 1 ? 0.05 : 1
+            // weight1: frame >= 1 ? 1 : 0,
+            // weight2: 1
         });
         blendPass.render(renderer);
     }

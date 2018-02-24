@@ -47,16 +47,16 @@ varying vec2 v_Texcoord;
 uniform sampler2D normalDistribution;
 uniform float sampleOffset: 0;
 uniform vec2 normalDistributionSize;
+
 vec3 transformNormal(vec3 H, vec3 N) {
-    vec3 upVector = abs(N.z) < 0.999 ? vec3(0.0, 0.0,1.0) : vec3(1.0, 0.0, 0.0);
-    vec3 tangentX = normalize(cross(upVector, N));
-    vec3 tangentY = cross(N, tangentX);
+    vec3 upVector = N.y > 0.999 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+    vec3 tangentX = normalize(cross(N, upVector));
+    vec3 tangentZ = cross(N, tangentX);
     // Tangent to world space
-    return normalize(tangentX * H.x + tangentY * H.y + N * H.z);
+    return normalize(tangentX * H.x + N * H.y + tangentZ * H.z);
 }
 vec3 importanceSampleNormalGGX(float i, float roughness, vec3 N) {
-    vec3 H = texture2D(normalDistribution, vec2(roughness, fract((i + sampleOffset) / float(TOTAL_SAMPLES)))
-    ).rgb;
+    vec3 H = texture2D(normalDistribution, vec2(roughness, fract((i + sampleOffset) / float(TOTAL_SAMPLES)))).rgb;
     return transformNormal(H, N);
 }
 float G_Smith(float g, float ndv, float ndl) {
@@ -313,7 +313,7 @@ void main()
         float ndh = clamp(dot(N, H), 0.0, 1.0);
         vec3 litTexel = vec3(0.0);
         if (dot(hitNormal, rayDir) < 0.0 && intersect) {
-            litTexel = decodeHDR(texture2D(sourceTexture, hitPixel)).rgb;
+            litTexel = texture2D(sourceTexture, hitPixel).rgb;
             // PENDING
             litTexel *= pow(clamp(1.0 - dist / 200.0, 0.0, 1.0), 3.0);
 
@@ -341,7 +341,7 @@ void main()
         discard;
     }
     float alpha = calculateAlpha(iterationCount, reflectivity, hitPixel, hitPoint, dist, rayDir) * float(intersect);
-    vec4 color = decodeHDR(texture2D(sourceTexture, hitPixel));
+    vec4 color = texture2D(sourceTexture, hitPixel);
     color.rgb *= alpha;
 #endif
 
@@ -381,15 +381,20 @@ float getLinearDepth(vec2 coord)
 
 void main()
 {
-    @import clay.compositor.kernel.gaussian_9
+    float kernel[5];
+    kernel[0] = 0.122581;
+    kernel[1] = 0.233062;
+    kernel[2] = 0.288713;
+    kernel[3] = 0.233062;
+    kernel[4] = 0.122581;
 
     vec4 centerNTexel = texture2D(gBufferTexture1, v_Texcoord);
     float g = centerNTexel.a;
     float maxBlurSize = clamp(1.0 - g + 0.1, 0.0, 1.0) * blurSize;
 #ifdef VERTICAL
-    vec2 off = vec2(0.0, maxBlurSize / textureSize.y);
+    vec2 off = vec2(0.0, blurSize / textureSize.y);
 #else
-    vec2 off = vec2(maxBlurSize / textureSize.x, 0.0);
+    vec2 off = vec2(blurSize / textureSize.x, 0.0);
 #endif
 
     vec2 coord = v_Texcoord;
@@ -399,9 +404,9 @@ void main()
 
     vec3 cN = centerNTexel.rgb * 2.0 - 1.0;
     float cD = getLinearDepth(v_Texcoord);
-    for (int i = 0; i < 9; i++) {
-        vec2 coord = clamp((float(i) - 4.0) * off + v_Texcoord, vec2(0.0), vec2(1.0));
-        float w = gaussianKernel[i]
+    for (int i = 0; i < 5; i++) {
+        vec2 coord = clamp((float(i) - 2.0) * off + v_Texcoord, vec2(0.0), vec2(1.0));
+        float w = kernel[i]
             * clamp(dot(cN, texture2D(gBufferTexture1, coord).rgb * 2.0 - 1.0), 0.0, 1.0);
         float d = getLinearDepth(coord);
         w *= (1.0 - smoothstep(abs(cD - d) / depthRange, 0.0, 1.0));

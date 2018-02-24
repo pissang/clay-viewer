@@ -1,4 +1,4 @@
-import QMV from '../../index';
+import ClayViewer from '../../index';
 import getDefaultSceneConfig from './getDefaultSceneConfig';
 import getDefaultMaterialConfig from './getDefaultMaterialConfig';
 import * as project from './project';
@@ -122,7 +122,7 @@ function hideTip() {
 }
 
 function createViewer() {
-    viewer = new QMV.Viewer(document.getElementById('viewport'), config);
+    viewer = new ClayViewer(document.getElementById('viewport'), config);
     viewer.enablePicking();
     viewer.setCameraControl(config.viewControl);
     viewer.start();
@@ -171,7 +171,9 @@ function showLoading(text) {
 }
 function hideLoading() {
     // Remove loading
-    loadingEl.parentNode.removeChild(loadingEl);
+    if (loadingEl.parentNode) {
+        loadingEl.parentNode.removeChild(loadingEl);
+    }
 }
 
 function showSaveTip() {

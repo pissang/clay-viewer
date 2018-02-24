@@ -15,7 +15,7 @@
 ## Loader
 
 ```js
-var viewer = new QMV.Viewer(document.getElementById('main'), {
+var viewer = new ClayViewer(document.getElementById('main'), {
     // Full config at
     // https://github.com/pissang/clay-viewer/blob/master/src/defaultSceneConfig.js
     devicePixelRatio: 1,
