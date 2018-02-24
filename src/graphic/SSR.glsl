@@ -29,7 +29,7 @@ uniform float eyeFadeStart : 0.2; // ray direction's Z that ray hits will start 
 uniform float eyeFadeEnd: 0.8; // ray direction's Z that ray hits will be cut (0.0 -> 1.0)
 
 uniform float minGlossiness: 0.2; // Object larger than minGlossiness will have ssr effect
-uniform float zThicknessThreshold: 10;
+uniform float zThicknessThreshold: 1;
 
 uniform float nearZ;
 uniform vec2 viewportSize : VIEWPORT_SIZE;
