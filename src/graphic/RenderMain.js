@@ -368,7 +368,7 @@ RenderMain.prototype.setPostEffect = function (opts, api) {
     ['radius', 'quality', 'intensity'].forEach(function (name) {
         compositor.setSSAOParameter(name, ssaoOpts[name]);
     });
-    ['quality', 'maxRoughness'].forEach(function (name) {
+    ['quality', 'maxRoughness', 'physical'].forEach(function (name) {
         compositor.setSSRParameter(name, ssrOpts[name]);
     });
     ['quality', 'focalDistance', 'focalRange', 'blurRadius', 'fstop'].forEach(function (name) {

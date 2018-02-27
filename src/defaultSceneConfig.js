@@ -15,7 +15,7 @@ export default {
     ground: {
         show: false
     },
-    
+
     // QMV provide three directional lights and two ambient lights.
 
     // Configuration of main light
@@ -104,6 +104,8 @@ export default {
         screenSpaceAmbientOcculusion: {
             // If enable SSAO
             enable: false,
+            // If physically corrected.
+            physical: false,
             // Sampling radius in work space.
             // Larger will produce more soft concat shadow.
             // But also needs higher quality or it will have more obvious artifacts

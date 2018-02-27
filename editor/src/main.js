@@ -334,6 +334,7 @@ function initUI() {
 
         .addSubGroup({ label: 'Screen Space Reflection', enable: false })
             .addCheckbox(config.postEffect.screenSpaceReflection, 'enable', { label: 'Enable', onChange: updatePostEffect })
+            .addCheckbox(config.postEffect.screenSpaceReflection, 'physical', { label: 'Physical', onChange: updatePostEffect })
             .addNumberInput(config.postEffect.screenSpaceReflection, 'maxRoughness', { label: 'Max Roughness', step: 0.01, onChange: updatePostEffect })
             .addSelect(config.postEffect.screenSpaceReflection, '$qualityOptions', { label: 'Quality', onChange: updatePostEffect, target: 'quality' })
 

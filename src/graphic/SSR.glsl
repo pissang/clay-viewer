@@ -16,7 +16,8 @@ uniform float specularIntensity: 1;
 
 uniform mat4 projection;
 uniform mat4 projectionInv;
-uniform mat4 viewInverseTranspose;
+uniform mat4 toViewSpace;
+uniform mat4 toWorldSpace;
 
 uniform float maxRayDistance: 200;
 
@@ -271,8 +272,8 @@ void main()
 
     float reflectivity = (g - minGlossiness) / (1.0 - minGlossiness);
 
-    vec3 N = normalAndGloss.rgb * 2.0 - 1.0;
-    N = normalize((viewInverseTranspose * vec4(N, 0.0)).xyz);
+    vec3 N = normalize(normalAndGloss.rgb * 2.0 - 1.0);
+    N = normalize((toViewSpace * vec4(N, 0.0)).xyz);
 
     // Position in view
     vec4 projectedPos = vec4(v_Texcoord * 2.0 - 1.0, fetchDepth(gBufferTexture2, v_Texcoord), 1.0);
@@ -282,6 +283,8 @@ void main()
 
     float ndv = clamp(dot(N, V), 0.0, 1.0);
     float iterationCount;
+    float jitter = rand(fract(v_Texcoord + jitterOffset));
+
 #ifdef PHYSICALLY_CORRECT
     vec4 color = vec4(vec3(0.0), 1.0);
     vec4 albedoMetalness = texture2D(gBufferTexture3, v_Texcoord);
@@ -290,7 +293,6 @@ void main()
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
 
-    float jitter = rand(fract(v_Texcoord + jitterOffset));
     // PENDING Add noise?
     float jitter2 = rand(fract(v_Texcoord)) * float(TOTAL_SAMPLES);
 
@@ -311,7 +313,7 @@ void main()
         float dist = distance(rayOrigin, hitPoint);
 
         vec3 hitNormal = texture2D(gBufferTexture1, hitPixel).rgb * 2.0 - 1.0;
-        hitNormal = normalize((viewInverseTranspose * vec4(hitNormal, 0.0)).xyz);
+        hitNormal = normalize((toViewSpace * vec4(hitNormal, 0.0)).xyz);
 #ifdef PHYSICALLY_CORRECT
         float ndl = clamp(dot(N, rayDir), 0.0, 1.0);
         float vdh = clamp(dot(V, H), 0.0, 1.0);
@@ -327,7 +329,8 @@ void main()
         else {
             // Fetch from environment
 #ifdef SPECULARCUBEMAP_ENABLED
-            litTexel = RGBMDecode(textureCubeLodEXT(specularCubemap, rayDir, 0.0), 51.5).rgb * specularIntensity;
+            vec3 rayDirW = normalize(toWorldSpace * vec4(rayDir, 0.0)).rgb;
+            litTexel = RGBMDecode(textureCubeLodEXT(specularCubemap, rayDirW, 0.0), 8.12).rgb * specularIntensity;
 #endif
         }
         color.rgb += ndl * litTexel * (
@@ -339,15 +342,25 @@ void main()
     // Ignore the pixel not face the ray
     // TODO fadeout ?
     // PENDING Can be configured?
+#if !defined(SPECULARCUBEMAP_ENABLED)
     if (dot(hitNormal, rayDir) >= 0.0) {
         discard;
     }
     if (!intersect) {
         discard;
     }
-    float alpha = calculateAlpha(iterationCount, reflectivity, hitPixel, hitPoint, dist, rayDir) * float(intersect);
+#endif
+    float alpha = clamp(calculateAlpha(iterationCount, reflectivity, hitPixel, hitPoint, dist, rayDir), 0.0, 1.0);
     vec4 color = texture2D(sourceTexture, hitPixel);
     color.rgb *= alpha;
+
+#ifdef SPECULARCUBEMAP_ENABLED
+    vec3 rayDirW = normalize(toWorldSpace * vec4(rayDir, 0.0)).rgb;
+    alpha = alpha * (intersect ? 1.0 : 0.0);
+    float bias = (1.0 -g) * 5.0;
+    color.rgb += (1.0 - alpha) * RGBMDecode(textureCubeLodEXT(specularCubemap, rayDirW, bias), 8.12).rgb * specularIntensity;
+#endif
+
 #endif
 
     gl_FragColor = encodeHDR(color);

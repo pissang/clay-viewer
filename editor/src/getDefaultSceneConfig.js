@@ -10,11 +10,11 @@ export default function () {
         takes: [],
 
         textureFlipY: false,
-    
+
         zUpToYUp: false,
-    
+
         shadow: true,
-    
+
         environment: 'auto',
 
         viewControl: {
@@ -22,11 +22,11 @@ export default function () {
             beta: 30,
             distance: 18
         },
-    
+
         ground: {
             show: true
         },
-        
+
         mainLight: {
             // If enable shadow of main light.
             shadow: true,
@@ -40,7 +40,7 @@ export default function () {
             alpha: 45,
             // Beta is rotation from left to right.
             beta: 45,
-    
+
             $padAngle: [0.25, 0.5]
         },
         // Configuration of secondary light
@@ -54,7 +54,7 @@ export default function () {
             color: '#fff',
             alpha: 60,
             beta: -50,
-            
+
             $padAngle: [-50 / 180, 60 / 90]
         },
         // Configuration of tertiary light
@@ -68,7 +68,7 @@ export default function () {
             color: '#fff',
             alpha: 89,
             beta: 0,
-            
+
             $padAngle: [0, 89 / 90]
         },
         // Configuration of constant ambient light.
@@ -82,17 +82,17 @@ export default function () {
         ambientCubemapLight: {
             // Environment panorama texture url for cubemap lighting
             texture: env.ENV_TEXTURE_ROOT + 'pisa.hdr',
-    
+
             $texture: 'pisa',
             $textureOptions: ['pisa', 'Barce_Rooftop_C', 'Factory_Catwalk', 'Grand_Canyon_C', 'Ice_Lake', 'Hall', 'Old_Industrial_Hall'],
-    
+
             // Exposure factor when parsing hdr format.
             exposure: 3,
             // Intensity of diffuse radiance.
             diffuseIntensity: 0.5,
             // Intensity of specular radiance.
             specularIntensity: 0.5,
-    
+
             $intensity: 0.5
         },
         // Configuration about post effects.
@@ -119,7 +119,7 @@ export default function () {
                 fstop: 10,
                 // Blur quality. 'low'|'medium'|'high'|'ultra'
                 quality: 'medium',
-    
+
                 $qualityOptions: ['low', 'medium', 'high', 'ultra']
             },
             // Configuration about screen space ambient occulusion
@@ -134,17 +134,19 @@ export default function () {
                 quality: 'medium',
                 // Intensity of SSAO
                 intensity: 1,
-    
+
                 $qualityOptions: ['low', 'medium', 'high', 'ultra']
             },
             // Configuration about screen space reflection
             screenSpaceReflection: {
                 enable: false,
+                // If physically corrected.
+                physical: false,
                 // Quality of SSR. 'low'|'medium'|'high'|'ultra'
                 quality: 'medium',
                 // Surface with less roughness will have reflection.
                 maxRoughness: 0.8,
-                
+
                 $qualityOptions: ['low', 'medium', 'high', 'ultra']
             },
             // Configuration about color correction

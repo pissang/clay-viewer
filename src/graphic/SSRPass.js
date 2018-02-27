@@ -120,13 +120,16 @@ SSRPass.prototype.update = function (renderer, camera, sourceTexture, frame) {
     var blurPass2 = this._blurPass2;
     var blendPass = this._blendPass;
 
-    var viewInverseTranspose = new Matrix4();
-    Matrix4.transpose(viewInverseTranspose, camera.worldTransform);
+    var toViewSpace = new Matrix4();
+    var toWorldSpace = new Matrix4();
+    Matrix4.transpose(toViewSpace, camera.worldTransform);
+    Matrix4.transpose(toWorldSpace, camera.viewMatrix);
 
     ssrPass.setUniform('sourceTexture', sourceTexture);
     ssrPass.setUniform('projection', camera.projectionMatrix.array);
     ssrPass.setUniform('projectionInv', camera.invProjectionMatrix.array);
-    ssrPass.setUniform('viewInverseTranspose', viewInverseTranspose.array);
+    ssrPass.setUniform('toViewSpace', toViewSpace.array);
+    ssrPass.setUniform('toWorldSpace', toWorldSpace.array);
     ssrPass.setUniform('nearZ', camera.near);
 
     var percent = frame / this._totalSamples * this._samplePerFrame;

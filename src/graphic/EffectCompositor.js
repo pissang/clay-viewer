@@ -38,8 +38,6 @@ Shader['import'](gbufferGLSL);
 Shader['import'](dofGLSL);
 Shader['import'](edgeGLSL);
 
-var PHYSICALLY_CORRECTED_SSR = true;
-
 var commonOutputs = {
     color: {
         parameters: {
@@ -51,7 +49,7 @@ var commonOutputs = {
             }
         }
     }
-}
+};
 
 var FINAL_NODES_CHAIN = ['composite', 'FXAA'];
 
@@ -69,7 +67,7 @@ function EffectCompositor() {
     this._framebuffer.attach(this._depthTexture, FrameBuffer.DEPTH_ATTACHMENT);
 
     this._gBufferPass = new GBuffer({
-        enableTargetTexture3: PHYSICALLY_CORRECTED_SSR
+        enableTargetTexture3: false
     });
 
     this._compositor = createCompositor(effectJson);
@@ -97,11 +95,10 @@ function EffectCompositor() {
     var gBufferObj = {
         normalTexture: this._gBufferPass.getTargetTexture1(),
         depthTexture: this._gBufferPass.getTargetTexture2(),
-        albedoTexture: PHYSICALLY_CORRECTED_SSR ? this._gBufferPass.getTargetTexture3() : null
+        albedoTexture: this._gBufferPass.getTargetTexture3()
     };
     this._ssaoPass = new SSAOPass(gBufferObj);
     this._ssrPass = new SSRPass(gBufferObj);
-    this._ssrPass.setPhysicallyCorrect(PHYSICALLY_CORRECTED_SSR);
 }
 
 EffectCompositor.prototype.resize = function (width, height, dpr) {
@@ -402,11 +399,18 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
         case 'maxRoughness':
             this._ssrPass.setParameter('minGlossiness', Math.max(Math.min(1.0 - value, 1.0), 0.0));
             break;
+        case 'physical':
+            this.setPhysicallyCorrectSSR(value);
+            break;
         default:
             console.warn('Unkown SSR parameter ' + name);
     }
-}
-;
+};
+
+EffectCompositor.prototype.setPhysicallyCorrectSSR = function (physical) {
+    this._ssrPass.setPhysicallyCorrect(physical);
+    this._gBufferPass.enableTargetTexture3 = physical;
+};
 /**
  * Set color of edge
  */

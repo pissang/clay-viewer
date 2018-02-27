@@ -797,12 +797,13 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         // Not change if texture name is not in the config.
         if (propName in materialCfg) {
             if (haveTexture(materialCfg[propName])) {
-                graphicHelper.loadTexture(materialCfg[propName], app, {
-                    flipY: propName === 'environmentMap' ? false : textureFlipY,
-                    anisotropic: 8
-                }, function (texture) {
-                    needTangents = propName === 'normalMap' || propName === 'parallaxOcclusionMap';
+                var isEnvironmentMap = propName === 'environmentMap';
+                needTangents = propName === 'normalMap' || propName === 'parallaxOcclusionMap';
 
+                graphicHelper.loadTexture(materialCfg[propName], app, {
+                    flipY: isEnvironmentMap ? false : textureFlipY,
+                    anisotropic: isEnvironmentMap ? 1 : 8
+                }, function (texture) {
                     if (propName === 'normalMap' && textureUtil.isHeightImage(texture.image)) {
                         var normalImage = textureUtil.heightToNormal(texture.image);
                         normalImage.srcImage = texture.image;
