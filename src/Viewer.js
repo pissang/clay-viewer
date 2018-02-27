@@ -14,6 +14,7 @@ import Shader from 'claygl/src/Shader';
 import RayPicking from 'claygl/src/picking/RayPicking';
 import notifier from 'claygl/src/core/mixin/notifier';
 import textureUtil from 'claygl/src/util/texture';
+import TextureCube from 'claygl/src/TextureCube';
 
 import RenderMain from './graphic/RenderMain';
 import graphicHelper from './graphic/helper';
@@ -762,7 +763,7 @@ Viewer.prototype.setEnvironment = function (envUrl) {
 };
 
 /**
- * @param {string} matName
+ * @param {string|Array.<string>} matName
  * @param {Object} materialCfg
  * @param {boolean} [materialCfg.transparent]
  * @param {boolean} [materialCfg.alphaCutoff]
@@ -770,59 +771,68 @@ Viewer.prototype.setEnvironment = function (envUrl) {
  * @param {boolean} [materialCfg.roughness]
  */
 Viewer.prototype.setMaterial = function (matName, materialCfg) {
+    var renderer = this._renderer;
     materialCfg = materialCfg || {};
-    var materials = this._materialsMap[matName];
+    if (! (matName instanceof Array)) {
+        matName = [matName];
+    }
+    var materials = [];
+    matName.forEach(function (singleMatName) {
+        if (this._materialsMap[singleMatName]) {
+            materials = materials.concat(this._materialsMap[singleMatName]);
+        }
+    }, this);
     var app = this;
     var textureFlipY = this._textureFlipY;
     if (!materials || !materials.length) {
-        console.warn('Material %s not exits', matName);
+        console.warn('Material %s not exits', matName.join(', '));
         return;
     }
 
     function haveTexture(val) {
         return val && val !== 'none';
     }
-
-    var enabledTextures = materials[0].getEnabledTextures();
-
+    var needTangents = false;
     function addTexture(propName) {
         // Not change if texture name is not in the config.
         if (propName in materialCfg) {
-            var idx = enabledTextures.indexOf(propName);
             if (haveTexture(materialCfg[propName])) {
-                var texture = graphicHelper.loadTexture(materialCfg[propName], app, {
-                    flipY: textureFlipY,
+                graphicHelper.loadTexture(materialCfg[propName], app, {
+                    flipY: propName === 'environmentMap' ? false : textureFlipY,
                     anisotropic: 8
                 }, function (texture) {
+                    needTangents = propName === 'normalMap' || propName === 'parallaxOcclusionMap';
+
                     if (propName === 'normalMap' && textureUtil.isHeightImage(texture.image)) {
                         var normalImage = textureUtil.heightToNormal(texture.image);
                         normalImage.srcImage = texture.image;
                         texture.image = normalImage;
                     }
+                    else if (propName === 'environmentMap') {
+                        var size = Math.round(texture.width / 4);
+                        var cubemap = new TextureCube({
+                            width: size,
+                            height: size
+                        });
+                        // TODO No need to use environment map if there is ambient cubemap
+                        textureUtil.panoramaToCubeMap(renderer, texture, cubemap);
+                        // Use the cubemap.
+                        texture = cubemap;
+                    }
+                    materials.forEach(function (mat) {
+                        mat.set(propName, texture);
+                    });
                     app.refresh();
                 });
-                // Enable texture.
-                if (idx < 0) {
-                    enabledTextures.push(propName);
-                }
-
-                textures[propName] = texture;
             }
             else {
-                // Disable texture.
-                if (idx >= 0) {
-                    enabledTextures.splice(idx, 1);
-                }
-
-                textures[propName] = null;
+                materials.forEach(function (mat) {
+                    mat.set(propName, null);
+                });
             }
         }
     }
-    var textures = {};
-    materials.forEach(function (mat) {
-        mat.disableTexturesAll();
-    });
-    ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap'].forEach(function (propName) {
+    ['diffuseMap', 'normalMap', 'parallaxOcclusionMap', 'emissiveMap', 'environmentMap'].forEach(function (propName) {
         addTexture(propName);
     }, this);
     if (materials[0].isDefined('fragment', 'USE_METALNESS')) {
@@ -836,7 +846,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         }, this);
     }
 
-    if (textures.normalMap || textures.parallaxOcclusionMap) {
+    if (needTangents) {
         this._modelNode.traverse(function (mesh) {
             if (mesh.material && mesh.material.name === matName) {
                 if (!mesh.geometry.attributes.tangent.value) {
@@ -860,12 +870,6 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
                 mat.set(propName, materialCfg[propName]);
             }
         });
-        mat.disableTexturesAll();
-
-        for (var texName in textures) {
-            mat.set(texName, textures[texName]);
-        }
-        mat.enableTexture(enabledTextures);
     }, this);
     this.refresh();
 };
