@@ -8,7 +8,6 @@ import * as zrUtil from 'zrender/lib/core/util';
 import TextureUI from './ui/Texture';
 import * as timeline from './timeline';
 import renderOutline from './debug/renderOutline';
-import { updateAnimationUI } from './timeline';
 import openURL from 'vendor/openURL';
 
 var config = getDefaultSceneConfig();
@@ -268,7 +267,7 @@ function init() {
             if (!viewer.getModelRoot()) {
                 showTip();
             }
-            updateAnimationUI(viewer);
+            timeline.updateAnimationUI(viewer);
 
             console.log(err);
             swal(err.toString());

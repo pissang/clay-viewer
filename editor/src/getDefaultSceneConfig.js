@@ -46,7 +46,7 @@ export default function () {
         // Configuration of secondary light
         secondaryLight: {
             // If enable shadow of secondary light.
-            shadow: false,
+            shadow: true,
             shadowQuality: 'medium',
             // Intensity of secondary light. Defaultly not enable secondary light.
             intensity: 0,
@@ -60,7 +60,7 @@ export default function () {
         // Configuration of tertiary light
         tertiaryLight: {
             // If enable shadow of tertiary light.
-            shadow: false,
+            shadow: true,
             shadowQuality: 'medium',
             // Intensity of secondary light. Defaultly not enable secondary light.
             intensity: 0,
