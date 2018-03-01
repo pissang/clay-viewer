@@ -67,6 +67,7 @@ function EffectCompositor() {
     this._framebuffer.attach(this._depthTexture, FrameBuffer.DEPTH_ATTACHMENT);
 
     this._gBufferPass = new GBuffer({
+        renderTransparent: true,
         enableTargetTexture3: false
     });
 
@@ -175,7 +176,7 @@ EffectCompositor.prototype._removeChainNode = function (node) {
 /**
  * Update normal
  */
-EffectCompositor.prototype.updateNormal = function (renderer, scene, camera, frame) {
+EffectCompositor.prototype.updateGBuffer = function (renderer, scene, camera, frame) {
     if (this._ifRenderNormalPass()) {
         this._gBufferPass.update(renderer, scene, camera);
     }

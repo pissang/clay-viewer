@@ -237,10 +237,11 @@ RenderMain.prototype._doRender = function (accumulating, accumFrame) {
         if (this.needsTemporalSS()) {
             this._temporalSS.jitterProjection(renderer, camera);
         }
-        this._compositor.updateNormal(renderer, scene, camera, this._temporalSS.getFrame());
+        this._compositor.updateGBuffer(renderer, scene, camera, this._temporalSS.getFrame());
     }
 
     // Always update SSAO to make sure have correct ssaoMap status
+    // TODO TRANSPARENT OBJECTS.
     this._updateSSAO(renderer, scene, camera, this._temporalSS.getFrame());
 
     var frameBuffer;
