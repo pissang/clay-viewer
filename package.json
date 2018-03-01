@@ -1,11 +1,11 @@
 {
   "name": "clay-viewer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Clay Viewer is built on top of WebGL, Supported FBX, DAE, OBJ, glTF2.0 model formats.",
   "main": "dist/clay-viewer.js",
   "dependencies": {
-    "claygl": "^1.0.0",
-    "zrender": "^3.7.2"
+    "claygl": "^1.1.0",
+    "zrender": "^4.0.0"
   },
   "devDependencies": {
     "case-sensitive-paths-webpack-plugin": "^2.0.0",
