@@ -93,8 +93,9 @@ function SSRPass(opt) {
     this._downScale = 1;
 }
 
-SSRPass.prototype.setAmbientCubemap = function (specularCubemap, specularIntensity) {
+SSRPass.prototype.setAmbientCubemap = function (specularCubemap, brdfLookup, specularIntensity) {
     this._ssrPass.material.set('specularCubemap', specularCubemap);
+    this._ssrPass.material.set('brdfLookup', brdfLookup);
     this._ssrPass.material.set('specularIntensity', specularIntensity);
 
     var enableSpecularMap = specularCubemap && specularIntensity;

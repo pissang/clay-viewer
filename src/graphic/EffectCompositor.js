@@ -456,7 +456,7 @@ EffectCompositor.prototype.composite = function (renderer, scene, camera, frameb
         var lights = scene.getLights();
         for (var i = 0; i < lights.length; i++) {
             if (lights[i].cubemap) {
-                this._ssrPass.setAmbientCubemap(lights[i].cubemap, lights[i].intensity);
+                this._ssrPass.setAmbientCubemap(lights[i].cubemap, lights[i].getBRDFLookup(), lights[i].intensity);
             }
         }
     }

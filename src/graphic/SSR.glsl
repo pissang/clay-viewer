@@ -12,6 +12,7 @@ uniform sampler2D gBufferTexture1;
 uniform sampler2D gBufferTexture2;
 uniform sampler2D gBufferTexture3;
 uniform samplerCube specularCubemap;
+uniform sampler2D brdfLookup;
 uniform float specularIntensity: 1;
 
 uniform mat4 projection;
@@ -285,13 +286,14 @@ void main()
     float iterationCount;
     float jitter = rand(fract(v_Texcoord + jitterOffset));
 
-#ifdef PHYSICALLY_CORRECT
-    vec4 color = vec4(vec3(0.0), 1.0);
     vec4 albedoMetalness = texture2D(gBufferTexture3, v_Texcoord);
     vec3 albedo = albedoMetalness.rgb;
     float m = albedoMetalness.a;
     vec3 diffuseColor = albedo * (1.0 - m);
     vec3 spec = mix(vec3(0.04), albedo, m);
+
+#ifdef PHYSICALLY_CORRECT
+    vec4 color = vec4(vec3(0.0), 1.0);
 
     // PENDING Add noise?
     float jitter2 = rand(fract(v_Texcoord)) * float(TOTAL_SAMPLES);
@@ -357,8 +359,12 @@ void main()
 #ifdef SPECULARCUBEMAP_ENABLED
     vec3 rayDirW = normalize(toWorldSpace * vec4(rayDir, 0.0)).rgb;
     alpha = alpha * (intersect ? 1.0 : 0.0);
-    float bias = (1.0 -g) * 5.0;
-    color.rgb += (1.0 - alpha) * RGBMDecode(textureCubeLodEXT(specularCubemap, rayDirW, bias), 8.12).rgb * specularIntensity;
+    float bias = (1.0 - g) * 5.0;
+    vec2 brdfParam2 = texture2D(brdfLookup, vec2(1.0 - g, ndv)).xy;
+    color.rgb += (1.0 - alpha)
+        * RGBMDecode(textureCubeLodEXT(specularCubemap, rayDirW, bias), 8.12).rgb
+        * (spec * brdfParam2.x + brdfParam2.y)
+        * specularIntensity;
 #endif
 
 #endif
