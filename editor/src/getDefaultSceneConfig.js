@@ -89,11 +89,9 @@ export default function () {
             // Exposure factor when parsing hdr format.
             exposure: 3,
             // Intensity of diffuse radiance.
-            diffuseIntensity: 0.5,
+            diffuseIntensity: 0.3,
             // Intensity of specular radiance.
-            specularIntensity: 0.5,
-
-            $intensity: 0.5
+            specularIntensity: 0.5
         },
         // Configuration about post effects.
         postEffect: {

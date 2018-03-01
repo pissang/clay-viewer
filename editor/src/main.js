@@ -37,7 +37,6 @@ function updatePostEffect() {
 
 function updateEnvironment() {
     config.ambientCubemapLight.texture = env.ENV_TEXTURE_ROOT + config.ambientCubemapLight.$texture + '.hdr';
-    config.ambientCubemapLight.diffuseIntensity = config.ambientCubemapLight.specularIntensity = config.ambientCubemapLight.$intensity;
     viewer.setAmbientCubemapLight(config.ambientCubemapLight);
 }
 function updateGround() {
@@ -296,7 +295,8 @@ function initUI() {
 
     scenePanel.addGroup({ label: 'Environment', enable: false })
         .addSelect(config.ambientCubemapLight, '$textureOptions', { label: 'HDR Texture', onChange: updateEnvironment, target: '$texture' })
-        .addNumberInput(config.ambientCubemapLight, '$intensity', { label: 'Intensity', onChange: updateEnvironment, step: 0.1 });
+        .addNumberInput(config.ambientCubemapLight, 'diffuseIntensity', { label: 'Diffuse Intensity', onChange: updateEnvironment, step: 0.1 })
+        .addNumberInput(config.ambientCubemapLight, 'specularIntensity', { label: 'Specular Intensity', onChange: updateEnvironment, step: 0.1 });
 
     scenePanel.addGroup({ label: 'Light', enable: false })
         .addSubGroup({ label: 'Main', enable: false })

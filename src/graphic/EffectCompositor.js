@@ -207,18 +207,20 @@ EffectCompositor.prototype.disableSSAO = function () {
  */
 EffectCompositor.prototype.enableSSR = function () {
     this._enableSSR = true;
+    this._gBufferPass.enableTargetTexture3 = true;
 };
 /**
  * Disable SSR effect
  */
 EffectCompositor.prototype.disableSSR = function () {
     this._enableSSR = false;
+    this._gBufferPass.enableTargetTexture3 = false;
 };
 
 /**
  * Render SSAO after render the scene, before compositing
  */
-EffectCompositor.prototype.getSSAOTexture = function (renderer, scene, camera, frame) {
+EffectCompositor.prototype.getSSAOTexture = function () {
     return this._ssaoPass.getTargetTexture();
 };
 
@@ -409,7 +411,6 @@ EffectCompositor.prototype.setSSRParameter = function (name, value) {
 
 EffectCompositor.prototype.setPhysicallyCorrectSSR = function (physical) {
     this._ssrPass.setPhysicallyCorrect(physical);
-    this._gBufferPass.enableTargetTexture3 = physical;
 };
 /**
  * Set color of edge
