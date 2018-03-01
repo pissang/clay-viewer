@@ -933,9 +933,15 @@ Viewer.prototype.getMaterial = function (name) {
 /**
  * @param {Object} opts
  * @param {boolean} [opts.show]
+ * @param {boolean} [opts.grid]
  */
 Viewer.prototype.setGround = function (opts) {
-    this._groundMesh.invisible = !opts.show;
+    if ('show' in opts) {
+        this._groundMesh.invisible = !opts.show;
+    }
+    if ('grid' in opts) {
+        this._groundMesh.material.set('showGrid', opts.grid);
+    }
     this.refresh();
 };
 

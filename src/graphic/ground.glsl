@@ -15,6 +15,8 @@ uniform float gridSize2: 1;
 uniform vec4 gridColor: [0, 0, 0, 1];
 uniform vec4 gridColor2: [0.3, 0.3, 0.3, 1];
 
+uniform bool showGrid: true;
+
 uniform float glossiness: 0.7;
 
 #ifdef SSAOMAP_ENABLED
@@ -39,21 +41,23 @@ void main()
 {
     gl_FragColor = color;
 
-    float wx = v_WorldPosition.x;
-    float wz = v_WorldPosition.z;
-    float x0 = abs(fract(wx / gridSize - 0.5) - 0.5) / fwidth(wx) * gridSize / 2.0;
-    float z0 = abs(fract(wz / gridSize - 0.5) - 0.5) / fwidth(wz) * gridSize / 2.0;
+    if (showGrid) {
+        float wx = v_WorldPosition.x;
+        float wz = v_WorldPosition.z;
+        float x0 = abs(fract(wx / gridSize - 0.5) - 0.5) / fwidth(wx) * gridSize / 2.0;
+        float z0 = abs(fract(wz / gridSize - 0.5) - 0.5) / fwidth(wz) * gridSize / 2.0;
 
-    float x1 = abs(fract(wx / gridSize2 - 0.5) - 0.5) / fwidth(wx) * gridSize2;
-    float z1 = abs(fract(wz / gridSize2 - 0.5) - 0.5) / fwidth(wz) * gridSize2;
+        float x1 = abs(fract(wx / gridSize2 - 0.5) - 0.5) / fwidth(wx) * gridSize2;
+        float z1 = abs(fract(wz / gridSize2 - 0.5) - 0.5) / fwidth(wz) * gridSize2;
 
-    float v0 = 1.0 - clamp(min(x0, z0), 0.0, 1.0);
-    float v1 = 1.0 - clamp(min(x1, z1), 0.0, 1.0);
-    if (v0 > 0.1) {
-        gl_FragColor = mix(gl_FragColor, gridColor, v0);
-    }
-    else {
-        gl_FragColor = mix(gl_FragColor, gridColor2, v1);
+        float v0 = 1.0 - clamp(min(x0, z0), 0.0, 1.0);
+        float v1 = 1.0 - clamp(min(x1, z1), 0.0, 1.0);
+        if (v0 > 0.1) {
+            gl_FragColor = mix(gl_FragColor, gridColor, v0);
+        }
+        else {
+            gl_FragColor = mix(gl_FragColor, gridColor2, v1);
+        }
     }
 
     vec3 diffuseColor = vec3(0.0, 0.0, 0.0);

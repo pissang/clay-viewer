@@ -13,7 +13,9 @@ export default {
 
     // Configuration abount ground
     ground: {
-        show: false
+        show: false,
+
+        grid: false
     },
 
     // QMV provide three directional lights and two ambient lights.

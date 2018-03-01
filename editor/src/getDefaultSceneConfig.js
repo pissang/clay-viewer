@@ -24,7 +24,9 @@ export default function () {
         },
 
         ground: {
-            show: true
+            show: true,
+
+            grid: false
         },
 
         mainLight: {

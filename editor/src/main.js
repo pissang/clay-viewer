@@ -291,7 +291,8 @@ function initUI() {
                 viewer.setModelUpAxis(config.zUpToYUp ? 'Z' : 'Y');
             } })
         .addSubGroup( { label: 'Ground' })
-            .addCheckbox(config.ground, 'show', { label: 'Show', onChange: updateGround });
+            .addCheckbox(config.ground, 'show', { label: 'Show', onChange: updateGround })
+            .addCheckbox(config.ground, 'grid', { label: 'Grid', onChange: updateGround });
 
     scenePanel.addGroup({ label: 'Environment', enable: false })
         .addSelect(config.ambientCubemapLight, '$textureOptions', { label: 'HDR Texture', onChange: updateEnvironment, target: '$texture' })
