@@ -1,6 +1,6 @@
 # Clay Viewer
 
-3D [glTF2.0](https://github.com/KhronosGroup/glTF) model viewer with high quality rendering based on [ClayGL](https://github.com/pissang/claygl)
+3D model viewer with high quality rendering based on [ClayGL](https://github.com/pissang/claygl) and [glTF2.0/GLB](https://github.com/KhronosGroup/glTF) export.
 
 ## Editor
 
@@ -10,7 +10,7 @@
 
 ## App
 
-[Download App](https://github.com/pissang/clay-viewer/releases/) on Windows and macOS with FBX/DAE/OBj import. Use it as a common model preview tool!
+[Download App](https://github.com/pissang/clay-viewer/releases/) on Windows and macOS with FBX/DAE/OBj import and glTF2.0/GLB export. Use it as a common model preview tool!
 
 ## Loader
 
