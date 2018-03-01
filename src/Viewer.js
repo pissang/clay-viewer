@@ -1121,7 +1121,7 @@ Viewer.prototype.dispose = function () {
 
 util.extend(Viewer.prototype, notifier);
 
-Viewer.version = '0.2.0';
+Viewer.version = '0.2.1';
 
 export default Viewer;
 
