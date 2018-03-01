@@ -111,6 +111,7 @@ var scenePanel;
 var pbrRoughnessMetallicPanel;
 var pbrSpecularGlossinessPanel;
 var selectedMesh;
+var outlineMeshes = [];
 
 function showTip() {
     document.getElementById('tip').style.display = 'block';
@@ -130,6 +131,12 @@ function createViewer() {
         selectMaterial(result.target.material);
 
         selectedMesh = result.target;
+        outlineMeshes = [];
+        viewer.getModelRoot().traverse(function (mesh) {
+            if (mesh.material && mesh.material.name === selectedMesh.material.name) {
+                outlineMeshes.push(mesh);
+            }
+        });
     });
     viewer.on('doffocus', function (result) {
         if (config.postEffect.depthOfField.enable) {
@@ -142,11 +149,12 @@ function createViewer() {
         pbrRoughnessMetallicPanel.disable();
         pbrSpecularGlossinessPanel.disable();
         selectedMesh = null;
+        outlineMeshes = [];
     });
 
     viewer.on('afterrender', function (renderer, scene, camera) {
         if (selectedMesh) {
-            renderOutline(viewer, [selectedMesh], camera);
+            renderOutline(viewer, outlineMeshes, camera);
         }
     });
 
@@ -413,6 +421,7 @@ function reset() {
         pbrSpecularGlossinessPanel.disable();
 
         selectedMesh = null;
+        outlineMeshes = [];
         viewer.dispose();
         createViewer();
 
