@@ -103,7 +103,7 @@ export default {
             quality: 'medium'
         },
         // Configuration about screen space ambient occulusion
-        screenSpaceAmbientOcculusion: {
+        screenSpaceAmbientOcclusion: {
             // If enable SSAO
             enable: false,
             // Sampling radius in work space.
