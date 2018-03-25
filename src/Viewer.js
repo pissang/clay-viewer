@@ -798,7 +798,9 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
         if (propName in materialCfg) {
             if (haveTexture(materialCfg[propName])) {
                 var isEnvironmentMap = propName === 'environmentMap';
-                needTangents = propName === 'normalMap' || propName === 'parallaxOcclusionMap';
+                if (propName === 'normalMap' || propName === 'parallaxOcclusionMap') {
+                    needTangents = true;
+                }
 
                 graphicHelper.loadTexture(materialCfg[propName], app, {
                     flipY: isEnvironmentMap ? false : textureFlipY,
@@ -849,7 +851,7 @@ Viewer.prototype.setMaterial = function (matName, materialCfg) {
 
     if (needTangents) {
         this._modelNode.traverse(function (mesh) {
-            if (mesh.material && mesh.material.name === matName) {
+            if (mesh.material && matName.indexOf(mesh.material.name) >= 0) {
                 if (!mesh.geometry.attributes.tangent.value) {
                     mesh.geometry.generateTangents();
                 }
