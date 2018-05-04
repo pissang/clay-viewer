@@ -145,6 +145,7 @@ helper.loadTexture = function (imgValue, app, textureOpts, cb) {
                     image: isVideo ? document.createElement('video') : new Image(),
                     dynamic: isVideo
                 });
+                texture.image.crossOrigin = 'anonymous';
 
                 for (var i = 0; i < keys.length; i++) {
                     texture[keys[i]] = textureOpts[keys[i]];
